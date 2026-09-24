@@ -43,6 +43,7 @@ export async function buildApp(opts: FastifyServerOptions = {}) {
   });
 
   app.get('/api/health', async () => ({ ok: true }));
+  app.get('/api/public/config', async () => ({ demo: env.SEED_DEMO }));
 
   await app.register(
     async (api) => {

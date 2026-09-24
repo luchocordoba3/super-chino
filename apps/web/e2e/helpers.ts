@@ -17,7 +17,7 @@ export async function loginOwner(page: Page) {
   await page.getByRole('button', { name: es.login.owner, exact: true }).click();
   await page.getByLabel(es.login.email).fill('dueno@demo.com');
   await page.getByLabel(es.login.password).fill('demo1234');
-  await page.getByRole('button', { name: es.login.enter }).click();
+  await page.getByRole('button', { name: es.login.enter, exact: true }).click();
   // El dueño de la demo usa la app en chino: esperar a que cargue su sesión.
   await expect(page.getByRole('button', { name: zh.common.logout })).toBeVisible();
 }

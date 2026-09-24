@@ -77,6 +77,9 @@ export const zh: Dict = {
     invalid: '信息不正确',
     emailTaken: '该邮箱已注册',
     tagline: '收银、库存和员工管理一站搞定',
+    demoTitle: '想试用吗？一键进入演示',
+    demoOwner: '以老板身份进入',
+    demoEmployee: '以员工身份进入（Sofía）',
   },
   roles: { OWNER: '老板', EMPLOYEE: '员工' },
   perms: {

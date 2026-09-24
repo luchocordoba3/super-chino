@@ -75,6 +75,9 @@ export const es = {
     invalid: 'Datos incorrectos',
     emailTaken: 'Ese email ya tiene una cuenta',
     tagline: 'Caja, stock y equipo en un solo lugar',
+    demoTitle: '¿Querés probarla? Entrá a la demo con un toque',
+    demoOwner: 'Entrar como dueño',
+    demoEmployee: 'Entrar como empleada (Sofía)',
   },
   roles: { OWNER: 'Dueño', EMPLOYEE: 'Empleado' },
   perms: {

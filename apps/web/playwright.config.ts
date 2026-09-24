@@ -19,7 +19,7 @@ export default defineConfig({
   webServer: {
     command: 'pnpm --filter @super-chino/api start',
     url: 'http://localhost:3100/api/health',
-    env: { PORT: '3100', DATABASE_URL: E2E_DB, JOBS_ENABLED: 'false', JWT_SECRET: 'e2e-secret', ANTHROPIC_API_KEY: '' },
+    env: { PORT: '3100', DATABASE_URL: E2E_DB, JOBS_ENABLED: 'false', JWT_SECRET: 'e2e-secret', ANTHROPIC_API_KEY: '', SEED_DEMO: 'true' },
     reuseExistingServer: false,
     timeout: 120_000,
   },

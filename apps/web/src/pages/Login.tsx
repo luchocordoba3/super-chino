@@ -1,9 +1,9 @@
 import { type FormEvent, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { api, ApiError, errMsg } from '../api';
 import { LangSwitch } from '../components/Layout';
-import { Field, Tabs } from '../components/ui';
+import { Field, Tabs, toast } from '../components/ui';
 
 type Tab = 'employee' | 'owner' | 'register';
 const remember = (k: string, v?: string) => {
@@ -55,6 +55,7 @@ export function Login() {
         <LangSwitch />
       </div>
       <p className="muted">{t('login.tagline')}</p>
+      <DemoBox />
       <Tabs
         value={tab}
         onChange={setTab}
@@ -103,6 +104,49 @@ export function Login() {
           {tab === 'register' ? t('login.createAccount') : t('login.enter')}
         </button>
       </form>
+    </div>
+  );
+}
+
+// Datos del local de demostración (se cargan con SEED_DEMO=true, ver prisma/seed.ts).
+const DEMO = {
+  owner: { email: 'dueno@demo.com', password: 'demo1234' },
+  employee: { storeCode: 'DEMO01', username: 'sofia', pin: '1234' },
+};
+
+/** Entrar a la demo con un toque (solo en servidores de demostración). */
+function DemoBox() {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const cfg = useQuery({ queryKey: ['public-config'], queryFn: () => api<{ demo: boolean }>('/public/config'), staleTime: Infinity });
+  const [busy, setBusy] = useState(false);
+  if (!cfg.data?.demo) return null;
+  const enter = async (who: 'owner' | 'employee') => {
+    setBusy(true);
+    try {
+      if (who === 'owner') await api('/auth/owner-login', { body: DEMO.owner });
+      else await api('/auth/login', { body: DEMO.employee });
+      await qc.invalidateQueries({ queryKey: ['me'] });
+    } catch (e) {
+      toast(errMsg(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="card stack" style={{ borderLeft: '4px solid var(--gold)', marginBottom: 12 }}>
+      <strong>{t('login.demoTitle')}</strong>
+      <div className="row">
+        <button type="button" className="primary" disabled={busy} onClick={() => void enter('owner')}>
+          {t('login.demoOwner')}
+        </button>
+        <button type="button" disabled={busy} onClick={() => void enter('employee')}>
+          {t('login.demoEmployee')}
+        </button>
+      </div>
+      <span className="hint">
+        {t('login.owner')}: {DEMO.owner.email} · {DEMO.owner.password} — {t('login.employee')}: {DEMO.employee.storeCode} · {DEMO.employee.username} · PIN {DEMO.employee.pin}
+      </span>
     </div>
   );
 }

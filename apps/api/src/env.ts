@@ -27,6 +27,8 @@ export const env = {
   VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY ?? '',
   VAPID_SUBJECT: process.env.VAPID_SUBJECT ?? 'mailto:admin@example.com',
   JOBS_ENABLED: !isTest && process.env.JOBS_ENABLED !== 'false',
+  /** Servidor de demostración: el login muestra los botones "Probar la demo". */
+  SEED_DEMO: process.env.SEED_DEMO === 'true',
 };
 
 if (env.NODE_ENV === 'production' && env.JWT_SECRET === 'dev-secret-cambiar') {

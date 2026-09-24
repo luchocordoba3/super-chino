@@ -69,6 +69,10 @@ describe('login y usuarios', () => {
     expect(bad.status).toBe(400);
   });
 
+  it('la configuración pública indica si es un servidor de demo (por defecto no)', async () => {
+    expect((await client(app).get('/public/config')).body).toEqual({ demo: false });
+  });
+
   it('un local no ve ni toca los datos de otro', async () => {
     const a = await registerOwner(app);
     const b = await registerOwner(app);

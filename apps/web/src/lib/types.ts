@@ -14,6 +14,8 @@ export interface Product {
   cost: number;
   minStock: number;
   targetMargin: number | null;
+  contentQty: number | null;
+  contentUnit: 'g' | 'kg' | 'ml' | 'l' | 'u' | null;
   unallocatedSold: number;
   active: boolean;
   updatedAt: string;
@@ -70,7 +72,7 @@ export interface Movement {
 export interface ProductDetail extends Product {
   lots: { id: string; lotCode: string | null; expiresAt: string | null; qtyRemaining: number; unitCost: number; receivedAt: string }[];
   movements: Movement[];
-  priceHistory: { id: string; oldPrice: number; newPrice: number; source: 'manual' | 'bulk' | 'margin'; user: string | null; createdAt: string }[];
+  priceHistory: { id: string; oldPrice: number; newPrice: number; source: 'manual' | 'bulk' | 'margin' | 'import'; user: string | null; createdAt: string }[];
 }
 
 export interface Msg {

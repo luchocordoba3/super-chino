@@ -166,6 +166,10 @@ model Product {
   /// Margen objetivo propio (%); si es null se usa el del local.
   targetMargin    Decimal?         @db.Decimal(6, 2)
   minStock        Decimal          @default(0) @db.Decimal(12, 3)
+  /// Contenido neto (ej. 520 g, 1,5 l) para el precio por unidad de medida de las etiquetas.
+  contentQty      Decimal?         @db.Decimal(12, 3)
+  /// g | kg | ml | l | u
+  contentUnit     String?
   /// Vendido sin stock registrado (ej. venta offline sin lotes cargados). Lo compensa el próximo ingreso.
   unallocatedSold Decimal          @default(0) @db.Decimal(12, 3)
   active          Boolean          @default(true)

@@ -10,6 +10,8 @@ import { MeContext, meQuery } from './lib/me';
 import { Alerts } from './pages/Alerts';
 import { CountPage } from './pages/Count';
 import { Home } from './pages/Home';
+import { ImportProducts } from './pages/ImportProducts';
+import { Labels } from './pages/Labels';
 import { Login } from './pages/Login';
 import { Messages } from './pages/Messages';
 import { Offers, OffersPrint } from './pages/Offers';
@@ -58,7 +60,9 @@ export function App() {
         <Route element={<Layout />}>
           <Route index element={<Home />} />
           <Route path="products" element={<Products />} />
+          <Route path="products/import" element={<ImportProducts />} />
           <Route path="products/:id" element={<ProductDetail />} />
+          <Route path="labels" element={<Labels />} />
           <Route path="suppliers" element={<Suppliers />} />
           <Route path="stock" element={<Stock />} />
           <Route path="stock/scan" element={<ScanInvoice />} />

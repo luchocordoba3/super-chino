@@ -8,6 +8,7 @@ import { Empty, ErrorBox, Field, Loading, Modal, toast, toNum } from '../compone
 import { dayFmt, daysUntil, money, qtyFmt } from '../lib/format';
 import { useCategories, useDebounce, useSuppliers } from '../lib/hooks';
 import { can, useMe } from '../lib/me';
+import { parseContent } from '@super-chino/shared';
 import type { Product, Unit } from '../lib/types';
 
 export function Products() {
@@ -31,6 +32,14 @@ export function Products() {
           {(can(me, 'stock') || can(me, 'prices')) && (
             <Link className="btn" to="/suppliers">
               {t('products.suppliers')}
+            </Link>
+          )}
+          <Link className="btn" to="/labels">
+            🏷️ {t('products.labels')}
+          </Link>
+          {can(me, 'stock') && can(me, 'prices') && (
+            <Link className="btn" to="/products/import">
+              📄 {t('products.import')}
             </Link>
           )}
           {can(me, 'prices') && <button onClick={() => setModal('bulk')}>{t('products.bulkPrice')}</button>}
@@ -127,11 +136,14 @@ export function ProductForm({ initial, onSaved }: { initial?: Product; onSaved?:
     cost: initial ? String(initial.cost) : '',
     minStock: initial ? String(initial.minStock) : '',
     targetMargin: initial?.targetMargin != null ? String(initial.targetMargin) : '',
+    contentQty: initial?.contentQty != null ? String(initial.contentQty) : '',
+    contentUnit: initial?.contentUnit ?? '',
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
   const canPrice = !initial || can(me, 'prices');
+  const parsed = parseContent(f.name);
 
   const lookup = async (code: string) => {
     setF((prev) => ({ ...prev, barcode: code }));
@@ -175,6 +187,8 @@ export function ProductForm({ initial, onSaved }: { initial?: Product; onSaved?:
       cost: toNum(f.cost) ?? 0,
       minStock: toNum(f.minStock) ?? 0,
       targetMargin: toNum(f.targetMargin),
+      contentQty: f.contentUnit ? toNum(f.contentQty) : null,
+      contentUnit: f.contentUnit && toNum(f.contentQty) ? f.contentUnit : null,
     };
     try {
       const p = initial
@@ -223,6 +237,19 @@ export function ProductForm({ initial, onSaved }: { initial?: Product; onSaved?:
         </Field>
         <Field label={t('products.targetMargin')} hint={`${t('common.optional')} · ${me.store.settings.targetMargin}%`}>
           <input value={f.targetMargin} onChange={set('targetMargin')} inputMode="decimal" />
+        </Field>
+        <Field label={t('products.content')} hint={!f.contentQty && parsed ? `${t('products.detected')}: ${parsed.qty} ${parsed.unit}` : undefined}>
+          <div className="row" style={{ flexWrap: 'nowrap' }}>
+            <input value={f.contentQty} onChange={set('contentQty')} inputMode="decimal" placeholder={parsed ? String(parsed.qty) : ''} />
+            <select value={f.contentUnit} onChange={set('contentUnit')} style={{ width: 'auto' }}>
+              <option value="">{parsed ? parsed.unit : '—'}</option>
+              {(['g', 'kg', 'ml', 'l', 'u'] as const).map((u) => (
+                <option key={u} value={u}>
+                  {u}
+                </option>
+              ))}
+            </select>
+          </div>
         </Field>
       </div>
       <Field label={t('products.category')}>

@@ -12,6 +12,7 @@ import { SESSION_COOKIE } from './lib/auth';
 import { HttpError } from './lib/http';
 import { aiRoutes } from './routes/ai';
 import { authRoutes } from './routes/auth';
+import { importRoutes } from './routes/import';
 import { messageRoutes } from './routes/messages';
 import { offerRoutes } from './routes/offers';
 import { posRoutes } from './routes/pos';
@@ -56,6 +57,7 @@ export async function buildApp(opts: FastifyServerOptions = {}) {
     async (api) => {
       await authRoutes(api);
       await productRoutes(api);
+      await importRoutes(api);
       await stockRoutes(api);
       await posRoutes(api);
       await salesRoutes(api);

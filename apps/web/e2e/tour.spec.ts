@@ -18,7 +18,7 @@ async function visit(page: Page, routes: string[], errorText: string, checkOverf
   return found;
 }
 
-const OWNER = ['/', '/stock', '/products', '/suppliers', '/messages', '/alerts', '/offers', '/offers/print', '/reorder', '/sales', '/team', '/settings', '/stock/scan'];
+const OWNER = ['/', '/stock', '/products', '/products/import', '/labels', '/suppliers', '/messages', '/alerts', '/offers', '/offers/print', '/reorder', '/sales', '/team', '/settings', '/stock/scan'];
 
 test('dueño en el celular (chino): todas las pantallas sin errores', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });

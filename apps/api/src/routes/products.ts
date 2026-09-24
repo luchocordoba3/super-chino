@@ -1,7 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { round3 } from '@super-chino/shared';
+import { CONTENT_UNITS, parseContent, round3 } from '@super-chino/shared';
 import { num, prisma, type Prisma } from '../db';
+import { startOfLocalDay } from '../domain/dates';
 import { bulkPrice } from '../domain/pricing';
 import { fefoCompare } from '../domain/fefo';
 import { can, guard } from '../lib/auth';
@@ -25,6 +26,8 @@ export const productBody = z.object({
   cost: money.optional(),
   minStock: z.number().min(0).max(1e7).optional(),
   targetMargin: z.number().min(0).max(500).nullish(),
+  contentQty: z.number().positive().max(1e6).nullish(),
+  contentUnit: z.enum(CONTENT_UNITS).nullish(),
 });
 
 /** Verifica que categoría y proveedor sean del mismo local. */
@@ -39,6 +42,13 @@ export async function checkRefs(
 
 function isUniqueError(e: unknown) {
   return (e as { code?: string }).code === 'P2002';
+}
+
+/** Contenido neto: el que viene, o el que se lee en el nombre ("Puré de tomate 520g" -> 520 g). */
+function contentOf(b: { name: string; contentQty?: number | null; contentUnit?: string | null }) {
+  if (b.contentQty && b.contentUnit) return { contentQty: b.contentQty, contentUnit: b.contentUnit };
+  const c = parseContent(b.name);
+  return { contentQty: c?.qty ?? null, contentUnit: c?.unit ?? null };
 }
 
 export async function createProduct(storeId: string, b: z.infer<typeof productBody>, db: Prisma.TransactionClient | typeof prisma = prisma) {
@@ -57,6 +67,7 @@ export async function createProduct(storeId: string, b: z.infer<typeof productBo
         cost: b.cost ?? 0,
         minStock: b.minStock ?? 0,
         targetMargin: b.targetMargin ?? null,
+        ...contentOf(b),
       },
     });
   } catch (e) {
@@ -82,6 +93,8 @@ export function productDto(p: ProductRow | Prisma.ProductGetPayload<object>, lot
     cost: num(p.cost),
     minStock: num(p.minStock),
     targetMargin: p.targetMargin == null ? null : num(p.targetMargin),
+    contentQty: p.contentQty == null ? null : num(p.contentQty),
+    contentUnit: p.contentUnit,
     unallocatedSold: num(p.unallocatedSold),
     active: p.active,
     updatedAt: p.updatedAt,
@@ -168,9 +181,21 @@ export async function productRoutes(app: FastifyInstance) {
         supplierId: z.string().optional(),
         lowStock: z.coerce.boolean().optional(),
         inactive: z.coerce.boolean().optional(),
+        /** Solo los que cambiaron de precio (o se crearon) desde esta fecha: para imprimir etiquetas. */
+        priceChangedSince: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
       })
       .parse(req.query);
-    const ids = q.q ? await searchProductIds(req.auth.sid, q.q) : undefined;
+    let ids = q.q ? await searchProductIds(req.auth.sid, q.q) : undefined;
+    if (q.priceChangedSince) {
+      const { store } = await storeCtx(prisma, req.auth.sid);
+      const since = startOfLocalDay(store.timezone, new Date(`${q.priceChangedSince}T12:00:00Z`));
+      const [changed, created] = await Promise.all([
+        prisma.priceChange.findMany({ where: { storeId: req.auth.sid, createdAt: { gte: since } }, select: { productId: true }, distinct: ['productId'] }),
+        prisma.product.findMany({ where: { storeId: req.auth.sid, createdAt: { gte: since } }, select: { id: true } }),
+      ]);
+      const recent = new Set([...changed.map((c) => c.productId), ...created.map((c) => c.id)]);
+      ids = (ids ?? [...recent]).filter((id) => recent.has(id));
+    }
     const products = await prisma.product.findMany({
       where: {
         storeId: req.auth.sid,
@@ -249,6 +274,8 @@ export async function productRoutes(app: FastifyInstance) {
     const priceChanged = b.price !== undefined && b.price !== num(p.price);
     if (priceChanged && !can(req.auth, 'prices')) throw new HttpError(403, 'forbidden_prices');
     const { priceSource, ...data } = b;
+    // Si cambia el nombre y el producto no tenía contenido cargado, se lee del nombre nuevo.
+    if (b.name && b.name !== p.name && p.contentQty == null && b.contentQty === undefined) Object.assign(data, contentOf({ name: b.name }));
     try {
       const updated = await prisma.$transaction(async (tx) => {
         if (priceChanged) {

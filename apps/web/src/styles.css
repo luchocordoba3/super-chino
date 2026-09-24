@@ -145,3 +145,16 @@ td.num, th.num { text-align: right; white-space: nowrap; }
   .print-only { display: block; }
   .no-print { display: none !important; }
 }
+
+/* Etiquetas de góndola */
+.labels-sheet { display: grid; grid-template-columns: repeat(auto-fill, 64mm); gap: 2mm; }
+.shelf-label { width: 64mm; height: 36mm; border: 1px dashed #999; border-radius: 2mm; padding: 2mm 3mm; display: flex; flex-direction: column; background: #fff; color: #000; break-inside: avoid; overflow: hidden; }
+.sl-name { font-weight: 700; font-size: 10pt; line-height: 1.15; max-height: 2.3em; overflow: hidden; }
+.sl-price { font-size: 22pt; font-weight: 800; margin-top: auto; line-height: 1.1; }
+.sl-unit { font-size: 8pt; }
+.sl-foot { display: flex; align-items: flex-end; gap: 2mm; font-size: 6.5pt; color: #444; }
+.sl-barcode { width: 30mm; height: 7mm; flex: none; }
+@media print {
+  @page { size: A4; margin: 8mm; }
+  .labels-sheet { grid-template-columns: repeat(3, 64mm); }
+}

@@ -62,3 +62,24 @@ describe('fechas del local', () => {
     expect(startOfLocalDay('America/Argentina/Buenos_Aires', at).toISOString()).toBe('2026-09-23T03:00:00.000Z');
   });
 });
+
+import { parseContent, unitPrice } from '@super-chino/shared';
+
+describe('precio por unidad de medida (etiquetas)', () => {
+  it('lee el contenido en el nombre', () => {
+    expect(parseContent('Puré de tomate 520g')).toEqual({ qty: 520, unit: 'g' });
+    expect(parseContent('Aceite de girasol 1,5L')).toEqual({ qty: 1.5, unit: 'l' });
+    expect(parseContent('Cerveza lata 473 ml')).toEqual({ qty: 473, unit: 'ml' });
+    expect(parseContent('Yerba mate 1 KG')).toEqual({ qty: 1, unit: 'kg' });
+    expect(parseContent('Galletitas x 3 un')).toEqual({ qty: 3, unit: 'u' });
+    expect(parseContent('Lavandina')).toBeNull();
+    expect(parseContent('Leche 1L entera light')).toEqual({ qty: 1, unit: 'l' });
+  });
+  it('calcula por kilo o litro, y cada 10 g/ml en envases de 50 o menos', () => {
+    expect(unitPrice(1200, { qty: 520, unit: 'g' })).toEqual({ value: 2307.69, per: 'kg' });
+    expect(unitPrice(3900, { qty: 1.5, unit: 'l' })).toEqual({ value: 2600, per: 'l' });
+    expect(unitPrice(500, { qty: 40, unit: 'g' })).toEqual({ value: 125, per: '10 g' });
+    expect(unitPrice(9800, null, 'KG')).toEqual({ value: 9800, per: 'kg' });
+    expect(unitPrice(1000, null)).toBeNull();
+  });
+});

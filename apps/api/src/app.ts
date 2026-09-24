@@ -10,6 +10,7 @@ import { ZodError } from 'zod';
 import { env } from './env';
 import { SESSION_COOKIE } from './lib/auth';
 import { HttpError } from './lib/http';
+import { aiRoutes } from './routes/ai';
 import { authRoutes } from './routes/auth';
 import { messageRoutes } from './routes/messages';
 import { offerRoutes } from './routes/offers';
@@ -50,6 +51,7 @@ export async function buildApp(opts: FastifyServerOptions = {}) {
       await messageRoutes(api);
       await offerRoutes(api);
       await reportRoutes(api);
+      await aiRoutes(api);
     },
     { prefix: '/api' },
   );

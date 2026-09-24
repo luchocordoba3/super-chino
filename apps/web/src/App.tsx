@@ -18,6 +18,7 @@ import { ProductDetail } from './pages/ProductDetail';
 import { Reorder } from './pages/Reorder';
 import { Sales } from './pages/Sales';
 import { Products } from './pages/Products';
+import { ScanInvoice } from './pages/ScanInvoice';
 import { Settings } from './pages/Settings';
 import { Stock } from './pages/Stock';
 import { Team } from './pages/Team';
@@ -58,6 +59,7 @@ export function App() {
           <Route path="products" element={<Products />} />
           <Route path="products/:id" element={<ProductDetail />} />
           <Route path="stock" element={<Stock />} />
+          <Route path="stock/scan" element={<ScanInvoice />} />
           <Route path="messages" element={<Messages />} />
           <Route path="alerts" element={<Alerts />} />
           <Route path="offers" element={<Offers />} />

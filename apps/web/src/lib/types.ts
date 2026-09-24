@@ -70,3 +70,23 @@ export interface ProductDetail extends Product {
   movements: Movement[];
   priceHistory: { id: string; oldPrice: number; newPrice: number; source: 'manual' | 'bulk' | 'margin'; user: string | null; createdAt: string }[];
 }
+
+export interface Msg {
+  id: string;
+  kind: 'MESSAGE' | 'TASK';
+  text: string;
+  lang: 'es' | 'zh';
+  translations: Partial<Record<'es' | 'zh', string>>;
+  translationStatus: 'none' | 'pending' | 'done' | 'failed';
+  requiresPhoto: boolean;
+  dueAt: string | null;
+  meta: { type?: 'REMOVE_EXPIRED' | 'COUNT'; lotIds?: string[]; countId?: string } | null;
+  createdAt: string;
+  from: { id: string; name: string } | null;
+  doneAt: string | null;
+  doneBy: string | null;
+  donePhoto: string | null;
+  doneNote: string | null;
+  myReadAt: string | null;
+  recipients: { userId: string; name: string; readAt: string | null }[];
+}

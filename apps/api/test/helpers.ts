@@ -77,3 +77,21 @@ export async function createEmployee(
   const cookie = cookieFrom(login);
   return { id: created.body.id as string, cookie, api: client(app, cookie), username: payload.username };
 }
+
+/** Arma un cuerpo multipart/form-data para app.inject. */
+export function multipart(fields: Record<string, string>, file?: { name: string; filename: string; type: string; data: Buffer }) {
+  const boundary = `----sc${Math.random().toString(16).slice(2)}`;
+  const parts: Buffer[] = [];
+  for (const [k, v] of Object.entries(fields)) {
+    parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${k}"\r\n\r\n${v}\r\n`));
+  }
+  if (file) {
+    parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${file.name}"; filename="${file.filename}"\r\nContent-Type: ${file.type}\r\n\r\n`));
+    parts.push(file.data, Buffer.from('\r\n'));
+  }
+  parts.push(Buffer.from(`--${boundary}--\r\n`));
+  return { payload: Buffer.concat(parts), headers: { 'content-type': `multipart/form-data; boundary=${boundary}` } };
+}
+
+/** PNG de 1x1 para probar subidas. */
+export const tinyPng = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');

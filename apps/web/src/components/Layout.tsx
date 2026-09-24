@@ -1,8 +1,9 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { type AppLang, setLang } from '../i18n';
+import { useLiveEvents } from '../lib/live';
 import { can, useMe } from '../lib/me';
 
 export function LangSwitch({ onChange }: { onChange?: (l: AppLang) => void }) {
@@ -25,6 +26,13 @@ export function Layout() {
   const me = useMe();
   const { t } = useTranslation();
   const qc = useQueryClient();
+  useLiveEvents();
+  const unread = useQuery({
+    queryKey: ['unread'],
+    queryFn: () => api<{ unread: number; openTasks: number }>('/messages/unread'),
+    refetchInterval: 60_000,
+  });
+  const badge = (unread.data?.unread ?? 0) + (unread.data?.openTasks ?? 0);
 
   const links = [
     { to: '/', label: t('nav.home'), show: true },
@@ -61,7 +69,7 @@ export function Layout() {
       <nav className="nav">
         {links.map((l) => (
           <NavLink key={l.to} to={l.to} end={l.to === '/'}>
-            {l.label}
+            {l.label} {l.to === '/messages' && badge > 0 && <span className="pill-count">{badge}</span>}
           </NavLink>
         ))}
       </nav>

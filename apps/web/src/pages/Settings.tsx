@@ -6,6 +6,7 @@ import type { StoreSettings } from '@super-chino/shared';
 import { api, errMsg } from '../api';
 import { Field, toast, toNum } from '../components/ui';
 import { dateTimeFmt } from '../lib/format';
+import { enablePush, pushSupported } from '../lib/live';
 import { can, useMe } from '../lib/me';
 
 const NUM_FIELDS = [
@@ -26,6 +27,7 @@ export function Settings() {
   return (
     <div className="stack">
       <h1>{t('settings.title')}</h1>
+      <Notifications />
       {can(me, 'owner') && <StoreForm />}
       {can(me, 'owner') && <Devices />}
       {can(me, 'owner') && (
@@ -131,6 +133,29 @@ function Devices() {
       <Link className="btn" to="/pos">
         {t('settings.openPos')}
       </Link>
+    </div>
+  );
+}
+
+function Notifications() {
+  const me = useMe();
+  const { t } = useTranslation();
+  const [on, setOn] = useState(() => pushSupported() && Notification.permission === 'granted');
+  const available = pushSupported() && !!me.vapidPublicKey;
+  const enable = async () => {
+    try {
+      await enablePush(me.vapidPublicKey!, (sub) => api('/push/subscribe', { body: sub }));
+      setOn(true);
+      toast(t('settings.notificationsOn'));
+    } catch (e) {
+      toast(errMsg(e));
+    }
+  };
+  return (
+    <div className="card stack">
+      <h2>{t('settings.notifications')}</h2>
+      {!available && <p className="muted">{t('settings.notificationsUnavailable')}</p>}
+      {available && (on ? <p className="ok">{t('settings.notificationsOn')}</p> : <button onClick={() => void enable()}>🔔 {t('settings.enableNotifications')}</button>)}
     </div>
   );
 }

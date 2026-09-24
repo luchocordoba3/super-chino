@@ -1,0 +1,37 @@
+/** Fecha local (AAAA-MM-DD) en la zona horaria del local. */
+export function localYMD(tz: string, d = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+}
+
+/** AAAA-MM-DD -> Date a medianoche UTC (así se guardan y comparan las columnas @db.Date). */
+export const dateOnly = (ymd: string) => new Date(ymd.slice(0, 10) + 'T00:00:00.000Z');
+
+/** Hoy (fecha local del negocio) como Date a medianoche UTC. */
+export const localToday = (tz: string, d = new Date()) => dateOnly(localYMD(tz, d));
+
+export const addDays = (d: Date, n: number) => new Date(d.getTime() + n * 86_400_000);
+export const daysBetween = (from: Date, to: Date) => Math.round((to.getTime() - from.getTime()) / 86_400_000);
+
+function tzOffsetMs(tz: string, at: Date) {
+  const p = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    second: 'numeric',
+  }).formatToParts(at);
+  const g = (t: string) => Number(p.find((x) => x.type === t)?.value);
+  return Date.UTC(g('year'), g('month') - 1, g('day'), g('hour'), g('minute'), g('second')) - Math.floor(at.getTime() / 1000) * 1000;
+}
+
+/** Instante en que empieza el día local que contiene `d`. */
+export function startOfLocalDay(tz: string, d = new Date()) {
+  const midnightUtc = localToday(tz, d);
+  return new Date(midnightUtc.getTime() - tzOffsetMs(tz, midnightUtc));
+}
+
+export const localHour = (tz: string, d = new Date()) =>
+  Number(new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', hourCycle: 'h23' }).format(d));

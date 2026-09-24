@@ -11,6 +11,8 @@ import { env } from './env';
 import { SESSION_COOKIE } from './lib/auth';
 import { HttpError } from './lib/http';
 import { authRoutes } from './routes/auth';
+import { productRoutes } from './routes/products';
+import { stockRoutes } from './routes/stock';
 
 export async function buildApp(opts: FastifyServerOptions = {}) {
   const app = Fastify({ logger: !env.isTest, bodyLimit: 5 * 1024 * 1024, ...opts });
@@ -36,6 +38,8 @@ export async function buildApp(opts: FastifyServerOptions = {}) {
   await app.register(
     async (api) => {
       await authRoutes(api);
+      await productRoutes(api);
+      await stockRoutes(api);
     },
     { prefix: '/api' },
   );

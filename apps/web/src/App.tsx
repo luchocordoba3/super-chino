@@ -9,7 +9,10 @@ import { setCurrency } from './lib/format';
 import { MeContext, meQuery } from './lib/me';
 import { Home } from './pages/Home';
 import { Login } from './pages/Login';
+import { ProductDetail } from './pages/ProductDetail';
+import { Products } from './pages/Products';
 import { Settings } from './pages/Settings';
+import { Stock } from './pages/Stock';
 import { Team } from './pages/Team';
 
 export function App() {
@@ -44,6 +47,9 @@ export function App() {
       <Routes>
         <Route element={<Layout />}>
           <Route index element={<Home />} />
+          <Route path="products" element={<Products />} />
+          <Route path="products/:id" element={<ProductDetail />} />
+          <Route path="stock" element={<Stock />} />
           <Route path="team" element={<Team />} />
           <Route path="settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/" replace />} />

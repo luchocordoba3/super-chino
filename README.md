@@ -78,6 +78,22 @@ pnpm e2e         # de punta a punta con Playwright (base superchino_e2e, se crea
 pnpm typecheck
 ```
 
+## Publicar gratis en Render (link para probar y mostrar)
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/luchocordoba3/super-chino)
+
+1. Entrá a [render.com](https://render.com) y creá una cuenta con **GitHub**.
+2. Tocá **New → Blueprint** y elegí el repo `super-chino`. Si no aparece, dale a Render acceso al repo.
+3. Render lee `render.yaml` y va a crear la app y la base de datos. Te pide `ANTHROPIC_API_KEY`: podés dejarla vacía (la app anda sin IA). Tocá **Apply**.
+4. El primer armado tarda unos 10 minutos. Después abrí el link `https://super-chino-….onrender.com` y entrá con los usuarios de la demo de arriba.
+
+Límites del plan gratis:
+- **Se duerme:** si nadie la usa un rato, la primera visita tarda ~1 minuto en despertar.
+- **Base temporal:** la base de datos gratis de Render vence (hoy a los 30 días).
+- **Fotos:** las de tareas y facturas se pierden cuando el servicio se reinicia.
+
+Para clientes reales conviene el plan pago de Render o pasar la base a una gratis permanente (por ejemplo Neon) cambiando `DATABASE_URL`.
+
 ## Producción
 
 Es un solo servicio: la API sirve la web compilada. Con Docker:

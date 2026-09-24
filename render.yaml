@@ -1,0 +1,29 @@
+# Receta ("Blueprint") de Render: en render.com -> New -> Blueprint -> elegir este repo.
+# Crea la app (la API sirve la web) y una base PostgreSQL, ambas en el plan gratis.
+services:
+  - type: web
+    name: super-chino
+    runtime: docker
+    plan: free
+    region: virginia
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: super-chino-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      # Carga el local de demostración DEMO01 la primera vez (no duplica si ya existe).
+      - key: SEED_DEMO
+        value: "true"
+      # Opcional: activa traducción y lectura de fotos con IA. Se puede dejar vacía.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+
+databases:
+  - name: super-chino-db
+    plan: free
+    region: virginia
+    databaseName: superchino
+    user: superchino

@@ -21,7 +21,8 @@ import { salesRoutes } from './routes/sales';
 import { stockRoutes } from './routes/stock';
 
 export async function buildApp(opts: FastifyServerOptions = {}) {
-  const app = Fastify({ logger: !env.isTest, bodyLimit: 5 * 1024 * 1024, ...opts });
+  // Detrás del proxy de Render (u otro hosting) la IP real viene en X-Forwarded-For: el límite de logins es por cliente.
+  const app = Fastify({ logger: !env.isTest, bodyLimit: 5 * 1024 * 1024, trustProxy: env.NODE_ENV === 'production', ...opts });
 
   await app.register(cookie);
   await app.register(jwt, { secret: env.JWT_SECRET, cookie: { cookieName: SESSION_COOKIE, signed: false } });

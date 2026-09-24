@@ -11,7 +11,9 @@ import { env } from './env';
 import { SESSION_COOKIE } from './lib/auth';
 import { HttpError } from './lib/http';
 import { authRoutes } from './routes/auth';
+import { posRoutes } from './routes/pos';
 import { productRoutes } from './routes/products';
+import { salesRoutes } from './routes/sales';
 import { stockRoutes } from './routes/stock';
 
 export async function buildApp(opts: FastifyServerOptions = {}) {
@@ -40,6 +42,8 @@ export async function buildApp(opts: FastifyServerOptions = {}) {
       await authRoutes(api);
       await productRoutes(api);
       await stockRoutes(api);
+      await posRoutes(api);
+      await salesRoutes(api);
     },
     { prefix: '/api' },
   );

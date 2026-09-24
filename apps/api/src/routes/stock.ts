@@ -5,6 +5,7 @@ import { addDays, daysBetween } from '../domain/dates';
 import { can, guard } from '../lib/auth';
 import { badRequest, HttpError, notFound } from '../lib/http';
 import { publish } from '../services/notify';
+import { checkLowStock } from '../services/sales';
 import { adjustStock, createStockEntry, lotsByProduct } from '../services/stock';
 import { storeCtx, userNames } from '../services/store';
 import { createProduct, productBody, productDto } from './products';
@@ -52,6 +53,7 @@ export async function stockRoutes(app: FastifyInstance) {
       }
       const entry = await createStockEntry(tx, { storeId, userId: req.auth.uid, settings, supplierId: b.supplierId, invoiceNumber: b.invoiceNumber, invoiceScanId: b.invoiceScanId, items });
       if (b.invoiceScanId) await tx.invoiceScan.update({ where: { id: b.invoiceScanId }, data: { status: 'confirmed' } });
+      await checkLowStock(tx, storeId, items.map((i) => i.productId));
       return entry;
     });
     publish(storeId, b.items.some((i) => i.newProduct) ? 'catalog' : 'stock');
@@ -96,14 +98,16 @@ export async function stockRoutes(app: FastifyInstance) {
     const productId = product.id;
     const entry =
       b.qty > 0
-        ? await prisma.$transaction((tx) =>
-            createStockEntry(tx, {
+        ? await prisma.$transaction(async (tx) => {
+            const res = await createStockEntry(tx, {
               storeId,
               userId: req.auth.uid,
               settings,
               items: [{ productId, qty: b.qty, unitCost: b.unitCost, lotCode: b.lotCode, expiresAt: b.expiresAt }],
-            }),
-          )
+            });
+            await checkLowStock(tx, storeId, [productId]);
+            return res;
+          })
         : null;
     publish(storeId, created ? 'catalog' : 'stock');
     const fresh = await prisma.product.findUniqueOrThrow({
@@ -162,9 +166,10 @@ export async function stockRoutes(app: FastifyInstance) {
     if (!(await prisma.product.findFirst({ where: { id: b.productId, storeId } }))) throw notFound();
     if (b.lotId && !(await prisma.lot.findFirst({ where: { id: b.lotId, productId: b.productId } }))) throw notFound('lot_not_found');
     const { today } = await storeCtx(prisma, storeId);
-    await prisma.$transaction((tx) =>
-      adjustStock(tx, { storeId, productId: b.productId, qty: b.qty, today, type: b.type, userId: req.auth.uid, reason: b.reason, lotId: b.lotId ?? undefined }),
-    );
+    await prisma.$transaction(async (tx) => {
+      await adjustStock(tx, { storeId, productId: b.productId, qty: b.qty, today, type: b.type, userId: req.auth.uid, reason: b.reason, lotId: b.lotId ?? undefined });
+      await checkLowStock(tx, storeId, [b.productId]);
+    });
     publish(storeId, 'stock');
     return { ok: true };
   });

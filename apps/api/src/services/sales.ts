@@ -1,0 +1,242 @@
+import type { Prisma } from '@prisma/client';
+import { type Payment, type PosEvent, PosEventSchema, round2, type StoreSettings, type SyncResult } from '@super-chino/shared';
+import { num, prisma, type Tx } from '../db';
+import { type NewAlert, notifyAlerts, raiseAlert, resolveAlert } from './alerts';
+import { publish } from './notify';
+import { consumeStock, lotsByProduct, restoreAllocations, stockOf } from './stock';
+import { storeCtx } from './store';
+
+/** Error de negocio: el evento no se puede aplicar nunca (no tiene sentido reintentarlo). */
+export class RejectError extends Error {}
+
+interface Ctx {
+  storeId: string;
+  deviceId: string;
+  today: Date;
+  settings: StoreSettings;
+}
+type Ev<T extends PosEvent['type']> = Extract<PosEvent, { type: T }>;
+
+/** Avisa stock bajo o lo da por resuelto según el stock actual. */
+export async function checkLowStock(tx: Tx, storeId: string, productIds: string[]) {
+  const alerts: { isNew: boolean; alert: NewAlert }[] = [];
+  if (productIds.length === 0) return alerts;
+  const products = await tx.product.findMany({ where: { storeId, id: { in: productIds } } });
+  const lots = await lotsByProduct(tx, storeId, productIds);
+  for (const p of products) {
+    const { stock } = stockOf(p, lots);
+    const min = num(p.minStock);
+    if (min > 0 && stock <= min) {
+      alerts.push(await raiseAlert(tx, storeId, 'LOW_STOCK', `LOW_STOCK:${p.id}`, { productId: p.id, name: p.name, stock, min }, 'info'));
+    } else {
+      await resolveAlert(tx, storeId, `LOW_STOCK:${p.id}`);
+    }
+  }
+  return alerts;
+}
+
+async function applySale(tx: Tx, ctx: Ctx, ev: Ev<'SALE'>) {
+  const alerts: { isNew: boolean; alert: NewAlert }[] = [];
+  const ids = [...new Set(ev.items.map((i) => i.productId))];
+  const products = await tx.product.findMany({ where: { storeId: ctx.storeId, id: { in: ids } } });
+  if (products.length !== ids.length) throw new RejectError('product_not_found');
+  const byId = new Map(products.map((p) => [p.id, p]));
+
+  let costTotal = 0;
+  let discountTotal = 0;
+  let total = 0;
+  const items: Prisma.SaleItemCreateWithoutSaleInput[] = [];
+  const offersTouched = new Set<string>();
+  for (const it of ev.items) {
+    const p = byId.get(it.productId)!;
+    const allocations = await consumeStock(tx, { storeId: ctx.storeId, productId: p.id, qty: it.qty, today: ctx.today, type: 'SALE', refId: ev.id, userId: ev.userId });
+    const cost = round2(allocations.reduce((s, a) => s + a.qty * a.unitCost, 0));
+    const lineTotal = round2(it.qty * it.unitPrice);
+    costTotal += cost;
+    total += lineTotal;
+    discountTotal += round2(it.qty * Math.max(0, it.listPrice - it.unitPrice));
+
+    let offerId: string | null = null;
+    if (it.offerId) {
+      const offer = await tx.offer.findFirst({ where: { id: it.offerId, storeId: ctx.storeId, productId: p.id } });
+      if (offer) {
+        offerId = offer.id;
+        offersTouched.add(offer.id);
+        await tx.offer.update({ where: { id: offer.id }, data: { soldQty: { increment: it.qty }, soldAmount: { increment: lineTotal } } });
+      }
+    }
+    items.push({
+      product: { connect: { id: p.id } },
+      name: p.name,
+      qty: it.qty,
+      unitPrice: it.unitPrice,
+      listPrice: it.listPrice,
+      lineTotal,
+      cost,
+      offerId,
+      priceOverride: it.priceOverride,
+      lots: { create: allocations.map((a) => ({ lotId: a.lotId, qty: a.qty, unitCost: a.unitCost })) },
+    });
+    if (allocations.some((a) => !a.lotId)) {
+      const fresh = await tx.product.findUniqueOrThrow({ where: { id: p.id }, select: { unallocatedSold: true } });
+      alerts.push(await raiseAlert(tx, ctx.storeId, 'NEGATIVE_STOCK', `NEGATIVE_STOCK:${p.id}`, { productId: p.id, name: p.name, qty: num(fresh.unallocatedSold) }));
+    }
+  }
+
+  await tx.sale.create({
+    data: {
+      id: ev.id,
+      storeId: ctx.storeId,
+      deviceId: ctx.deviceId,
+      userId: ev.userId,
+      cashSessionId: ev.cashSessionId ?? null,
+      total: round2(total),
+      costTotal: round2(costTotal),
+      discountTotal: round2(discountTotal),
+      payments: ev.payments,
+      occurredAt: new Date(ev.occurredAt),
+      items: { create: items },
+    },
+  });
+
+  // Oferta terminada cuando se agotó su lote.
+  for (const offerId of offersTouched) {
+    const offer = await tx.offer.findUniqueOrThrow({ where: { id: offerId }, include: { lot: true } });
+    if (offer.status === 'ACTIVE' && num(offer.lot.qtyRemaining) <= 0) {
+      await tx.offer.update({ where: { id: offerId }, data: { status: 'ENDED', endedAt: new Date() } });
+    }
+  }
+  alerts.push(...(await checkLowStock(tx, ctx.storeId, ids)));
+  return alerts;
+}
+
+async function applyVoid(tx: Tx, ctx: Ctx, ev: Ev<'SALE_VOIDED'>) {
+  const sale = await tx.sale.findFirst({ where: { id: ev.saleId, storeId: ctx.storeId }, include: { items: { include: { lots: true } } } });
+  if (!sale) throw new RejectError('sale_not_found');
+  if (sale.status === 'VOIDED') return [];
+  for (const item of sale.items) {
+    await restoreAllocations(tx, {
+      storeId: ctx.storeId,
+      productId: item.productId,
+      allocations: item.lots.map((l) => ({ lotId: l.lotId, qty: num(l.qty), unitCost: num(l.unitCost) })),
+      refId: sale.id,
+      userId: ev.userId,
+    });
+    if (item.offerId) {
+      await tx.offer.updateMany({
+        where: { id: item.offerId },
+        data: { soldQty: { decrement: item.qty }, soldAmount: { decrement: item.lineTotal } },
+      });
+    }
+  }
+  await tx.sale.update({
+    where: { id: sale.id },
+    data: { status: 'VOIDED', voidedAt: new Date(ev.occurredAt), voidedBy: ev.userId, voidReason: ev.reason ?? null },
+  });
+  return checkLowStock(tx, ctx.storeId, [...new Set(sale.items.map((i) => i.productId))]);
+}
+
+const cashOf = (payments: unknown) =>
+  (payments as Payment[]).filter((p) => p.method === 'CASH').reduce((s, p) => s + p.amount, 0);
+
+async function applyCashClose(tx: Tx, ctx: Ctx, ev: Ev<'CASH_CLOSE'>) {
+  const alerts: { isNew: boolean; alert: NewAlert }[] = [];
+  const s = await tx.cashSession.findFirst({ where: { id: ev.cashSessionId, storeId: ctx.storeId } });
+  if (!s) throw new RejectError('cash_session_not_found');
+  if (s.closedAt) return alerts;
+  const sales = await tx.sale.findMany({ where: { storeId: ctx.storeId, cashSessionId: s.id, status: 'COMPLETED' }, select: { payments: true } });
+  const expected = round2(num(s.openingAmount) + sales.reduce((sum, x) => sum + cashOf(x.payments), 0));
+  const difference = round2(ev.countedAmount - expected);
+  await tx.cashSession.update({
+    where: { id: s.id },
+    data: { closedAt: new Date(ev.occurredAt), closedBy: ev.userId, countedAmount: ev.countedAmount, expectedAmount: expected, difference, notes: ev.notes ?? null },
+  });
+  const names = new Map((await tx.user.findMany({ where: { storeId: ctx.storeId }, select: { id: true, name: true } })).map((u) => [u.id, u.name]));
+  if (Math.abs(difference) >= ctx.settings.cashDiffThreshold && difference !== 0) {
+    alerts.push(
+      await raiseAlert(tx, ctx.storeId, 'CASH_DIFF', `CASH_DIFF:${s.id}`, { sessionId: s.id, userId: s.userId, name: names.get(s.userId), expected, counted: ev.countedAmount, diff: difference }, 'danger'),
+    );
+  }
+  // Control anti-pérdidas: productos borrados después de escanear y ventas anuladas en el turno.
+  const suspicious = await tx.posEvent.groupBy({
+    by: ['userId'],
+    where: { storeId: ctx.storeId, type: { in: ['ITEM_REMOVED', 'SALE_VOIDED'] }, payload: { path: ['cashSessionId'], equals: s.id } },
+    _count: { _all: true },
+  });
+  for (const row of suspicious) {
+    if (row._count._all >= ctx.settings.voidAlertThreshold) {
+      alerts.push(
+        await raiseAlert(tx, ctx.storeId, 'VOID_SPIKE', `VOID_SPIKE:${s.id}:${row.userId}`, { sessionId: s.id, userId: row.userId, name: names.get(row.userId), count: row._count._all }, 'danger'),
+      );
+    }
+  }
+  return alerts;
+}
+
+async function applyEvent(tx: Tx, ctx: Ctx, ev: PosEvent) {
+  switch (ev.type) {
+    case 'SALE':
+      return applySale(tx, ctx, ev);
+    case 'SALE_VOIDED':
+      return applyVoid(tx, ctx, ev);
+    case 'CASH_OPEN':
+      await tx.cashSession.upsert({
+        where: { id: ev.cashSessionId },
+        create: { id: ev.cashSessionId, storeId: ctx.storeId, deviceId: ctx.deviceId, userId: ev.userId, openedAt: new Date(ev.occurredAt), openingAmount: ev.openingAmount },
+        update: {},
+      });
+      return [];
+    case 'CASH_CLOSE':
+      return applyCashClose(tx, ctx, ev);
+    case 'ITEM_REMOVED':
+      return []; // queda registrado en PosEvent para el control anti-pérdidas
+  }
+}
+
+/**
+ * Aplica los eventos que manda la caja, en orden. Es idempotente: un evento ya recibido se ignora.
+ * Los errores de negocio marcan el evento como "rejected"; los errores técnicos cortan el lote para reintentar.
+ */
+export async function processPosEvents(storeId: string, deviceId: string, raw: unknown[]): Promise<SyncResult[]> {
+  const { settings, today } = await storeCtx(prisma, storeId);
+  const ctx: Ctx = { storeId, deviceId, today, settings };
+  const results: SyncResult[] = [];
+  const newAlerts: NewAlert[] = [];
+  for (const r of raw) {
+    const parsed = PosEventSchema.safeParse(r);
+    if (!parsed.success) {
+      results.push({ id: String((r as { id?: unknown })?.id ?? ''), status: 'rejected', error: 'invalid_event' });
+      continue;
+    }
+    const ev = parsed.data;
+    try {
+      const out = await prisma.$transaction(
+        async (tx) => {
+          if (await tx.posEvent.findUnique({ where: { id: ev.id }, select: { id: true } })) return null;
+          const user = await tx.user.findFirst({ where: { id: ev.userId, storeId }, select: { id: true } });
+          if (!user) throw new RejectError('user_not_found');
+          await tx.posEvent.create({
+            data: { id: ev.id, storeId, deviceId, userId: ev.userId, type: ev.type, payload: ev as unknown as Prisma.InputJsonValue, occurredAt: new Date(ev.occurredAt) },
+          });
+          return applyEvent(tx, ctx, ev);
+        },
+        { timeout: 30_000 },
+      );
+      if (out === null) results.push({ id: ev.id, status: 'duplicate' });
+      else {
+        results.push({ id: ev.id, status: 'ok' });
+        newAlerts.push(...out.filter((a) => a.isNew).map((a) => a.alert));
+      }
+    } catch (e) {
+      if (e instanceof RejectError) results.push({ id: ev.id, status: 'rejected', error: e.message });
+      else if ((e as { code?: string }).code === 'P2002') results.push({ id: ev.id, status: 'duplicate' });
+      else throw e;
+    }
+  }
+  if (results.some((r) => r.status === 'ok')) {
+    publish(storeId, 'sales');
+    await notifyAlerts(storeId, newAlerts);
+  }
+  return results;
+}
+

@@ -1,9 +1,11 @@
 import { type FormEvent, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import type { StoreSettings } from '@super-chino/shared';
 import { api, errMsg } from '../api';
 import { Field, toast, toNum } from '../components/ui';
+import { dateTimeFmt } from '../lib/format';
 import { can, useMe } from '../lib/me';
 
 const NUM_FIELDS = [
@@ -25,6 +27,7 @@ export function Settings() {
     <div className="stack">
       <h1>{t('settings.title')}</h1>
       {can(me, 'owner') && <StoreForm />}
+      {can(me, 'owner') && <Devices />}
       {can(me, 'owner') && (
         <div className="card">
           <h2>{t('settings.ai')}</h2>
@@ -99,5 +102,35 @@ function StoreForm() {
         {t('common.save')}
       </button>
     </form>
+  );
+}
+
+function Devices() {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ['devices'], queryFn: () => api<{ id: string; name: string; lastSeenAt: string | null }[]>('/pos/devices') });
+  const revoke = async (id: string) => {
+    if (!window.confirm(t('settings.revoke') + '?')) return;
+    await api(`/pos/devices/${id}`, { method: 'DELETE' });
+    void qc.invalidateQueries({ queryKey: ['devices'] });
+  };
+  return (
+    <div className="card stack">
+      <h2>{t('settings.devices')}</h2>
+      {q.data?.map((d) => (
+        <div key={d.id} className="list-item">
+          <span className="grow">{d.name}</span>
+          <span className="muted small">
+            {t('settings.lastSeen')}: {d.lastSeenAt ? dateTimeFmt(d.lastSeenAt) : '—'}
+          </span>
+          <button className="small danger" onClick={() => void revoke(d.id)}>
+            {t('settings.revoke')}
+          </button>
+        </div>
+      ))}
+      <Link className="btn" to="/pos">
+        {t('settings.openPos')}
+      </Link>
+    </div>
   );
 }

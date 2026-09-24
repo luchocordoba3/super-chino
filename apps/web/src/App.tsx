@@ -9,6 +9,7 @@ import { setCurrency } from './lib/format';
 import { MeContext, meQuery } from './lib/me';
 import { Home } from './pages/Home';
 import { Login } from './pages/Login';
+import { Pos } from './pages/Pos';
 import { ProductDetail } from './pages/ProductDetail';
 import { Products } from './pages/Products';
 import { Settings } from './pages/Settings';
@@ -31,7 +32,7 @@ export function App() {
     return (
       <>
         <Toaster />
-        <p className="main">…</p>
+        <Pos />
       </>
     );
   }

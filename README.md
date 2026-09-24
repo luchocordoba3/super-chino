@@ -84,8 +84,8 @@ pnpm typecheck
 
 1. Entrá a [render.com](https://render.com) y creá una cuenta con **GitHub**.
 2. Tocá **New → Blueprint** y elegí el repo `super-chino`. Si no aparece, dale a Render acceso al repo.
-3. Render lee `render.yaml` y va a crear la app y la base de datos. Te pide `ANTHROPIC_API_KEY`: podés dejarla vacía (la app anda sin IA). Tocá **Apply**.
-4. El primer armado tarda unos 10 minutos. Después abrí el link `https://super-chino-….onrender.com` y entrá con los usuarios de la demo de arriba.
+3. Render lee `render.yaml` y va a crear la app y la base de datos. En **Blueprint Name** poné `super-chino` (cualquier nombre sirve). `ANTHROPIC_API_KEY` podés dejarla vacía (la app anda sin IA). Tocá **Deploy Blueprint**.
+4. El primer armado tarda unos 10 minutos. Cuando termine, entrá al servicio **super-chino**: arriba aparece el link `https://super-chino-….onrender.com`. Entrá con los usuarios de la demo de arriba. Si algo falla, el detalle está en la pestaña **Logs**.
 
 Límites del plan gratis:
 - **Se duerme:** si nadie la usa un rato, la primera visita tarda ~1 minuto en despertar.

@@ -67,14 +67,16 @@ export function Pos() {
         .then(() => refreshCatalog())
         .then(() => setOnline(true))
         .catch(onFail);
+    const offline = () => setOnline(false);
     syncEvents.addEventListener('change', update);
     window.addEventListener('online', sync);
-    window.addEventListener('offline', () => setOnline(false));
+    window.addEventListener('offline', offline);
     const id = setInterval(sync, 20_000);
     update();
     return () => {
       syncEvents.removeEventListener('change', update);
       window.removeEventListener('online', sync);
+      window.removeEventListener('offline', offline);
       clearInterval(id);
     };
   }, [t]);

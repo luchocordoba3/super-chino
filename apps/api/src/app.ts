@@ -41,6 +41,8 @@ export async function buildApp(opts: FastifyServerOptions = {}) {
     return reply.status(500).send({ error: 'internal' });
   });
 
+  app.get('/api/health', async () => ({ ok: true }));
+
   await app.register(
     async (api) => {
       await authRoutes(api);

@@ -31,6 +31,17 @@ export function Settings() {
       {can(me, 'owner') && <StoreForm />}
       {can(me, 'owner') && <Devices />}
       {can(me, 'owner') && (
+        <button
+          onClick={() =>
+            void api('/jobs/run', { method: 'POST' })
+              .then(() => toast(t('settings.jobsDone')))
+              .catch((e) => toast(errMsg(e)))
+          }
+        >
+          🔎 {t('settings.runJobs')}
+        </button>
+      )}
+      {can(me, 'owner') && (
         <div className="card">
           <h2>{t('settings.ai')}</h2>
           <p className={me.aiEnabled ? 'ok' : 'warn'}>{me.aiEnabled ? t('settings.aiOn') : t('settings.aiOff')}</p>

@@ -90,3 +90,31 @@ export interface Msg {
   myReadAt: string | null;
   recipients: { userId: string; name: string; readAt: string | null }[];
 }
+
+export type AlertType = 'EXPIRING' | 'EXPIRED' | 'LOW_STOCK' | 'NEGATIVE_STOCK' | 'VOID_SPIKE' | 'CASH_DIFF' | 'COUNT_DIFF' | 'OFFER_SUGGESTED';
+export interface AlertRow {
+  id: string;
+  type: AlertType;
+  severity: 'info' | 'warn' | 'danger';
+  data: Record<string, string | number | null>;
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
+export interface OfferRow {
+  id: string;
+  productId: string;
+  name: string;
+  barcode: string | null;
+  listPrice: number;
+  offerPrice: number;
+  discountPct: number;
+  status: 'SUGGESTED' | 'ACTIVE' | 'DISMISSED' | 'ENDED';
+  reason: { qty?: number; perDay?: number; days?: number; daysToSell?: number | null };
+  lotCode: string | null;
+  expiresAt: string | null;
+  daysLeft: number | null;
+  remaining: number;
+  soldQty: number;
+  soldAmount: number;
+}

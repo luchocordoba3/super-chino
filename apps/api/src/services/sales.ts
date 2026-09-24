@@ -1,6 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import { type Payment, type PosEvent, PosEventSchema, round2, type StoreSettings, type SyncResult } from '@super-chino/shared';
-import { num, prisma, type Tx } from '../db';
+import { type Db, num, prisma, type Tx } from '../db';
 import { type NewAlert, notifyAlerts, raiseAlert, resolveAlert } from './alerts';
 import { publish } from './notify';
 import { consumeStock, lotsByProduct, restoreAllocations, stockOf } from './stock';
@@ -18,7 +18,7 @@ interface Ctx {
 type Ev<T extends PosEvent['type']> = Extract<PosEvent, { type: T }>;
 
 /** Avisa stock bajo o lo da por resuelto según el stock actual. */
-export async function checkLowStock(tx: Tx, storeId: string, productIds: string[]) {
+export async function checkLowStock(tx: Db, storeId: string, productIds: string[]) {
   const alerts: { isNew: boolean; alert: NewAlert }[] = [];
   if (productIds.length === 0) return alerts;
   const products = await tx.product.findMany({ where: { storeId, id: { in: productIds } } });

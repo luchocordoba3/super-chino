@@ -1,3 +1,5 @@
+import i18n from './i18n';
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -26,4 +28,16 @@ export async function api<T = unknown>(path: string, opts: Opts = {}): Promise<T
   return (text ? JSON.parse(text) : undefined) as T;
 }
 
-export const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
+/** Mensaje de error para mostrar al usuario, en su idioma (nunca códigos técnicos ni textos en inglés). */
+export function errMsg(e: unknown): string {
+  if (e instanceof ApiError) {
+    const code = e.code === 'forbidden_prices' ? 'forbidden' : e.code;
+    if (i18n.exists(`errors.${code}`)) return i18n.t(`errors.${code}` as 'errors.generic');
+    if (e.status === 401) return i18n.t('errors.unauthorized');
+    if (e.status === 403) return i18n.t('errors.forbidden');
+    if (e.status === 404) return i18n.t('errors.not_found');
+    return i18n.t('errors.generic');
+  }
+  if (e instanceof TypeError) return i18n.t('errors.network');
+  return e instanceof Error ? e.message : String(e);
+}

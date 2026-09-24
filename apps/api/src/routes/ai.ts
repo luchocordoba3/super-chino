@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { Prisma } from '@prisma/client';
 import { aiService, type ImageMediaType, type InvoiceData, type LabelData } from '../ai';
 import { prisma } from '../db';
-import { startOfLocalDay } from '../domain/dates';
+import { startOfLocalDay, startOfLocalMonth } from '../domain/dates';
 import { bestMatches } from '../domain/text';
 import { guard } from '../lib/auth';
 import { badRequest, HttpError } from '../lib/http';
@@ -88,9 +88,8 @@ export async function aiRoutes(app: FastifyInstance) {
 
   /** Consumo de IA del local (para saber cuánto cuesta cada cliente). */
   app.get('/ai/usage', guard('owner'), async (req) => {
-    const since = new Date();
-    since.setDate(1);
-    since.setHours(0, 0, 0, 0);
+    const { store } = await storeCtx(prisma, req.auth.sid);
+    const since = startOfLocalMonth(store.timezone);
     const rows = await prisma.aiUsage.groupBy({
       by: ['feature'],
       where: { storeId: req.auth.sid, createdAt: { gte: since } },

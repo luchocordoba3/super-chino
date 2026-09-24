@@ -75,7 +75,7 @@ export function Dashboard() {
           ))}
           {(d.voidsToday.ITEM_REMOVED || d.voidsToday.SALE_VOIDED) && (
             <p className="small warn">
-              ✕ {d.voidsToday.ITEM_REMOVED ?? 0} · {t('pos.voided')}: {d.voidsToday.SALE_VOIDED ?? 0}
+              {t('dashboard.removedItems', { count: d.voidsToday.ITEM_REMOVED ?? 0 })} · {t('dashboard.voidedSales', { count: d.voidsToday.SALE_VOIDED ?? 0 })}
             </p>
           )}
         </div>
@@ -84,7 +84,7 @@ export function Dashboard() {
           {d.topProducts.map((p) => (
             <div className="row between" key={p.productId}>
               <Link to={`/products/${p.productId}`}>{p.name}</Link>
-              <span className="muted">
+              <span className="muted" style={{ whiteSpace: 'nowrap' }}>
                 {qtyFmt(p.qty)} · {money(p.total)}
               </span>
             </div>

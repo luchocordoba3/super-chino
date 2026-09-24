@@ -170,3 +170,17 @@ describe('ingreso con productos nuevos en el mismo paso', () => {
     ]);
   });
 });
+
+describe('búsqueda de productos', () => {
+  it('encuentra sin importar acentos ni mayúsculas, y por el comienzo del código', async () => {
+    await owner.api.post('/products', { name: 'Puré de Tomate', brand: 'Arcor', price: 1, barcode: '7791234' });
+    await owner.api.post('/products', { name: 'Azúcar', price: 1 });
+    const names = async (q: string) => ((await owner.api.get(`/products?q=${encodeURIComponent(q)}`)).body as { name: string }[]).map((p) => p.name);
+    expect(await names('pure')).toEqual(['Puré de Tomate']);
+    expect(await names('PURÉ')).toEqual(['Puré de Tomate']);
+    expect(await names('azucar')).toEqual(['Azúcar']);
+    expect(await names('arcor')).toEqual(['Puré de Tomate']);
+    expect(await names('77912')).toEqual(['Puré de Tomate']);
+    expect(await names('100%')).toEqual([]);
+  });
+});

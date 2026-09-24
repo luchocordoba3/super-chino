@@ -89,6 +89,21 @@ export function productDto(p: ProductRow | Prisma.ProductGetPayload<object>, lot
   };
 }
 
+const ACCENTS = 'áéíóúüñàèìòùâêîôûçÁÉÍÓÚÜÑÀÈÌÒÙÂÊÎÔÛÇ';
+const PLAIN = 'aeiouunaeiouaeioucAEIOUUNAEIOUAEIOUC';
+/** Busca por nombre o marca sin importar acentos ni mayúsculas, o por el comienzo del código de barras. */
+async function searchProductIds(storeId: string, raw: string) {
+  const term = raw.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[%_\\]/g, '');
+  const like = `%${term}%`;
+  const rows = await prisma.$queryRaw<{ id: string }[]>`
+    SELECT id FROM "Product" WHERE "storeId" = ${storeId} AND (
+      lower(translate(name, ${ACCENTS}, ${PLAIN})) LIKE ${like}
+      OR lower(translate(coalesce(brand, ''), ${ACCENTS}, ${PLAIN})) LIKE ${like}
+      OR barcode LIKE ${`${raw.trim()}%`}
+    ) LIMIT 1000`;
+  return rows.map((r) => r.id);
+}
+
 export async function productRoutes(app: FastifyInstance) {
   // ---------- Categorías y proveedores ----------
   app.get('/categories', guard(), async (req) =>
@@ -155,21 +170,14 @@ export async function productRoutes(app: FastifyInstance) {
         inactive: z.coerce.boolean().optional(),
       })
       .parse(req.query);
+    const ids = q.q ? await searchProductIds(req.auth.sid, q.q) : undefined;
     const products = await prisma.product.findMany({
       where: {
         storeId: req.auth.sid,
         active: q.inactive ? undefined : true,
         categoryId: q.categoryId,
         supplierId: q.supplierId,
-        ...(q.q
-          ? {
-              OR: [
-                { name: { contains: q.q, mode: 'insensitive' } },
-                { brand: { contains: q.q, mode: 'insensitive' } },
-                { barcode: { startsWith: q.q } },
-              ],
-            }
-          : {}),
+        ...(ids ? { id: { in: ids } } : {}),
       },
       include: { category: { select: { name: true } }, supplier: { select: { name: true } } },
       orderBy: { name: 'asc' },

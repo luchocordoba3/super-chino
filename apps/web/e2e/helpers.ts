@@ -26,3 +26,29 @@ export async function stockOf(page: Page, barcode: string) {
   const res = await page.request.get(`/api/products/barcode/${barcode}`);
   return (await res.json()).product.stock as number;
 }
+
+export async function loginEmployee(page: Page, username: string, pin: string) {
+  await page.goto('/');
+  await page.getByRole('button', { name: es.login.employee, exact: true }).click();
+  await page.getByLabel(es.login.storeCode).fill('DEMO01');
+  await page.getByLabel(es.login.username).fill(username);
+  await page.getByLabel(es.login.pin).fill(pin);
+  await page.getByRole('button', { name: es.login.enter, exact: true }).click();
+  await expect(page.getByRole('button', { name: es.common.logout })).toBeVisible();
+}
+
+/** Junta errores de la página: JavaScript, consola y respuestas de la API con error. */
+export function watchProblems(page: Page) {
+  const problems: string[] = [];
+  page.on('pageerror', (e) => problems.push(`JS: ${e.message}`));
+  page.on('console', (m) => {
+    if (m.type() === 'error' && !m.text().includes('401')) problems.push(`consola: ${m.text()}`);
+  });
+  page.on('response', (r) => {
+    if (r.url().includes('/api/') && r.status() >= 400 && r.status() !== 401) problems.push(`${r.status()} ${r.request().method()} ${r.url()}`);
+  });
+  return problems;
+}
+
+/** PNG de 1x1 para probar fotos. */
+export const tinyPng = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');

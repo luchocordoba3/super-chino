@@ -1,10 +1,12 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { num, prisma } from '../db';
-import { daysBetween } from '../domain/dates';
+import { daysBetween, startOfLocalMonth } from '../domain/dates';
 import { guard } from '../lib/auth';
-import { badRequest, notFound } from '../lib/http';
+import { badRequest, HttpError, notFound } from '../lib/http';
+import { env } from '../env';
 import { resolveAlert } from '../services/alerts';
+import { DEMO_CODE, seedDemo } from '../services/demo';
 import { runDailyJobs } from '../services/jobs';
 import { publish } from '../services/notify';
 import { storeCtx } from '../services/store';
@@ -40,10 +42,8 @@ export async function offerRoutes(app: FastifyInstance) {
 
   /** "Plata salvada del vencimiento": lo vendido en oferta este mes. */
   app.get('/offers/summary', guard('prices', 'reports'), async (req) => {
-    const start = new Date();
-    start.setDate(1);
-    start.setHours(0, 0, 0, 0);
-    const agg = await prisma.offer.aggregate({ where: { storeId: req.auth.sid, createdAt: { gte: start } }, _sum: { soldAmount: true } });
+    const { store } = await storeCtx(prisma, req.auth.sid);
+    const agg = await prisma.offer.aggregate({ where: { storeId: req.auth.sid, createdAt: { gte: startOfLocalMonth(store.timezone) } }, _sum: { soldAmount: true } });
     const counts = await prisma.offer.groupBy({ by: ['status'], where: { storeId: req.auth.sid }, _count: { _all: true } });
     return { savedThisMonth: num(agg._sum.soldAmount), byStatus: Object.fromEntries(counts.map((c) => [c.status, c._count._all])) };
   });
@@ -97,4 +97,13 @@ export async function offerRoutes(app: FastifyInstance) {
 
   /** Correr la revisión diaria ahora (el servidor igual la corre cada hora). */
   app.post('/jobs/run', guard('owner'), async (req) => runDailyJobs(req.auth.sid));
+
+  /** Vuelve la demo a los datos de ejemplo de hoy (solo en servidores de demostración). */
+  app.post('/demo/reset', guard('owner'), async (req) => {
+    const store = await prisma.store.findUniqueOrThrow({ where: { id: req.auth.sid } });
+    if (!env.SEED_DEMO || store.code !== DEMO_CODE) throw new HttpError(403, 'forbidden');
+    await seedDemo();
+    publish(req.auth.sid, 'catalog');
+    return { ok: true };
+  });
 }

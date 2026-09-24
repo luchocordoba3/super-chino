@@ -72,7 +72,9 @@ export function Team() {
               className="small"
               onClick={() => {
                 const pin = window.prompt(t('team.newPin') + ' (' + t('team.pinHelp') + ')');
-                if (pin) update.mutate({ id: u.id, pin });
+                if (pin === null) return;
+                if (!/^\d{4,8}$/.test(pin)) return toast(t('team.pinHelp'));
+                update.mutate({ id: u.id, pin });
               }}
             >
               {t('team.newPin')}
@@ -92,7 +94,7 @@ export function Team() {
             <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
           </Field>
           <Field label={t('login.username')}>
-            <input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value.toLowerCase() })} required pattern="[a-z0-9._-]{2,30}" autoCapitalize="none" />
+            <input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value.toLowerCase() })} required pattern="[a-z0-9._\-]{2,30}" autoCapitalize="none" />
           </Field>
           <Field label={t('login.pin')} hint={t('team.pinHelp')}>
             <input value={form.pin} onChange={(e) => setForm({ ...form, pin: e.target.value })} required pattern="\d{4,8}" inputMode="numeric" />

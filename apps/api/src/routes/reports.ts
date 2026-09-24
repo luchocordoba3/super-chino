@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { type Payment, round2, round3 } from '@super-chino/shared';
 import { num, prisma } from '../db';
-import { addDays, localYMD, startOfLocalDay } from '../domain/dates';
+import { addDays, localYMD, startOfLocalDay, startOfLocalMonth } from '../domain/dates';
 import { reorderQty, whatsappLink } from '../domain/reorder';
 import { can, guard } from '../lib/auth';
 import { badRequest, HttpError, notFound } from '../lib/http';
@@ -124,7 +124,7 @@ export async function reportRoutes(app: FastifyInstance) {
     const storeId = req.auth.sid;
     const { store, settings, today } = await storeCtx(prisma, storeId);
     const from = startOfLocalDay(store.timezone);
-    const monthStart = startOfLocalDay(store.timezone, new Date(`${localYMD(store.timezone).slice(0, 8)}01T12:00:00Z`));
+    const monthStart = startOfLocalMonth(store.timezone);
     const weekFrom = addDays(from, -6);
     const [sales, names, items, openAlerts, expiring, suggested, offerAgg, waste, voids, week] = await Promise.all([
       prisma.sale.findMany({ where: { storeId, status: 'COMPLETED', occurredAt: { gte: from } }, select: { total: true, costTotal: true, payments: true, userId: true } }),

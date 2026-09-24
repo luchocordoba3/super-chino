@@ -131,10 +131,11 @@ td.num, th.num { text-align: right; white-space: nowrap; }
 
 /* Cartel de ofertas y ticket para imprimir */
 .sign { background: #fff; padding: 24px; }
-.sign h1 { font-size: 3rem; color: var(--red); text-align: center; }
-.sign-item { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px dashed #ccc; padding: 14px 0; font-size: 1.6rem; gap: 12px; }
+.sign h1 { font-size: clamp(1.8rem, 8vw, 3rem); color: var(--red); text-align: center; }
+.sign-item { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; border-bottom: 2px dashed #ccc; padding: 14px 0; font-size: clamp(1.1rem, 4.5vw, 1.6rem); gap: 4px 12px; }
+.sign-item > span:first-child { min-width: 0; overflow-wrap: anywhere; }
 .sign-item .old { text-decoration: line-through; color: var(--muted); font-size: 1.1rem; margin-right: 10px; }
-.sign-item .new { color: var(--red); font-weight: 800; font-size: 2.2rem; }
+.sign-item .new { color: var(--red); font-weight: 800; font-size: clamp(1.4rem, 6vw, 2.2rem); white-space: nowrap; }
 .ticket { width: 72mm; font-family: ui-monospace, monospace; font-size: 12px; }
 .print-only { display: none; }
 @media print {

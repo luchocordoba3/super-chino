@@ -287,7 +287,22 @@ function SellScreen(props: {
 }) {
   const { store, cashier, session } = props;
   const { t } = useTranslation();
-  const [items, setItems] = useState<CartItem[]>([]);
+  const cartKey = `pos.cart.${session.id}`;
+  const [items, setItems] = useState<CartItem[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(cartKey) ?? '[]') as CartItem[];
+    } catch {
+      return [];
+    }
+  });
+  useEffect(() => {
+    try {
+      if (items.length) localStorage.setItem(cartKey, JSON.stringify(items));
+      else localStorage.removeItem(cartKey);
+    } catch {
+      // sin localStorage: el carrito queda solo en memoria
+    }
+  }, [items, cartKey]);
   const [offers, setOffers] = useState<Map<string, OfferInfo>>(new Map());
   const [input, setInput] = useState('');
   const [results, setResults] = useState<{ list: CatalogProduct[]; qty: number | null } | null>(null);

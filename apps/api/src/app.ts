@@ -42,6 +42,13 @@ export async function buildApp(opts: FastifyServerOptions = {}) {
     return reply.status(500).send({ error: 'internal' });
   });
 
+  // Encabezados de seguridad básicos: no se puede meter la app dentro de otra página, ni adivinar tipos de archivo.
+  app.addHook('onSend', async (_req, reply) => {
+    reply.header('X-Content-Type-Options', 'nosniff');
+    reply.header('X-Frame-Options', 'DENY');
+    reply.header('Referrer-Policy', 'same-origin');
+  });
+
   app.get('/api/health', async () => ({ ok: true }));
   app.get('/api/public/config', async () => ({ demo: env.SEED_DEMO }));
 

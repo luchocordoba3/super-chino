@@ -102,8 +102,10 @@ export async function messageRoutes(app: FastifyInstance) {
 
   app.post('/messages/:id/translate', guard(), async (req) => {
     const { id } = req.params as { id: string };
-    const m = await prisma.message.findFirst({ where: { id, storeId: req.auth.sid } });
+    const m = await prisma.message.findFirst({ where: { id, storeId: req.auth.sid }, include: { recipients: { select: { userId: true } } } });
     if (!m) throw notFound();
+    const involved = m.fromUserId === req.auth.uid || m.recipients.some((r) => r.userId === req.auth.uid);
+    if (!involved && !can(req.auth, 'owner')) throw new HttpError(403, 'forbidden');
     await translateAndNotify(id);
     return { ok: true };
   });

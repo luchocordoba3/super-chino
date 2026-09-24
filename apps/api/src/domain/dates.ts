@@ -33,5 +33,8 @@ export function startOfLocalDay(tz: string, d = new Date()) {
   return new Date(midnightUtc.getTime() - tzOffsetMs(tz, midnightUtc));
 }
 
+/** Instante en que empieza el mes local que contiene `d`. */
+export const startOfLocalMonth = (tz: string, d = new Date()) => startOfLocalDay(tz, new Date(`${localYMD(tz, d).slice(0, 8)}01T12:00:00Z`));
+
 export const localHour = (tz: string, d = new Date()) =>
   Number(new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', hourCycle: 'h23' }).format(d));

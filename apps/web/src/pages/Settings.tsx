@@ -20,6 +20,8 @@ const NUM_FIELDS = [
   'countDiffThreshold',
   'aiDailyScanLimit',
 ] as const;
+type NumField = (typeof NUM_FIELDS)[number];
+const INT_FIELDS = new Set<NumField>(['expiryAlertDays', 'offerAllowBelowCostDays', 'voidAlertThreshold', 'countItemsPerDay', 'aiDailyScanLimit']);
 
 export function Settings() {
   const me = useMe();
@@ -30,6 +32,7 @@ export function Settings() {
       <Notifications />
       {can(me, 'owner') && <StoreForm />}
       {can(me, 'owner') && <Devices />}
+      {can(me, 'owner') && <DemoReset />}
       {can(me, 'owner') && (
         <button
           onClick={() =>
@@ -68,13 +71,19 @@ function StoreForm() {
   const qc = useQueryClient();
   const [name, setName] = useState(me.store.name);
   const [s, setS] = useState<StoreSettings>(me.store.settings);
+  const [nums, setNums] = useState(() => Object.fromEntries(NUM_FIELDS.map((k) => [k, String(me.store.settings[k])])) as Record<NumField, string>);
   const [busy, setBusy] = useState(false);
 
   const save = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
     try {
-      await api('/store', { method: 'PATCH', body: { name, settings: s } });
+      const settings = { ...s };
+      for (const k of NUM_FIELDS) {
+        const v = toNum(nums[k]);
+        if (v != null) settings[k] = INT_FIELDS.has(k) ? Math.round(v) : v;
+      }
+      await api('/store', { method: 'PATCH', body: { name, settings } });
       toast(t('common.saved'));
       await qc.invalidateQueries({ queryKey: ['me'] });
     } catch (err) {
@@ -93,7 +102,7 @@ function StoreForm() {
       <div className="grid2">
         {NUM_FIELDS.map((k) => (
           <Field key={k} label={t(`settings.${k}`)}>
-            <input inputMode="decimal" value={String(s[k])} onChange={(e) => setS({ ...s, [k]: toNum(e.target.value) ?? 0 })} />
+            <input inputMode="decimal" value={nums[k]} onChange={(e) => setNums({ ...nums, [k]: e.target.value })} />
           </Field>
         ))}
       </div>
@@ -179,5 +188,33 @@ function Notifications() {
       {!available && <p className="muted">{t('settings.notificationsUnavailable')}</p>}
       {available && (on ? <p className="ok">{t('settings.notificationsOn')}</p> : <button onClick={() => void enable()}>🔔 {t('settings.enableNotifications')}</button>)}
     </div>
+  );
+}
+
+/** Solo en el servidor de demostración: vuelve el local DEMO01 a los datos de ejemplo de hoy. */
+function DemoReset() {
+  const me = useMe();
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const cfg = useQuery({ queryKey: ['public-config'], queryFn: () => api<{ demo: boolean }>('/public/config'), staleTime: Infinity });
+  const [busy, setBusy] = useState(false);
+  if (!cfg.data?.demo || me.store.code !== 'DEMO01') return null;
+  const reset = async () => {
+    if (!window.confirm(t('settings.resetDemoConfirm'))) return;
+    setBusy(true);
+    try {
+      await api('/demo/reset', { method: 'POST' });
+      await qc.invalidateQueries();
+      toast(t('settings.resetDemoDone'));
+    } catch (e) {
+      toast(errMsg(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <button disabled={busy} onClick={() => void reset()}>
+      ♻️ {busy ? t('common.loading') : t('settings.resetDemo')}
+    </button>
   );
 }

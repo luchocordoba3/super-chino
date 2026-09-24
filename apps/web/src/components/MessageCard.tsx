@@ -92,7 +92,12 @@ export function MessageCard({ m, box }: { m: Msg; box: 'inbox' | 'sent' }) {
           {m.doneNote && <div>{m.doneNote}</div>}
           {m.donePhoto && (
             <a href={m.donePhoto} target="_blank" rel="noreferrer">
-              <img src={m.donePhoto} alt="" style={{ maxWidth: 220, borderRadius: 8, display: 'block', marginTop: 6 }} />
+              <img
+                src={m.donePhoto}
+                alt=""
+                style={{ maxWidth: 220, borderRadius: 8, display: 'block', marginTop: 6 }}
+                onError={(e) => (e.currentTarget.style.display = 'none')}
+              />
             </a>
           )}
         </div>

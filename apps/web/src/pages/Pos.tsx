@@ -712,7 +712,8 @@ function CloseCash({ session, cashier, recent, onClose, onClosed }: { session: C
 }
 
 function Ticket({ sale, store }: { sale: LocalSale; store: StoreInfo | null }) {
-  const { t } = useTranslation();
+  // El ticket es para el cliente: siempre en español, aunque la caja esté en chino.
+  const { t } = useTranslation(undefined, { lng: 'es' });
   return (
     <div className="print-area ticket print-only">
       <div style={{ textAlign: 'center', fontWeight: 700 }}>{store?.name}</div>

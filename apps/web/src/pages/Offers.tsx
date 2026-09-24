@@ -26,6 +26,7 @@ export async function shareOffers(text: string) {
 export function Offers() {
   const me = useMe();
   const { t } = useTranslation();
+  const { t: tEs } = useTranslation(undefined, { lng: 'es' });
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ['offers'], queryFn: () => api<OfferRow[]>('/offers') });
   const summary = useQuery({ queryKey: ['offers', 'summary'], queryFn: () => api<{ savedThisMonth: number }>('/offers/summary') });
@@ -105,7 +106,7 @@ export function Offers() {
           <Link className="btn" to="/offers/print">
             🖨 {t('offers.printSign')}
           </Link>
-          <button onClick={() => void shareOffers(shareText(me.store.name, active, t('offers.todaysOffers')))}>📲 {t('offers.shareWhatsapp')}</button>
+          <button onClick={() => void shareOffers(shareText(me.store.name, active, tEs('offers.todaysOffers')))}>📲 {t('offers.shareWhatsapp')}</button>
         </div>
       )}
       {q.isLoading && <Loading />}
@@ -123,6 +124,8 @@ export function Offers() {
 export function OffersPrint() {
   const me = useMe();
   const { t } = useTranslation();
+  // El cartel es para los clientes: siempre en español.
+  const { t: tEs } = useTranslation(undefined, { lng: 'es' });
   const q = useQuery({ queryKey: ['offers', 'ACTIVE'], queryFn: () => api<OfferRow[]>('/offers?status=ACTIVE') });
   return (
     <div>
@@ -135,7 +138,7 @@ export function OffersPrint() {
         </button>
       </div>
       <div className="sign print-area">
-        <h1>{t('offers.todaysOffers')}</h1>
+        <h1>{tEs('offers.todaysOffers')}</h1>
         <p style={{ textAlign: 'center', fontSize: '1.3rem' }}>{me.store.name}</p>
         {q.data?.map((o) => (
           <div className="sign-item" key={o.id}>

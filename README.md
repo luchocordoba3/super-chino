@@ -97,6 +97,10 @@ Límites del plan gratis:
 
 Para clientes reales conviene el plan pago de Render o pasar la base a una gratis permanente (por ejemplo Neon) cambiando `DATABASE_URL`.
 
+## Folleto de ventas (para mandar por WhatsApp)
+
+`docs/folleto/Super-Chino-Español.pdf` y `docs/folleto/Super-Chino-中文.pdf`: 10 páginas del tamaño de un celular con todas las funciones y el link de la demo. Para cambiar textos, editá `docs/folleto/folleto.mjs` y volvé a generarlos con `cd docs/folleto && npm install && node folleto.mjs`.
+
 ## Producción
 
 Es un solo servicio: la API sirve la web compilada. Con Docker:

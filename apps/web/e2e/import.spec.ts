@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { es } from '../src/i18n/es';
 import { zh } from '../src/i18n/zh';
 import { ean13, loginOwner, watchProblems } from './helpers';
 
@@ -14,10 +15,12 @@ test('importar una planilla y después imprimir sus etiquetas con precio por kil
 
   await page.getByRole('link', { name: zh.importer.printLabels }).click();
   const harina = page.locator('.shelf-label', { hasText: 'Harina 000 1kg' });
-  await expect(harina).toContainText(zh.labels.per.kg);
+  // El dueño usa la app en chino, pero la etiqueta es para los clientes: sale en español.
+  await expect(harina).toContainText(es.labels.per.kg);
+  await expect(harina).not.toContainText(zh.labels.per.kg);
   await expect(harina.locator('svg.sl-barcode')).toBeVisible();
   // Envase de 50 g o menos: el precio se informa cada 10 g.
-  await expect(page.locator('.shelf-label', { hasText: 'Aceitunas 40g' })).toContainText(zh.labels.per.g10);
+  await expect(page.locator('.shelf-label', { hasText: 'Aceitunas 40g' })).toContainText(es.labels.per.g10);
   await page.evaluate(() => {
     window.print = () => undefined;
   });

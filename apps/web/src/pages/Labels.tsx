@@ -92,7 +92,8 @@ export function Labels() {
 }
 
 function ShelfLabel({ p }: { p: Product }) {
-  const { t } = useTranslation();
+  // La etiqueta la leen los clientes: siempre en español.
+  const { t } = useTranslation(undefined, { lng: 'es' });
   const content = p.contentQty && p.contentUnit ? { qty: p.contentQty, unit: p.contentUnit as ContentUnit } : parseContent(p.name);
   const up = unitPrice(p.price, content, p.unit);
   const modules = p.barcode ? eanModules(p.barcode) : null;

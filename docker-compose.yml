@@ -1,0 +1,12 @@
+# Postgres local para desarrollo (opcional si ya tenés Postgres instalado)
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: superchino
+      POSTGRES_PASSWORD: superchino
+      POSTGRES_DB: superchino
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+volumes:
+  pgdata:

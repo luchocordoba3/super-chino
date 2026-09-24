@@ -1,0 +1,9 @@
+node_modules
+dist
+dev-dist
+.env
+*.log
+uploads
+test-results
+playwright-report
+coverage

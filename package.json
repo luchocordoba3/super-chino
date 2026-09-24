@@ -1,0 +1,20 @@
+{
+  "name": "super-chino",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "dev": "pnpm --parallel --filter ./apps/* dev",
+    "build": "pnpm --filter @super-chino/web build",
+    "start": "pnpm --filter @super-chino/api start",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "db:migrate": "pnpm --filter @super-chino/api db:migrate",
+    "db:deploy": "pnpm --filter @super-chino/api db:deploy",
+    "db:seed": "pnpm --filter @super-chino/api db:seed",
+    "e2e": "pnpm --filter @super-chino/web e2e"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["@prisma/client", "@prisma/engines", "prisma", "esbuild"]
+  }
+}

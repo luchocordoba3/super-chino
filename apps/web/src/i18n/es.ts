@@ -340,7 +340,6 @@ export const es = {
     noPhone: 'Sin WhatsApp cargado',
     none: 'No hace falta reponer nada por ahora',
     noSupplier: 'Sin proveedor',
-    greeting: 'Hola {{supplier}}, te hago un pedido para {{store}}:',
   },
   sales: {
     title: 'Ventas',

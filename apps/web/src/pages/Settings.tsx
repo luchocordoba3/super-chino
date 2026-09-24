@@ -42,6 +42,17 @@ export function Settings() {
         </button>
       )}
       {can(me, 'owner') && (
+        <button
+          onClick={() =>
+            void api('/counts', { body: {} })
+              .then(() => toast(t('count.title') + ' ✓'))
+              .catch((e) => toast(errMsg(e)))
+          }
+        >
+          🔢 {t('count.title')}
+        </button>
+      )}
+      {can(me, 'owner') && (
         <div className="card">
           <h2>{t('settings.ai')}</h2>
           <p className={me.aiEnabled ? 'ok' : 'warn'}>{me.aiEnabled ? t('settings.aiOn') : t('settings.aiOff')}</p>

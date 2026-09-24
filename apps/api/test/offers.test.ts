@@ -38,6 +38,7 @@ afterAll(() => app.close());
 beforeEach(async () => {
   await resetDb();
   owner = await registerOwner(app);
+  await owner.api.patch('/store', { settings: { countItemsPerDay: 0 } });
   pos = client(app, undefined, { 'x-device-token': (await owner.api.post('/pos/devices', { name: 'Caja' })).body.token });
 });
 

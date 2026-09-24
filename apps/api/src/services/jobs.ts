@@ -1,6 +1,9 @@
 import type { FastifyBaseLogger } from 'fastify';
 import { num, prisma } from '../db';
+import { localHour, localYMD, startOfLocalDay } from '../domain/dates';
 import { addDays, daysBetween } from '../domain/dates';
+import { createStockCount } from './counts';
+import { ownerIds, pushTo } from './notify';
 import { fefoCompare } from '../domain/fefo';
 import { suggestOffer } from '../domain/offers';
 import { type NewAlert, notifyAlerts, raiseAlert, resolveAlert } from './alerts';
@@ -138,12 +141,52 @@ async function lowStockJob(storeId: string, alerts: NewAlert[]) {
   alerts.push(...res.filter((r) => r.isNew).map((r) => r.alert));
 }
 
+/** Marca un proceso como hecho hoy; devuelve false si ya estaba hecho. */
+async function onceToday(storeId: string, key: string) {
+  try {
+    await prisma.jobRun.create({ data: { storeId, key } });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Conteo sorpresa: una vez por día, desde las 9 de la mañana. */
+async function countJob(storeId: string, now: Date) {
+  const { store, settings } = await storeCtx(prisma, storeId);
+  if (settings.countItemsPerDay <= 0 || localHour(store.timezone, now) < 9) return;
+  if (!(await onceToday(storeId, `COUNT:${localYMD(store.timezone, now)}`))) return;
+  await createStockCount(storeId, await stockStaff(storeId), { n: settings.countItemsPerDay });
+}
+
+/** Resumen del día al celular del dueño, desde las 21 hs. */
+async function summaryJob(storeId: string, now: Date) {
+  const { store } = await storeCtx(prisma, storeId);
+  if (localHour(store.timezone, now) < 21) return;
+  if (!(await onceToday(storeId, `SUMMARY:${localYMD(store.timezone, now)}`))) return;
+  const sales = await prisma.sale.findMany({ where: { storeId, status: 'COMPLETED', occurredAt: { gte: startOfLocalDay(store.timezone) } }, select: { total: true, costTotal: true } });
+  const total = sales.reduce((s, x) => s + num(x.total), 0);
+  const profit = total - sales.reduce((s, x) => s + num(x.costTotal), 0);
+  const alerts = await prisma.alert.count({ where: { storeId, resolvedAt: null } });
+  const fmt = (n: number) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: store.currency, maximumFractionDigits: 0 }).format(n);
+  const owners = await prisma.user.findMany({ where: { id: { in: await ownerIds(storeId) } }, select: { id: true, lang: true } });
+  for (const o of owners) {
+    const body =
+      o.lang === 'zh'
+        ? `今天：${sales.length} 单，销售额 ${fmt(total)}，利润 ${fmt(profit)}，${alerts} 条提醒`
+        : `Hoy: ${sales.length} ventas por ${fmt(total)} · ganancia ${fmt(profit)} · ${alerts} avisos`;
+    await pushTo([o.id], { title: store.name, body, url: '/' });
+  }
+}
+
 /** Revisión diaria (idempotente: se puede correr varias veces sin duplicar nada). */
-export async function runDailyJobs(storeId: string) {
+export async function runDailyJobs(storeId: string, now = new Date()) {
   const alerts: NewAlert[] = [];
   await expiryJob(storeId, alerts);
   const offerChanges = await offersJob(storeId, alerts);
   await lowStockJob(storeId, alerts);
+  await countJob(storeId, now);
+  await summaryJob(storeId, now);
   if (offerChanges) {
     publish(storeId, 'offers');
     publish(storeId, 'catalog');

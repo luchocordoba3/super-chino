@@ -8,12 +8,15 @@ import { setLang } from './i18n';
 import { setCurrency } from './lib/format';
 import { MeContext, meQuery } from './lib/me';
 import { Alerts } from './pages/Alerts';
+import { CountPage } from './pages/Count';
 import { Home } from './pages/Home';
 import { Login } from './pages/Login';
 import { Messages } from './pages/Messages';
 import { Offers, OffersPrint } from './pages/Offers';
 import { Pos } from './pages/Pos';
 import { ProductDetail } from './pages/ProductDetail';
+import { Reorder } from './pages/Reorder';
+import { Sales } from './pages/Sales';
 import { Products } from './pages/Products';
 import { Settings } from './pages/Settings';
 import { Stock } from './pages/Stock';
@@ -58,6 +61,9 @@ export function App() {
           <Route path="messages" element={<Messages />} />
           <Route path="alerts" element={<Alerts />} />
           <Route path="offers" element={<Offers />} />
+          <Route path="counts/:id" element={<CountPage />} />
+          <Route path="reorder" element={<Reorder />} />
+          <Route path="sales" element={<Sales />} />
           <Route path="team" element={<Team />} />
           <Route path="settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/" replace />} />

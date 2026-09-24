@@ -15,6 +15,7 @@ import { messageRoutes } from './routes/messages';
 import { offerRoutes } from './routes/offers';
 import { posRoutes } from './routes/pos';
 import { productRoutes } from './routes/products';
+import { reportRoutes } from './routes/reports';
 import { salesRoutes } from './routes/sales';
 import { stockRoutes } from './routes/stock';
 
@@ -48,6 +49,7 @@ export async function buildApp(opts: FastifyServerOptions = {}) {
       await salesRoutes(api);
       await messageRoutes(api);
       await offerRoutes(api);
+      await reportRoutes(api);
     },
     { prefix: '/api' },
   );

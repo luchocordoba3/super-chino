@@ -342,7 +342,6 @@ export const zh: Dict = {
     noPhone: '没有 WhatsApp 号码',
     none: '暂时不需要补货',
     noSupplier: '无供应商',
-    greeting: '你好 {{supplier}}，{{store}} 订货：',
   },
   sales: {
     title: '销售',

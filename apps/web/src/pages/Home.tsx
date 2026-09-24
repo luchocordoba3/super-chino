@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { MessageCard } from '../components/MessageCard';
+import { Dashboard } from './Dashboard';
 import { Empty } from '../components/ui';
 import { can, useMe } from '../lib/me';
 import type { Msg } from '../lib/types';
@@ -15,6 +16,7 @@ export function Home() {
   return (
     <div className="stack">
       <h1>{t('home.hello', { name: me.user.name })}</h1>
+      {can(me, 'reports') && <Dashboard />}
       <div className="card">
         <h3>{t('home.shortcuts')}</h3>
         <div className="row">

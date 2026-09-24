@@ -30,6 +30,8 @@ export interface Supplier {
   name: string;
   phone: string | null;
   leadTimeDays: number;
+  /** Productos activos de este proveedor. */
+  products?: number;
 }
 
 export interface PriceSuggestion {

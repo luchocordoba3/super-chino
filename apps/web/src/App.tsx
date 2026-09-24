@@ -20,6 +20,7 @@ import { Sales } from './pages/Sales';
 import { Products } from './pages/Products';
 import { ScanInvoice } from './pages/ScanInvoice';
 import { Settings } from './pages/Settings';
+import { Suppliers } from './pages/Suppliers';
 import { Stock } from './pages/Stock';
 import { Team } from './pages/Team';
 
@@ -58,6 +59,7 @@ export function App() {
           <Route index element={<Home />} />
           <Route path="products" element={<Products />} />
           <Route path="products/:id" element={<ProductDetail />} />
+          <Route path="suppliers" element={<Suppliers />} />
           <Route path="stock" element={<Stock />} />
           <Route path="stock/scan" element={<ScanInvoice />} />
           <Route path="messages" element={<Messages />} />

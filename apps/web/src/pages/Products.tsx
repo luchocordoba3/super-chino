@@ -28,6 +28,11 @@ export function Products() {
       <div className="row between">
         <h1>{t('products.title')}</h1>
         <div className="row">
+          {(can(me, 'stock') || can(me, 'prices')) && (
+            <Link className="btn" to="/suppliers">
+              {t('products.suppliers')}
+            </Link>
+          )}
           {can(me, 'prices') && <button onClick={() => setModal('bulk')}>{t('products.bulkPrice')}</button>}
           {(can(me, 'stock') || can(me, 'prices')) && (
             <button className="primary" onClick={() => setModal('new')}>

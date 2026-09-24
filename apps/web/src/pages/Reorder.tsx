@@ -44,7 +44,11 @@ export function Reorder() {
                 </a>
               )}
             </div>
-            {g.supplier && !g.supplier.phone && <span className="hint">{t('reorder.noPhone')}</span>}
+            {g.supplier && !g.supplier.phone && (
+              <Link className="hint" to="/suppliers">
+                {t('reorder.noPhone')} →
+              </Link>
+            )}
             {g.items.map((i) => (
               <div className="row between list-item" key={i.productId}>
                 <span className="grow">

@@ -108,9 +108,14 @@ export async function productRoutes(app: FastifyInstance) {
     phone: z.string().trim().max(20).nullish().transform((v) => (v ? v.replace(/\D/g, '') : null)),
     leadTimeDays: z.number().int().min(0).max(60).optional(),
   });
-  app.get('/suppliers', guard(), async (req) =>
-    prisma.supplier.findMany({ where: { storeId: req.auth.sid }, orderBy: { name: 'asc' } }),
-  );
+  app.get('/suppliers', guard(), async (req) => {
+    const rows = await prisma.supplier.findMany({
+      where: { storeId: req.auth.sid },
+      include: { _count: { select: { products: { where: { active: true } } } } },
+      orderBy: { name: 'asc' },
+    });
+    return rows.map(({ _count, ...s }) => ({ ...s, products: _count.products }));
+  });
   app.post('/suppliers', guard('stock', 'prices'), async (req) => {
     const b = supplierBody.parse(req.body);
     try {
@@ -124,7 +129,19 @@ export async function productRoutes(app: FastifyInstance) {
     const { id } = req.params as { id: string };
     const b = supplierBody.partial().parse(req.body);
     if (!(await prisma.supplier.findFirst({ where: { id, storeId: req.auth.sid } }))) throw notFound();
-    return prisma.supplier.update({ where: { id }, data: b });
+    try {
+      return await prisma.supplier.update({ where: { id }, data: b });
+    } catch (e) {
+      if (isUniqueError(e)) throw new HttpError(409, 'supplier_exists');
+      throw e;
+    }
+  });
+  /** Eliminar proveedor: sus productos e ingresos quedan sin proveedor (no se borra nada más). */
+  app.delete('/suppliers/:id', guard('stock', 'prices'), async (req) => {
+    const { id } = req.params as { id: string };
+    const r = await prisma.supplier.deleteMany({ where: { id, storeId: req.auth.sid } });
+    if (!r.count) throw notFound();
+    return { ok: true };
   });
 
   // ---------- Productos ----------

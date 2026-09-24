@@ -45,6 +45,7 @@ export const es = {
     units: { UNIT: 'unidad', KG: 'kg' },
     yes: 'Sí',
     no: 'No',
+    delete: 'Eliminar',
   },
   nav: {
     home: 'Inicio',
@@ -178,6 +179,11 @@ export const es = {
     searchPlaceholder: 'Nombre o código…',
     changedBy: 'por {{name}}',
     sources: { manual: 'manual', bulk: 'masivo', margin: 'por costo' },
+    suppliers: 'Proveedores',
+    suppliersHelp: 'El WhatsApp y los días de entrega se usan para armar los pedidos en "Reponer".',
+    productsCount: '{{count}} productos',
+    deleteSupplier: '¿Eliminar este proveedor? Sus productos quedan sin proveedor.',
+    supplierExists: 'Ya hay un proveedor con ese nombre',
   },
   stock: {
     title: 'Stock',

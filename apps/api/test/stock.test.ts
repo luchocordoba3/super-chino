@@ -138,6 +138,21 @@ describe('ingresos, ajustes y mermas', () => {
   });
 });
 
+describe('proveedores', () => {
+  it('se cargan, editan y eliminan; los productos quedan sin proveedor', async () => {
+    const sup = (await owner.api.post('/suppliers', { name: 'Distribuidora Norte' })).body;
+    await owner.api.post('/products', { name: 'Yerba', price: 1, supplierId: sup.id });
+    const edited = await owner.api.patch(`/suppliers/${sup.id}`, { phone: '+54 9 11 1234-5678', leadTimeDays: 5 });
+    expect(edited.body).toMatchObject({ phone: '5491112345678', leadTimeDays: 5 });
+    expect((await owner.api.get('/suppliers')).body).toEqual([expect.objectContaining({ name: 'Distribuidora Norte', products: 1 })]);
+
+    const other = await registerOwner(app);
+    expect((await other.api.del(`/suppliers/${sup.id}`)).status).toBe(404);
+    expect((await owner.api.del(`/suppliers/${sup.id}`)).status).toBe(200);
+    expect((await owner.api.get('/products')).body[0].supplierId).toBeNull();
+  });
+});
+
 describe('ingreso con productos nuevos en el mismo paso', () => {
   it('crea el producto y el lote juntos, y reusa el código si ya existía', async () => {
     await owner.api.post('/products', { name: 'Fideos', price: 700, barcode: '555' });

@@ -47,6 +47,7 @@ export const zh: Dict = {
     units: { UNIT: '个', KG: '公斤' },
     yes: '是',
     no: '否',
+    delete: '删除',
   },
   nav: {
     home: '首页',
@@ -180,6 +181,11 @@ export const zh: Dict = {
     searchPlaceholder: '名称或条码…',
     changedBy: '由 {{name}}',
     sources: { manual: '手动', bulk: '批量', margin: '按成本' },
+    suppliers: '供应商',
+    suppliersHelp: 'WhatsApp 和送货天数用于在“补货”里生成订单。',
+    productsCount: '{{count}} 个商品',
+    deleteSupplier: '删除这个供应商？相关商品将没有供应商。',
+    supplierExists: '已有同名供应商',
   },
   stock: {
     title: '库存',

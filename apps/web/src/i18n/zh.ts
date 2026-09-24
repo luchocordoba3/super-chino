@@ -54,6 +54,7 @@ export const zh: Dict = {
     pos: '收银',
     stock: '库存',
     products: '商品',
+    suppliers: '供应商',
     messages: '消息',
     alerts: '提醒',
     offers: '促销',

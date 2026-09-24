@@ -39,6 +39,7 @@ export function Layout() {
     { to: '/pos', label: t('nav.pos'), show: can(me, 'sell') },
     { to: '/stock', label: t('nav.stock'), show: can(me, 'stock') || can(me, 'adjust') },
     { to: '/products', label: t('nav.products'), show: true },
+    { to: '/suppliers', label: t('nav.suppliers'), show: can(me, 'stock') || can(me, 'prices') },
     { to: '/messages', label: t('nav.messages'), show: true },
     { to: '/alerts', label: t('nav.alerts'), show: can(me, 'owner') },
     { to: '/offers', label: t('nav.offers'), show: can(me, 'prices') },

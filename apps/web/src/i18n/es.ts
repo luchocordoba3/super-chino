@@ -52,6 +52,7 @@ export const es = {
     pos: 'Caja',
     stock: 'Stock',
     products: 'Productos',
+    suppliers: 'Proveedores',
     messages: 'Mensajes',
     alerts: 'Avisos',
     offers: 'Ofertas',

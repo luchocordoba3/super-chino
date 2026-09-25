@@ -10,7 +10,7 @@ import type { Me } from '../lib/me';
 import { addItem, type CartItem, cartTotal, type OfferInfo, parseScan, priceCart, settlePayments } from '../pos/cart';
 import { type CashMoveLocal, type CashSessionLocal, type CatalogProduct, type CategoryRow, db, type Handover, type LocalTab, kvDel, kvGet, kvSet, type LocalSale, normalize, type PosUser, type StoreInfo, type SupplierRow } from '../pos/db';
 import { verifyPin } from '../pos/pin';
-import { enqueue, flushOutbox, getDeviceToken, linkDevice, pendingCount, refreshCatalog, refreshTabs, syncEvents, UnlinkedError, unsyncedOfferQty } from '../pos/sync';
+import { enqueue, flushOutbox, getDeviceToken, linkDevice, pendingCount, posGet, posPost, refreshCatalog, refreshTabs, syncEvents, UnlinkedError, unsyncedOfferQty } from '../pos/sync';
 import { cancelTab, openTab, setTabQty } from '../pos/tabs';
 
 type Phase = 'loading' | 'unlinked' | 'pick' | 'open' | 'sell';
@@ -546,7 +546,7 @@ function SellScreen(props: {
     focus();
   };
 
-  const confirmSale = async (payments: { method: PaymentMethod; amount: number }[], change: number) => {
+  const confirmSale = async (payments: Pay[], change: number) => {
     const id = uuid();
     const occurredAt = nowIso();
     const event: PosEvent = {
@@ -783,7 +783,16 @@ function SellScreen(props: {
           }}
         />
       )}
-      {paying && <PayModal total={total} onClose={() => (setPaying(false), focus())} onConfirm={confirmSale} />}
+      {paying && (
+        <PayModal
+          total={total}
+          mp={!!store?.mp}
+          table={tab?.table ?? null}
+          label={tab?.label ?? null}
+          onClose={() => (setPaying(false), focus())}
+          onConfirm={confirmSale}
+        />
+      )}
       {done && (
         <Modal title={t('pos.saleDone')} onClose={() => (setDone(null), focus())}>
           <div className="stack">
@@ -975,16 +984,34 @@ function WeightModal({ product, onOk, onClose }: { product: CatalogProduct; onOk
   );
 }
 
-function PayModal({ total, onClose, onConfirm }: { total: number; onClose: () => void; onConfirm: (p: { method: PaymentMethod; amount: number }[], change: number) => void }) {
+type Pay = { method: PaymentMethod; amount: number; ref?: string };
+
+function PayModal({
+  total,
+  mp,
+  table,
+  label,
+  onClose,
+  onConfirm,
+}: {
+  total: number;
+  /** Mercado Pago conectado: con "QR" se cobra con el monto cargado en el QR de la mesa o del mostrador. */
+  mp: boolean;
+  table: number | null;
+  label: string | null;
+  onClose: () => void;
+  onConfirm: (p: Pay[], change: number) => void;
+}) {
   const { t } = useTranslation();
   const [rows, setRows] = useState<{ method: PaymentMethod; amount: string }[]>([{ method: 'CASH', amount: String(total) }]);
   const parsed = rows.map((r) => ({ method: r.method, amount: toNum(r.amount) ?? 0 }));
   const { payments, change, missing } = settlePayments(total, parsed);
   const setRow = (i: number, patch: Partial<{ method: PaymentMethod; amount: string }>) => setRows(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   const bills = [...new Set([total, Math.ceil(total / 1000) * 1000, Math.ceil(total / 2000) * 2000, Math.ceil(total / 10000) * 10000])];
+  const mpQr = mp && rows.length === 1 && rows[0].method === 'QR';
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (missing <= 0) onConfirm(payments as { method: PaymentMethod; amount: number }[], change);
+    if (!mpQr && missing <= 0) onConfirm(payments as Pay[], change);
   };
   return (
     <Modal title={`${t('pos.pay')} ${money(total)}`} onClose={onClose}>
@@ -1027,11 +1054,97 @@ function PayModal({ total, onClose, onConfirm }: { total: number; onClose: () =>
             {t('pos.change')}: {money(change)}
           </p>
         )}
-        <button className="primary big" disabled={missing > 0}>
-          {t('pos.confirmSale')}
-        </button>
+        {mpQr ? (
+          <MpQrCharge amount={total} table={table} label={label} onPaid={(ref) => onConfirm([{ method: 'QR', amount: total, ref }], 0)} />
+        ) : (
+          <button className="primary big" disabled={missing > 0}>
+            {t('pos.confirmSale')}
+          </button>
+        )}
       </form>
     </Modal>
+  );
+}
+
+interface ChargeView {
+  chargeId: string;
+  orderId: string | null;
+  status: string;
+  paid: boolean;
+}
+
+/**
+ * Cobro con el QR fijo de Mercado Pago: se manda el monto al QR de la mesa (o del mostrador), el cliente
+ * escanea y paga, y la caja se entera sola. Necesita internet.
+ */
+function MpQrCharge({ amount, table, label, onPaid }: { amount: number; table: number | null; label: string | null; onPaid: (ref: string) => void }) {
+  const { t } = useTranslation();
+  const [charge, setCharge] = useState<ChargeView | null>(null);
+  const [state, setState] = useState<'idle' | 'waiting' | 'failed'>('idle');
+  const [error, setError] = useState('');
+  const done = useRef(false);
+  const paid = useRef(onPaid);
+  paid.current = onPaid;
+  const where = table != null ? t('tabs.table', { n: table }) : t('mp.counter');
+
+  const start = async () => {
+    setError('');
+    setState('waiting');
+    try {
+      setCharge(await posPost<ChargeView>('/pos/mp/charges', { chargeId: uuid(), amount, table, description: label ?? t('mp.counter') }));
+    } catch {
+      setState('failed');
+      setError(navigator.onLine ? t('mp.chargeError') : t('mp.offline'));
+    }
+  };
+  useEffect(() => {
+    if (state !== 'waiting' || !charge) return;
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = async () => {
+      try {
+        const c = await posGet<ChargeView>(`/pos/mp/charges/${charge.chargeId}`);
+        if (c.paid && !done.current) {
+          done.current = true;
+          return paid.current(c.orderId ?? c.chargeId);
+        }
+        if (['canceled', 'expired', 'failed'].includes(c.status)) {
+          setState('failed');
+          return setError(t('mp.notPaid'));
+        }
+      } catch {
+        // sin conexión un momento: se sigue esperando
+      }
+      timer = setTimeout(() => void tick(), 2000);
+    };
+    timer = setTimeout(() => void tick(), 1500);
+    return () => clearTimeout(timer);
+  }, [state, charge, t]);
+
+  const cancel = async () => {
+    if (charge) await posPost(`/pos/mp/charges/${charge.chargeId}/cancel`).catch(() => undefined);
+    setCharge(null);
+    setState('idle');
+  };
+
+  if (state === 'waiting') {
+    return (
+      <div className="mp-wait">
+        <div className="spinner" />
+        <strong>{t('mp.waiting', { where })}</strong>
+        <span className="muted small">{t('mp.waitingHelp')}</span>
+        <button type="button" onClick={() => void cancel()}>
+          {t('common.cancel')}
+        </button>
+      </div>
+    );
+  }
+  return (
+    <>
+      {error && <p className="error">{error}</p>}
+      <button type="button" className="primary big" onClick={() => void start()}>
+        📱 {t('mp.chargeAt', { where })}
+      </button>
+    </>
   );
 }
 

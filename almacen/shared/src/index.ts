@@ -98,7 +98,12 @@ export const SaleItemSchema = z.object({
 });
 export type SaleItemInput = z.infer<typeof SaleItemSchema>;
 
-export const PaymentSchema = z.object({ method: z.enum(PAYMENT_METHODS), amount: Money.min(0) });
+export const PaymentSchema = z.object({
+  method: z.enum(PAYMENT_METHODS),
+  amount: Money.min(0),
+  /** Referencia del cobro (ej. orden de Mercado Pago). */
+  ref: z.string().max(80).optional(),
+});
 export type Payment = z.infer<typeof PaymentSchema>;
 
 export const PosEventSchema = z.discriminatedUnion('type', [

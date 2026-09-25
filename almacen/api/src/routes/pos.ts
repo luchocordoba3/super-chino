@@ -36,7 +36,7 @@ export async function posRoutes(app: FastifyInstance) {
     const { since } = z.object({ since: z.iso.datetime().optional() }).parse(req.query);
     const storeId = req.device.storeId;
     const serverTime = new Date().toISOString();
-    const [store, users, products, offers, suppliers, handover, categories] = await Promise.all([
+    const [store, users, products, offers, suppliers, handover, categories, mpQrs] = await Promise.all([
       prisma.store.findUniqueOrThrow({ where: { id: storeId } }),
       prisma.user.findMany({ where: { storeId, active: true, pinHash: { not: null } }, orderBy: { name: 'asc' } }),
       prisma.product.findMany({
@@ -52,11 +52,12 @@ export async function posRoutes(app: FastifyInstance) {
         select: { notes: true, closedAt: true, userId: true },
       }),
       prisma.category.findMany({ where: { storeId }, select: { id: true, name: true }, orderBy: { name: 'asc' } }),
+      prisma.mpPos.count({ where: { storeId } }),
     ]);
     return {
       serverTime,
       full: !since,
-      store: { name: store.name, code: store.code, currency: store.currency, timezone: store.timezone, settings: parseSettings(store.settings) },
+      store: { name: store.name, code: store.code, currency: store.currency, timezone: store.timezone, settings: parseSettings(store.settings), mp: mpQrs > 0 },
       // Todos los que tienen PIN pueden fichar; cobran solo el dueño y los que tienen permiso de vender.
       users: users.map((u) => ({
         id: u.id,

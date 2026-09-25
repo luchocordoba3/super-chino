@@ -16,11 +16,24 @@ export default defineConfig({
     timezoneId: 'America/Argentina/Buenos_Aires',
     launchOptions: existsSync(CHROME) ? { executablePath: CHROME } : {},
   },
-  webServer: {
-    command: 'pnpm --filter @almacen/api start',
-    url: 'http://localhost:3300/api/health',
-    env: { PORT: '3300', DATABASE_URL: E2E_DB, JOBS_ENABLED: 'false', JWT_SECRET: 'e2e-secret', ANTHROPIC_API_KEY: '', SEED_DEMO: 'true', AUTH_RATE_LIMIT: '1000' },
-    reuseExistingServer: false,
-    timeout: 120_000,
-  },
+  webServer: [
+    // Mercado Pago de mentira (la API real no se usa en las pruebas).
+    { command: 'node e2e/fake-mp.mjs', url: 'http://localhost:3399/health', reuseExistingServer: false, timeout: 30_000 },
+    {
+      command: 'pnpm --filter @almacen/api start',
+      url: 'http://localhost:3300/api/health',
+      env: {
+        PORT: '3300',
+        DATABASE_URL: E2E_DB,
+        JOBS_ENABLED: 'false',
+        JWT_SECRET: 'e2e-secret',
+        ANTHROPIC_API_KEY: '',
+        SEED_DEMO: 'true',
+        AUTH_RATE_LIMIT: '1000',
+        MP_API_BASE: 'http://localhost:3399',
+      },
+      reuseExistingServer: false,
+      timeout: 120_000,
+    },
+  ],
 });

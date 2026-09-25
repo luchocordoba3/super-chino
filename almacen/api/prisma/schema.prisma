@@ -616,3 +616,46 @@ model TabItem {
 
   @@index([tabId])
 }
+
+/// Cuenta de Mercado Pago del local (las credenciales van cifradas).
+model MpAccount {
+  storeId      String    @id
+  /// user_id de Mercado Pago (el "collector").
+  userId       String
+  accessToken  String
+  refreshToken String?
+  expiresAt    DateTime?
+  /// Sucursal creada en Mercado Pago para los QR.
+  mpStoreId    String?
+  createdAt    DateTime  @default(now())
+}
+
+/// QR fijo de Mercado Pago: una "caja" de Mercado Pago por mesa y otra para el mostrador.
+model MpPos {
+  id         String @id @default(cuid())
+  storeId    String
+  /// null = mostrador.
+  table      Int?
+  externalId String @unique
+  mpPosId    String
+  qrImage    String
+
+  @@index([storeId])
+}
+
+/// Cobro con QR: una orden de Mercado Pago con el monto, que se paga escaneando el QR fijo.
+model MpCharge {
+  /// Lo genera la caja: es la referencia externa y la clave de idempotencia.
+  id            String   @id
+  storeId       String
+  orderId       String?  @unique
+  posExternalId String
+  amount        Decimal  @db.Decimal(14, 2)
+  /// created | processed | canceled | expired | failed
+  status        String   @default("created")
+  paymentId     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([storeId, createdAt])
+}

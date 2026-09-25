@@ -101,6 +101,8 @@ export interface StoreInfo {
   currency: string;
   timezone: string;
   settings: StoreSettings;
+  /** Hay QR de Mercado Pago armados: se puede cobrar con el monto cargado. */
+  mp?: boolean;
 }
 
 class PosDB extends Dexie {

@@ -14,6 +14,9 @@ Es la misma base (caja que funciona sin internet, stock por lote con vencimiento
 - **Mesas (cuentas abiertas):** en la caja, *＋ Mesa* abre la cuenta de una mesa (1 a N, según *Ajustes → Mesas del bar*) o de un nombre (barra, cliente). Con la mesa elegida, lo que se toca se anota ahí; se cobra al final con *Cobrar Mesa N* y el stock se descuenta recién al cobrar. Anda sin internet y las cuentas se ven en todas las cajas. Al cerrar la caja avisa si quedan mesas abiertas (siguen para el turno siguiente) y el panel muestra cuántas hay y cuánto suman.
 - **Recetas:** en la ficha de un producto preparado (café, tostado, tragos), *🍳 Armar receta* indica qué ingredientes se descuentan por unidad vendida, con el costo y la ganancia. Al vender se descuentan los ingredientes (primero lo que vence antes), el costo real es la suma, y anular devuelve cada ingrediente. Lo usado en recetas cuenta para reponer los ingredientes. Los productos con receta no aparecen en Stock %, Reponer ni en los conteos.
 
+**Para el cliente**
+- **QR de Mercado Pago con el monto cargado:** cada mesa y el mostrador tienen un QR fijo impreso. En la caja se elige *QR* y *Cobrar con el QR de Mesa N* (o del mostrador): el cliente escanea con Mercado Pago, ve el monto y solo paga; la venta se cierra sola cuando Mercado Pago confirma. Se configura en *Ajustes → Mercado Pago*: *Conectar Mercado Pago* (si el sistema tiene `MP_CLIENT_ID`) o pegando el Access Token del local; después *Crear los QR* (pide la dirección del local) e *Imprimir los QR*. Usa la API de Orders en el modelo atendido con QR estático. Las credenciales se guardan cifradas. La confirmación llega por webhook (tópico Order, con la firma validada si hay `MP_WEBHOOK_SECRET`) y, además, la caja consulta cada 2 segundos. Sin internet no se puede cobrar con QR; el resto de los medios sigue andando.
+
 ## Cómo levantarlo
 
 Requisitos: Node 22, pnpm y PostgreSQL 16. Desde la raíz del repo:
@@ -35,6 +38,10 @@ Usuarios de la demo:
 | Dueño (Carlos) | `dueno@demo.com` / `demo1234` (PIN de caja `0000`) |
 | Sofía (vende y carga stock) | local `DEMO01`, usuario `sofia`, PIN `1234` |
 | Martín (vende) | local `DEMO01`, usuario `martin`, PIN `5678` |
+
+## Configuración extra (`almacen/api/.env`)
+
+Además de las variables de Super Chino: `PUBLIC_URL`, `MP_CLIENT_ID`, `MP_CLIENT_SECRET`, `MP_WEBHOOK_SECRET` y `SECRETS_KEY` (ver `.env.example`). Las pruebas usan un Mercado Pago simulado (`web/e2e/fake-mp.mjs`); para probar con Mercado Pago de verdad, usá las credenciales de prueba de tu aplicación.
 
 ## Pruebas
 

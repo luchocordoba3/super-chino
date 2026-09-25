@@ -26,6 +26,7 @@ import { Suppliers } from './pages/Suppliers';
 import { Stock } from './pages/Stock';
 import { StockLevels } from './pages/StockLevels';
 import { Sold } from './pages/Sold';
+import { QrSheet } from './pages/MercadoPago';
 import { Team } from './pages/Team';
 import { Attendance } from './pages/Attendance';
 
@@ -60,6 +61,7 @@ export function App() {
       <Toaster />
       <Routes>
         <Route path="/offers/print" element={<OffersPrint />} />
+        <Route path="/qrs" element={<QrSheet />} />
         <Route element={<Layout />}>
           <Route index element={<Home />} />
           <Route path="products" element={<Products />} />

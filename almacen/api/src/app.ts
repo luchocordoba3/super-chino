@@ -11,6 +11,7 @@ import { env } from './env';
 import { SESSION_COOKIE } from './lib/auth';
 import { HttpError } from './lib/http';
 import { aiRoutes } from './routes/ai';
+import { mpRoutes } from './routes/mp';
 import { attendanceRoutes } from './routes/attendance';
 import { authRoutes } from './routes/auth';
 import { importRoutes } from './routes/import';
@@ -67,6 +68,7 @@ export async function buildApp(opts: FastifyServerOptions = {}) {
       await offerRoutes(api);
       await reportRoutes(api);
       await aiRoutes(api);
+      await mpRoutes(api);
     },
     { prefix: '/api' },
   );

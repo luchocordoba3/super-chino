@@ -1,5 +1,6 @@
-import { createHash, pbkdf2Sync, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHash, createHmac, pbkdf2Sync, randomBytes, timingSafeEqual } from 'node:crypto';
 import bcrypt from 'bcryptjs';
+import { env } from '../env';
 
 export const hashPassword = (pw: string) => bcrypt.hash(pw, 10);
 export const verifyPassword = (pw: string, hash: string) => bcrypt.compare(pw, hash);
@@ -27,3 +28,27 @@ export function randomCode(len = 6): string {
   const b = randomBytes(len);
   return Array.from(b, (x) => CODE_CHARS[x % CODE_CHARS.length]).join('');
 }
+
+// Credenciales de terceros (Mercado Pago, ARCA) cifradas con AES-256-GCM: "v1.iv.tag.datos" en base64url.
+const secretKey = () => createHash('sha256').update(env.SECRETS_KEY || env.JWT_SECRET).digest();
+export function encrypt(text: string): string {
+  const iv = randomBytes(12);
+  const c = createCipheriv('aes-256-gcm', secretKey(), iv);
+  const data = Buffer.concat([c.update(text, 'utf8'), c.final()]);
+  return ['v1', iv, c.getAuthTag(), data].map((x) => (typeof x === 'string' ? x : x.toString('base64url'))).join('.');
+}
+export function decrypt(blob: string): string {
+  const [v, iv, tag, data] = blob.split('.');
+  if (v !== 'v1' || !iv || !tag || !data) throw new Error('bad_secret');
+  const d = createDecipheriv('aes-256-gcm', secretKey(), Buffer.from(iv, 'base64url'));
+  d.setAuthTag(Buffer.from(tag, 'base64url'));
+  return Buffer.concat([d.update(Buffer.from(data, 'base64url')), d.final()]).toString('utf8');
+}
+
+/** Compara dos textos sin filtrar por tiempo cuánto coinciden (firmas). */
+export function safeEqual(a: string, b: string) {
+  const x = Buffer.from(a);
+  const y = Buffer.from(b);
+  return x.length === y.length && timingSafeEqual(x, y);
+}
+export const hmacSha256 = (key: string, text: string) => createHmac('sha256', key).update(text).digest('hex');

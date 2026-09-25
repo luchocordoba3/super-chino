@@ -24,6 +24,10 @@ async function posFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   return (await res.json()) as T;
 }
 
+/** Llamadas de la caja a la API (con el token de la caja). */
+export const posGet = <T>(path: string) => posFetch<T>(path);
+export const posPost = <T>(path: string, body: unknown = {}) => posFetch<T>(path, { method: 'POST', body: JSON.stringify(body) });
+
 interface Bootstrap {
   serverTime: string;
   full: boolean;

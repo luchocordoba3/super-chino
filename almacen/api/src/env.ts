@@ -31,6 +31,17 @@ export const env = {
   SEED_DEMO: process.env.SEED_DEMO === 'true',
   /** Intentos de login por minuto y por IP. */
   AUTH_RATE_LIMIT: Number(process.env.AUTH_RATE_LIMIT) || 10,
+  /** Dirección pública de la app (para volver de Mercado Pago y para sus avisos). Ej. https://almacen.onrender.com */
+  PUBLIC_URL: (process.env.PUBLIC_URL ?? '').replace(/\/$/, ''),
+  /** Aplicación de Mercado Pago del sistema (para "Conectar Mercado Pago"). Sin esto, el dueño puede pegar su Access Token. */
+  MP_CLIENT_ID: process.env.MP_CLIENT_ID ?? '',
+  MP_CLIENT_SECRET: process.env.MP_CLIENT_SECRET ?? '',
+  /** Clave secreta de los webhooks de Mercado Pago (para validar la firma). */
+  MP_WEBHOOK_SECRET: process.env.MP_WEBHOOK_SECRET ?? '',
+  MP_API_BASE: process.env.MP_API_BASE || 'https://api.mercadopago.com',
+  MP_AUTH_BASE: process.env.MP_AUTH_BASE || 'https://auth.mercadopago.com',
+  /** Clave para guardar cifradas las credenciales de terceros (Mercado Pago, ARCA). Si falta, se usa JWT_SECRET. */
+  SECRETS_KEY: process.env.SECRETS_KEY ?? '',
 };
 
 if (env.NODE_ENV === 'production' && env.JWT_SECRET === 'dev-secret-cambiar') {

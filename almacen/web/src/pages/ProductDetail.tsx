@@ -6,7 +6,7 @@ import { api, errMsg } from '../api';
 import { Empty, ErrorBox, Field, Loading, toast, toNum } from '../components/ui';
 import { dateTimeFmt, dayFmt, daysUntil, money, qtyFmt } from '../lib/format';
 import { can, useMe } from '../lib/me';
-import type { ProductDetail as Detail } from '../lib/types';
+import type { ProductDetail as Detail, Product } from '../lib/types';
 import { ProductForm } from './Products';
 
 export function ProductDetail() {
@@ -25,9 +25,13 @@ export function ProductDetail() {
         <h1>{p.name}</h1>
         <div className="row">
           <span className="badge gold">{money(p.price)}</span>
-          <span className={`badge ${p.stock <= p.minStock ? 'red' : 'green'}`}>
-            {t('products.stock')}: {qtyFmt(p.stock)}
-          </span>
+          {p.hasRecipe ? (
+            <span className="badge">🍳 {t('recipe.badge')}</span>
+          ) : (
+            <span className={`badge ${p.stock <= p.minStock ? 'red' : 'green'}`}>
+              {t('products.stock')}: {qtyFmt(p.stock)}
+            </span>
+          )}
         </div>
       </div>
       {p.unallocatedSold > 0 && <p className="warn">{t('stock.sinStock', { qty: qtyFmt(p.unallocatedSold) })}</p>}
@@ -49,6 +53,7 @@ export function ProductDetail() {
           <ProductForm key={p.updatedAt} initial={p} />
         </div>
       )}
+      {can(me, 'stock') && <RecipeEditor key={`r${p.updatedAt}`} product={p} />}
 
       <div className="card">
         <h2>{t('products.lots')}</h2>
@@ -160,5 +165,88 @@ function AdjustForm({ productId, lots }: { productId: string; lots: Detail['lots
       </div>
       <button>{t('common.save')}</button>
     </form>
+  );
+}
+
+/** Receta: qué ingredientes se descuentan al vender una unidad (tostado, café, tragos...). */
+function RecipeEditor({ product }: { product: Detail }) {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(product.hasRecipe);
+  const [rows, setRows] = useState(
+    product.recipe.map((r) => ({ ingredientId: r.ingredientId, name: r.name, unit: r.unit, qty: String(r.qty).replace('.', ','), unitCost: r.qty ? r.cost / r.qty : 0 })),
+  );
+  const [term, setTerm] = useState('');
+  const found = useQuery({
+    queryKey: ['products', 'search', term],
+    queryFn: () => api<Product[]>(`/products?q=${encodeURIComponent(term.trim())}`),
+    enabled: term.trim().length >= 2,
+  });
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)}>
+        🍳 {t('recipe.make')}
+      </button>
+    );
+  }
+  const cost = rows.reduce((s, r) => s + (toNum(r.qty) ?? 0) * r.unitCost, 0);
+  const pct = product.price > 0 ? Math.round(((product.price - cost) / product.price) * 100) : 0;
+  const options = (found.data ?? []).filter((x) => x.id !== product.id && !x.hasRecipe && !rows.some((r) => r.ingredientId === x.id)).slice(0, 6);
+  const save = async () => {
+    try {
+      await api(`/products/${product.id}/recipe`, {
+        method: 'PUT',
+        body: { items: rows.map((r) => ({ ingredientId: r.ingredientId, qty: toNum(r.qty) ?? 0 })).filter((r) => r.qty > 0) },
+      });
+      toast(t('recipe.saved'));
+      await qc.invalidateQueries({ queryKey: ['product', product.id] });
+    } catch (e) {
+      toast(errMsg(e));
+    }
+  };
+  return (
+    <div className="card stack">
+      <h2>🍳 {t('recipe.title')}</h2>
+      <p className="muted small">{t('recipe.help')}</p>
+      {rows.map((r, i) => (
+        <div className="row" key={r.ingredientId} style={{ flexWrap: 'nowrap' }}>
+          <span className="grow">{r.name}</span>
+          <input
+            style={{ width: 90 }}
+            inputMode="decimal"
+            aria-label={r.name}
+            value={r.qty}
+            onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, qty: e.target.value } : x)))}
+          />
+          <span className="muted small">{r.unit === 'KG' ? 'kg' : t('recipe.units')}</span>
+          <button type="button" className="ghost" onClick={() => setRows(rows.filter((_, j) => j !== i))} aria-label={t('common.delete')}>
+            ✕
+          </button>
+        </div>
+      ))}
+      <input type="search" placeholder={t('recipe.addIngredient')} value={term} onChange={(e) => setTerm(e.target.value)} />
+      {options.map((x) => (
+        <button
+          type="button"
+          key={x.id}
+          className="ghost"
+          style={{ textAlign: 'left' }}
+          onClick={() => {
+            setRows([...rows, { ingredientId: x.id, name: x.name, unit: x.unit, qty: '', unitCost: x.cost }]);
+            setTerm('');
+          }}
+        >
+          + {x.name} <span className="muted small">({t('products.stock')}: {qtyFmt(x.stock)})</span>
+        </button>
+      ))}
+      <div className="row between">
+        <span>
+          {t('recipe.cost')}: <strong>{money(cost)}</strong> · {t('recipe.margin', { pct })}
+        </span>
+        <button type="button" className="primary" onClick={() => void save()}>
+          {t('common.save')}
+        </button>
+      </div>
+    </div>
   );
 }

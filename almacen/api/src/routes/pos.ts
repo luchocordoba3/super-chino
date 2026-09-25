@@ -5,7 +5,7 @@ import { num, prisma } from '../db';
 import { deviceGuard, guard } from '../lib/auth';
 import { randomToken, sha256 } from '../lib/crypto';
 import { notFound } from '../lib/http';
-import { processPosEvents } from '../services/sales';
+import { openTabs, processPosEvents } from '../services/sales';
 
 export async function posRoutes(app: FastifyInstance) {
   // ---------- Vincular PCs como caja (dueño) ----------
@@ -74,6 +74,9 @@ export async function posRoutes(app: FastifyInstance) {
       offers: offers.map((o) => ({ id: o.id, productId: o.productId, offerPrice: num(o.offerPrice), discountPct: o.discountPct, maxQty: num(o.lot.qtyRemaining) })),
     };
   });
+
+  /** Cuentas de mesa abiertas (la caja las consulta seguido: ahí caen también los pedidos desde la mesa). */
+  app.get('/pos/tabs', deviceGuard, async (req) => openTabs(prisma, req.device.storeId));
 
   /** La caja manda sus eventos (ventas, anulaciones, apertura/cierre). Idempotente. */
   app.post('/pos/sync', deviceGuard, async (req) => {

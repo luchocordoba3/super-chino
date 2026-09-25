@@ -8,7 +8,7 @@ import { avgDailySales } from './stats';
 export async function createStockCount(storeId: string, recipientIds: string[], opts: { productIds?: string[]; n?: number } = {}) {
   let ids = opts.productIds;
   if (!ids) {
-    const products = await prisma.product.findMany({ where: { storeId, active: true }, select: { id: true, price: true } });
+    const products = await prisma.product.findMany({ where: { storeId, active: true, recipe: { none: {} } }, select: { id: true, price: true } });
     const since = addDays(new Date(), -7);
     const [perDay, recent, diffs] = await Promise.all([
       avgDailySales(prisma, storeId),

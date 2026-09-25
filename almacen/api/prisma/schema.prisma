@@ -98,6 +98,7 @@ model Store {
   jobRuns      JobRun[]
   attendance   Attendance[]
   cashMoves    CashMovement[]
+  tabs         Tab[]
 }
 
 model User {
@@ -202,6 +203,9 @@ model Product {
   saleItems       SaleItem[]
   offers          Offer[]
   countItems      StockCountItem[]
+  /// Receta: si tiene, al venderlo se descuentan sus ingredientes (ej. tostado = pan + jamón + queso).
+  recipe          RecipeItem[]     @relation("RecipeOf")
+  usedIn          RecipeItem[]     @relation("UsedIn")
 
   @@unique([storeId, barcode])
   @@index([storeId, updatedAt])
@@ -342,6 +346,8 @@ model SaleItemLot {
   id         String   @id @default(cuid())
   saleItemId String
   saleItem   SaleItem @relation(fields: [saleItemId], references: [id])
+  /// Ingrediente del que salió (productos con receta). null = el mismo producto vendido.
+  productId  String?
   lotId      String?
   lot        Lot?     @relation(fields: [lotId], references: [id])
   qty        Decimal  @db.Decimal(12, 3)
@@ -560,4 +566,53 @@ model JobRun {
   createdAt DateTime @default(now())
 
   @@id([storeId, key])
+}
+
+/// Un ingrediente de la receta de un producto, por cada unidad vendida (en la unidad del ingrediente).
+model RecipeItem {
+  id           String  @id @default(cuid())
+  productId    String
+  product      Product @relation("RecipeOf", fields: [productId], references: [id], onDelete: Cascade)
+  ingredientId String
+  ingredient   Product @relation("UsedIn", fields: [ingredientId], references: [id])
+  qty          Decimal @db.Decimal(12, 3)
+
+  @@unique([productId, ingredientId])
+  @@index([ingredientId])
+}
+
+/// Cuenta abierta de una mesa (o de alguien en la barra): se va anotando y se cobra al final.
+model Tab {
+  id        String    @id
+  storeId   String
+  store     Store     @relation(fields: [storeId], references: [id])
+  label     String
+  /// Número de mesa (para el menú QR y el cobro con QR en la mesa).
+  table     Int?
+  /// OPEN | PAID | CANCELLED
+  status    String    @default("OPEN")
+  openedAt  DateTime
+  openedBy  String
+  closedAt  DateTime?
+  saleId    String?   @unique
+  items     TabItem[]
+
+  @@index([storeId, status])
+}
+
+model TabItem {
+  id        String   @id
+  tabId     String
+  tab       Tab      @relation(fields: [tabId], references: [id])
+  productId String
+  name      String
+  qty       Decimal  @db.Decimal(12, 3)
+  unitPrice Decimal  @db.Decimal(14, 2)
+  /// OK | PENDING (lo pidió el cliente desde el menú QR y falta que lo acepte el vendedor) | REJECTED | REMOVED
+  status    String   @default("OK")
+  /// Quién lo anotó (null = lo pidió el cliente desde la mesa).
+  addedBy   String?
+  createdAt DateTime @default(now())
+
+  @@index([tabId])
 }

@@ -1,12 +1,12 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { CONTENT_UNITS, parseContent, round3 } from '@almacen/shared';
+import { CONTENT_UNITS, parseContent, round2, round3 } from '@almacen/shared';
 import { num, numOrNull, prisma, type Prisma } from '../db';
 import { startOfLocalDay } from '../domain/dates';
 import { bulkPrice } from '../domain/pricing';
 import { fefoCompare } from '../domain/fefo';
 import { can, guard } from '../lib/auth';
-import { HttpError, notFound } from '../lib/http';
+import { badRequest, HttpError, notFound } from '../lib/http';
 import { publish } from '../services/notify';
 import { lookupBarcode } from '../services/off';
 import { lotsByProduct, stockOf } from '../services/stock';
@@ -101,6 +101,7 @@ export function productDto(p: ProductRow | Prisma.ProductGetPayload<object>, lot
     idealStock: numOrNull(p.idealStock),
     refStock: numOrNull(p.refStock),
     quickKey: p.quickKey,
+    hasRecipe: ((p as { _count?: { recipe?: number } })._count?.recipe ?? 0) > 0,
     targetMargin: p.targetMargin == null ? null : num(p.targetMargin),
     contentQty: p.contentQty == null ? null : num(p.contentQty),
     contentUnit: p.contentUnit,
@@ -109,6 +110,14 @@ export function productDto(p: ProductRow | Prisma.ProductGetPayload<object>, lot
     updatedAt: p.updatedAt,
     ...stockOf(p, lots),
   };
+}
+
+/** Ingredientes de la receta con su costo por unidad vendida. */
+export async function recipeOf(productId: string) {
+  const rows = await prisma.recipeItem.findMany({ where: { productId }, include: { ingredient: { select: { name: true, unit: true, cost: true } } } });
+  return rows
+    .map((r) => ({ ingredientId: r.ingredientId, name: r.ingredient.name, unit: r.ingredient.unit, qty: num(r.qty), cost: round2(num(r.qty) * num(r.ingredient.cost)) }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 const ACCENTS = 'áéíóúüñàèìòùâêîôûçÁÉÍÓÚÜÑÀÈÌÒÙÂÊÎÔÛÇ';
@@ -213,7 +222,7 @@ export async function productRoutes(app: FastifyInstance) {
         supplierId: q.supplierId,
         ...(ids ? { id: { in: ids } } : {}),
       },
-      include: { category: { select: { name: true } }, supplier: { select: { name: true } } },
+      include: { category: { select: { name: true } }, supplier: { select: { name: true } }, _count: { select: { recipe: true } } },
       orderBy: { name: 'asc' },
       take: 1000,
     });
@@ -238,18 +247,20 @@ export async function productRoutes(app: FastifyInstance) {
     const { id } = req.params as { id: string };
     const p = await prisma.product.findFirst({
       where: { id, storeId: req.auth.sid },
-      include: { category: { select: { name: true } }, supplier: { select: { name: true } } },
+      include: { category: { select: { name: true } }, supplier: { select: { name: true } }, _count: { select: { recipe: true } } },
     });
     if (!p) throw notFound();
-    const [lots, stockLots, movements, prices, names] = await Promise.all([
+    const [lots, stockLots, movements, prices, names, recipe] = await Promise.all([
       lotsByProduct(prisma, req.auth.sid, [p.id]),
       prisma.lot.findMany({ where: { productId: p.id, qtyRemaining: { gt: 0 } } }),
       prisma.stockMovement.findMany({ where: { productId: p.id }, orderBy: { createdAt: 'desc' }, take: 40 }),
       prisma.priceChange.findMany({ where: { productId: p.id }, orderBy: { createdAt: 'desc' }, take: 30 }),
       userNames(prisma, req.auth.sid),
+      recipeOf(p.id),
     ]);
     return {
       ...productDto(p, lots),
+      recipe,
       lots: stockLots.sort(fefoCompare).map((l) => ({
         id: l.id,
         lotCode: l.lotCode,
@@ -261,6 +272,29 @@ export async function productRoutes(app: FastifyInstance) {
       movements: movements.map((m) => ({ ...m, qty: num(m.qty), user: m.userId ? names.get(m.userId) ?? null : null })),
       priceHistory: prices.map((c) => ({ ...c, oldPrice: num(c.oldPrice), newPrice: num(c.newPrice), user: c.userId ? names.get(c.userId) ?? null : null })),
     };
+  });
+
+  /** Receta: al vender el producto se descuentan estos ingredientes (cantidad por unidad vendida). */
+  app.put('/products/:id/recipe', guard('stock'), async (req) => {
+    const { id } = req.params as { id: string };
+    const b = z.object({ items: z.array(z.object({ ingredientId: z.string().min(1), qty: z.number().positive().max(1e5) })).max(30) }).parse(req.body);
+    const storeId = req.auth.sid;
+    if (!(await prisma.product.findFirst({ where: { id, storeId }, select: { id: true } }))) throw notFound();
+    const ids = b.items.map((i) => i.ingredientId);
+    if (new Set(ids).size !== ids.length || ids.includes(id)) throw badRequest('bad_recipe');
+    const ingredients = await prisma.product.findMany({ where: { storeId, id: { in: ids } }, include: { _count: { select: { recipe: true } } } });
+    if (ingredients.length !== ids.length) throw notFound('product_not_found');
+    // Sin recetas dentro de recetas: los ingredientes son productos con stock.
+    if (ingredients.some((i) => i._count.recipe > 0)) throw badRequest('nested_recipe');
+    if (b.items.length && (await prisma.recipeItem.count({ where: { ingredientId: id } }))) throw badRequest('used_as_ingredient');
+    await prisma.$transaction([
+      prisma.recipeItem.deleteMany({ where: { productId: id } }),
+      prisma.recipeItem.createMany({ data: b.items.map((i) => ({ productId: id, ingredientId: i.ingredientId, qty: i.qty })) }),
+      // Para que la caja vea el cambio en la próxima sincronización.
+      prisma.product.update({ where: { id }, data: { updatedAt: new Date() } }),
+    ]);
+    publish(storeId, 'catalog');
+    return recipeOf(id);
   });
 
   app.post('/products', guard('stock', 'prices'), async (req) => {

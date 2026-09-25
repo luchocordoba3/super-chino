@@ -41,7 +41,7 @@ export async function stockRoutes(app: FastifyInstance) {
   app.get('/stock/levels', guard('stock', 'reports'), async (req) => {
     const storeId = req.auth.sid;
     const [products, lots, perDay, { settings }] = await Promise.all([
-      prisma.product.findMany({ where: { storeId, active: true }, include: { category: { select: { name: true } } } }),
+      prisma.product.findMany({ where: { storeId, active: true, recipe: { none: {} } }, include: { category: { select: { name: true } } } }),
       lotsByProduct(prisma, storeId),
       avgDailySales(prisma, storeId),
       storeCtx(prisma, storeId),

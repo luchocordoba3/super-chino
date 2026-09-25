@@ -70,6 +70,25 @@ export interface CashSessionLocal {
   openedAt: string;
   openingAmount: number;
 }
+/** Renglón de una cuenta de mesa. */
+export interface TabLine {
+  id: string;
+  productId: string;
+  name: string;
+  qty: number;
+  unitPrice: number;
+  unit?: 'UNIT' | 'KG';
+}
+/** Cuenta abierta de una mesa: se anota en la caja (anda sin internet) y se cobra al final. */
+export interface LocalTab {
+  id: string;
+  label: string;
+  table: number | null;
+  openedAt: string;
+  items: TabLine[];
+  /** Lo que pidió el cliente desde el menú QR y falta aceptar. */
+  pending: TabLine[];
+}
 /** Novedades que deja el que cierra la caja para el turno siguiente. */
 export interface Handover {
   notes: string;
@@ -92,6 +111,7 @@ class PosDB extends Dexie {
   rejected!: Table<{ id: string; error?: string; event?: PosEvent }, string>;
   sales!: Table<LocalSale, string>;
   kv!: Table<{ key: string; value: unknown }, string>;
+  tabs!: Table<LocalTab, string>;
 
   constructor() {
     super('almacen-pos');
@@ -104,6 +124,7 @@ class PosDB extends Dexie {
       sales: 'id, occurredAt, cashSessionId',
       kv: 'key',
     });
+    this.version(2).stores({ tabs: 'id' });
   }
 }
 

@@ -207,3 +207,10 @@ tr.selected td { background: rgba(200, 16, 46, 0.08); }
   .pos[data-pane='products'] .pos-right { display: none; }
   .pos[data-pane='cart'] .pos-left > :not(.pos-top) { display: none; }
 }
+
+/* Cuentas de mesa */
+.pos-tickets { display: flex; gap: 6px; flex-wrap: wrap; }
+.pos-tickets button { border-radius: 999px; padding: 6px 12px; min-height: 0; }
+.pos-tickets button.active { background: var(--text); border-color: var(--text); color: #fff; }
+.pos-tables { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.pos-tables button { min-height: 64px; font-size: 1.05rem; font-weight: 600; }

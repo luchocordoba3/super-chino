@@ -61,6 +61,8 @@ export const StoreSettingsSchema = z.object({
   cashDiffThreshold: z.number().min(0).default(500),
   /** Productos por día en el conteo sorpresa (0 = desactivado). */
   countItemsPerDay: z.number().int().min(0).max(30).default(5),
+  /** Mesas del bar (0 = sin mesas). Se numeran del 1 en adelante. */
+  tables: z.number().int().min(0).max(60).default(6),
   /** Stock en %: por debajo de este porcentaje el producto está bajo (rojo) y avisa. */
   lowStockPct: z.number().int().min(1).max(90).default(25),
   /** Diferencia de unidades en un conteo que dispara un aviso. */
@@ -106,7 +108,14 @@ export const PosEventSchema = z.discriminatedUnion('type', [
     items: z.array(SaleItemSchema).min(1).max(300),
     payments: z.array(PaymentSchema).min(1).max(5),
     total: Money.min(0),
+    /** Cuenta de mesa que se cobra con esta venta. */
+    tabId: z.string().nullish(),
   }),
+  /** Cuentas abiertas: se anota sin internet y se cobra al final con una venta (SALE con tabId). */
+  z.object({ ...base, type: z.literal('TAB_OPEN'), tabId: z.string().min(1), label: z.string().trim().min(1).max(40), table: z.number().int().min(1).max(99).nullish() }),
+  /** Cantidad total de un producto en la cuenta (0 = se saca). */
+  z.object({ ...base, type: z.literal('TAB_ITEM'), tabId: z.string().min(1), productId: z.string().min(1), qty: z.number().min(0).max(1e5), unitPrice: Money.min(0) }),
+  z.object({ ...base, type: z.literal('TAB_CANCEL'), tabId: z.string().min(1) }),
   z.object({ ...base, type: z.literal('ITEM_REMOVED'), productId: z.string(), qty: z.number().positive(), amount: Money }),
   z.object({ ...base, type: z.literal('SALE_VOIDED'), saleId: z.string(), reason: z.string().max(200).optional() }),
   z.object({ ...base, type: z.literal('CASH_OPEN'), cashSessionId: z.string().min(1), openingAmount: Money.min(0) }),

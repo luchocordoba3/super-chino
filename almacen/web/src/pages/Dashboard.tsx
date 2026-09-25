@@ -24,6 +24,7 @@ interface Dash {
   };
   shiftsToday: Shift[];
   lowStock: number;
+  openTabs: { count: number; total: number };
 }
 
 export function Dashboard() {
@@ -61,6 +62,7 @@ export function Dashboard() {
         {stat(t('dashboard.savedThisMonth'), money(d.savedThisMonth), '/offers')}
         {stat(t('dashboard.wasteThisMonth'), money(d.wasteThisMonth))}
         {stat(t('dashboard.lowStock'), String(d.lowStock), '/levels', d.lowStock > 0)}
+        {d.openTabs.count > 0 && stat(t('dashboard.openTabs'), `${d.openTabs.count} · ${money(d.openTabs.total)}`)}
       </div>
       <div className="grid2">
         <Link className="card" to="/sold" style={{ color: 'inherit' }}>

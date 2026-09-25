@@ -8,9 +8,10 @@ import { setLang } from '../i18n';
 import { money, qtyFmt, setCurrency, timeFmt } from '../lib/format';
 import type { Me } from '../lib/me';
 import { addItem, type CartItem, cartTotal, type OfferInfo, parseScan, priceCart, settlePayments } from '../pos/cart';
-import { type CashMoveLocal, type CashSessionLocal, type CatalogProduct, type CategoryRow, db, type Handover, kvDel, kvGet, kvSet, type LocalSale, normalize, type PosUser, type StoreInfo, type SupplierRow } from '../pos/db';
+import { type CashMoveLocal, type CashSessionLocal, type CatalogProduct, type CategoryRow, db, type Handover, type LocalTab, kvDel, kvGet, kvSet, type LocalSale, normalize, type PosUser, type StoreInfo, type SupplierRow } from '../pos/db';
 import { verifyPin } from '../pos/pin';
-import { enqueue, flushOutbox, getDeviceToken, linkDevice, pendingCount, refreshCatalog, syncEvents, UnlinkedError, unsyncedOfferQty } from '../pos/sync';
+import { enqueue, flushOutbox, getDeviceToken, linkDevice, pendingCount, refreshCatalog, refreshTabs, syncEvents, UnlinkedError, unsyncedOfferQty } from '../pos/sync';
+import { cancelTab, openTab, setTabQty } from '../pos/tabs';
 
 type Phase = 'loading' | 'unlinked' | 'pick' | 'open' | 'sell';
 const uuid = () => crypto.randomUUID();
@@ -440,7 +441,21 @@ function SellScreen(props: {
   const [pane, setPane] = useState<'products' | 'cart'>('products');
   const pick = (p: CatalogProduct) => (p.unit === 'KG' ? setWeightFor(p) : add(p, 1));
 
+  // Cuentas de mesa: la que está elegida recibe lo que se agrega; si no hay ninguna, es venta directa.
+  const [tabs, setTabs] = useState<LocalTab[]>([]);
+  const [tabId, setTabId] = useState<string | null>(null);
+  const [openingTab, setOpeningTab] = useState(false);
+  const tab = tabs.find((x) => x.id === tabId) ?? null;
+  const ticket: CartItem[] = tab ? tab.items.map((i) => ({ productId: i.productId, name: i.name, unit: i.unit ?? 'UNIT', qty: i.qty, listPrice: i.unitPrice })) : items;
+  useEffect(() => {
+    const tick = () => void refreshTabs().catch(() => undefined);
+    tick();
+    const timer = setInterval(tick, 8000);
+    return () => clearInterval(timer);
+  }, []);
+
   const loadSide = useCallback(async () => {
+    setTabs(await db.tabs.toArray());
     const [rows, used] = await Promise.all([db.offers.toArray(), unsyncedOfferQty()]);
     setOffers(new Map(rows.map((o) => [o.productId, { id: o.id, offerPrice: o.offerPrice, remaining: Math.max(0, o.maxQty - (used.get(o.id) ?? 0)) }])));
     setRecent(await db.sales.where('cashSessionId').equals(session.id).reverse().sortBy('occurredAt'));
@@ -453,11 +468,18 @@ function SellScreen(props: {
     return () => syncEvents.removeEventListener('change', loadSide);
   }, [loadSide]);
 
-  const lines = useMemo(() => priceCart(items, offers), [items, offers]);
+  const lines = useMemo(() => priceCart(ticket, offers), [ticket, offers]);
   const total = cartTotal(lines);
 
+  /** Anota en la cuenta de la mesa elegida (queda guardado y se manda al servidor). */
+  const setTab = async (p: { id: string; name: string; price: number; unit: 'UNIT' | 'KG' }, qty: number) => {
+    if (!tab) return;
+    await setTabQty(cashier.id, tab.id, p, qty);
+    setTabs(await db.tabs.toArray());
+  };
   const add = (p: CatalogProduct, qty: number) => {
-    setItems((prev) => addItem(prev, p, qty));
+    if (tab) void setTab(p, (tab.items.find((i) => i.productId === p.id)?.qty ?? 0) + qty);
+    else setItems((prev) => addItem(prev, p, qty));
     setResults(null);
     beep();
     focus();
@@ -482,6 +504,12 @@ function SellScreen(props: {
   };
 
   const removeLine = (productId: string, overridden: boolean) => {
+    const inTab = tab?.items.find((i) => i.productId === productId);
+    if (tab && inTab) {
+      void setTab({ id: productId, name: inTab.name, price: inTab.unitPrice, unit: inTab.unit ?? 'UNIT' }, 0);
+      void enqueue({ id: uuid(), type: 'ITEM_REMOVED', userId: cashier.id, occurredAt: nowIso(), cashSessionId: session.id, productId, qty: inTab.qty, amount: round2(inTab.qty * inTab.unitPrice) });
+      return focus();
+    }
     const it = items.find((x) => x.productId === productId && (x.overridePrice != null) === overridden);
     if (!it) return;
     setItems((prev) => prev.filter((x) => x !== it));
@@ -489,8 +517,11 @@ function SellScreen(props: {
     focus();
   };
 
-  const changeQty = (productId: string, delta: number) =>
+  const changeQty = (productId: string, delta: number) => {
+    const inTab = tab?.items.find((i) => i.productId === productId);
+    if (inTab) return void setTab({ id: productId, name: inTab.name, price: inTab.unitPrice, unit: inTab.unit ?? 'UNIT' }, Math.max(1, inTab.qty + delta));
     setItems((prev) => prev.map((x) => (x.productId === productId && x.overridePrice == null ? { ...x, qty: Math.max(1, x.qty + delta) } : x)));
+  };
 
   const override = (productId: string) => {
     const v = toNum(window.prompt(t('pos.overridePrice')) ?? '');
@@ -500,6 +531,13 @@ function SellScreen(props: {
   };
 
   const clearCart = () => {
+    if (tab) {
+      // Vaciar una mesa = cancelarla (queda registrado).
+      if (!window.confirm(t('tabs.cancelConfirm', { label: tab.label }))) return;
+      void cancelTab(cashier.id, tab.id).then(loadSide);
+      setTabId(null);
+      return;
+    }
     if (items.length === 0) return;
     for (const it of items) {
       void enqueue({ id: uuid(), type: 'ITEM_REMOVED', userId: cashier.id, occurredAt: nowIso(), cashSessionId: session.id, productId: it.productId, qty: it.qty, amount: round2(it.qty * (it.overridePrice ?? it.listPrice)) });
@@ -520,6 +558,7 @@ function SellScreen(props: {
       items: lines.map((l) => ({ productId: l.productId, qty: l.qty, unitPrice: l.unitPrice, listPrice: l.listPrice, offerId: l.offerId, priceOverride: l.priceOverride })),
       payments,
       total,
+      tabId: tab?.id ?? null,
     };
     const local: LocalSale = {
       id,
@@ -532,10 +571,12 @@ function SellScreen(props: {
       change,
     };
     await db.sales.put(local);
+    if (tab) await db.tabs.delete(tab.id);
     await enqueue(event);
     const old = await db.sales.orderBy('occurredAt').reverse().offset(300).primaryKeys();
     if (old.length) await db.sales.bulkDelete(old);
-    setItems([]);
+    if (tab) setTabId(null);
+    else setItems([]);
     setPaying(false);
     setDone(local);
     void loadSide();
@@ -575,7 +616,7 @@ function SellScreen(props: {
       if (e.key === 'F2') {
         e.preventDefault();
         inputRef.current?.focus();
-      } else if (e.key === 'F12' && items.length) {
+      } else if (e.key === 'F12' && ticket.length) {
         e.preventDefault();
         setPaying(true);
       } else if (e.key === 'Escape') {
@@ -630,8 +671,27 @@ function SellScreen(props: {
         <QuickKeys onPick={pick} />
       </div>
       <div className="pos-right no-print">
+        <div className="pos-tickets">
+          <button type="button" className={!tab ? 'active' : ''} onClick={() => setTabId(null)}>
+            🧾 {t('tabs.direct')}
+          </button>
+          {tabs.map((x) => (
+            <button type="button" key={x.id} className={x.id === tabId ? 'active' : ''} onClick={() => setTabId(x.id)}>
+              {x.label}
+              {x.pending.length > 0 && <span className="pill-count">{x.pending.length}</span>}
+            </button>
+          ))}
+          <button type="button" onClick={() => setOpeningTab(true)}>
+            ＋ {t('tabs.open')}
+          </button>
+        </div>
+        {tab && (
+          <div className="muted small">
+            {t('tabs.openedAt', { time: timeFmt(tab.openedAt) })} · {t('tabs.addHint')}
+          </div>
+        )}
         <div className="pos-cart">
-          {lines.length === 0 && <p className="muted">{t('pos.emptyCart')}</p>}
+          {lines.length === 0 && <p className="muted">{tab ? t('tabs.empty') : t('pos.emptyCart')}</p>}
           {lines.map((l) => (
             <div className="pos-line" key={l.key}>
               <div>
@@ -656,7 +716,7 @@ function SellScreen(props: {
               )}
               <strong>{money(l.lineTotal)}</strong>
               <div className="row">
-                {canOverride && !l.priceOverride && (
+                {canOverride && !l.priceOverride && !tab && (
                   <button className="small ghost" title={t('pos.overridePrice')} onClick={() => override(l.productId)}>
                     $
                   </button>
@@ -672,11 +732,11 @@ function SellScreen(props: {
           ))}
         </div>
         <div className="pos-total">{money(total)}</div>
-        <button className="primary big" disabled={!items.length} onClick={() => setPaying(true)}>
-          {t('pos.pay')} (F12)
+        <button className="primary big" disabled={!ticket.length} onClick={() => setPaying(true)}>
+          {tab ? t('tabs.pay', { label: tab.label }) : `${t('pos.pay')} (F12)`}
         </button>
-        <button disabled={!items.length} onClick={clearCart}>
-          {t('pos.clearCart')}
+        <button disabled={!tab && !items.length} onClick={clearCart}>
+          {tab ? t('tabs.cancel') : t('pos.clearCart')}
         </button>
         <h3>{t('pos.lastSales')}</h3>
         {recent.slice(0, 15).map((s) => (
@@ -702,7 +762,7 @@ function SellScreen(props: {
           🛍 {t('pos.paneProducts')}
         </button>
         <button type="button" className={pane === 'cart' ? 'active' : ''} onClick={() => setPane('cart')}>
-          🧾 {t('pos.paneCart', { count: items.length })} · <strong>{money(total)}</strong>
+          🧾 {tab ? `${tab.label} (${ticket.length})` : t('pos.paneCart', { count: items.length })} · <strong>{money(total)}</strong>
         </button>
       </div>
       {weightFor && (
@@ -732,7 +792,20 @@ function SellScreen(props: {
           </div>
         </Modal>
       )}
-      {closing && <CloseCash session={session} cashier={cashier} recent={recent} onClose={() => setClosing(false)} onClosed={props.onClosed} />}
+      {closing && <CloseCash session={session} cashier={cashier} recent={recent} openTabs={tabs.length} onClose={() => setClosing(false)} onClosed={props.onClosed} />}
+      {openingTab && (
+        <OpenTabModal
+          tables={store?.settings.tables ?? 0}
+          taken={tabs.map((x) => x.table).filter((n): n is number => n != null)}
+          onClose={() => setOpeningTab(false)}
+          onOpen={async (label, table) => {
+            const created = await openTab(cashier.id, label, table);
+            setTabs(await db.tabs.toArray());
+            setTabId(created.id);
+            setOpeningTab(false);
+          }}
+        />
+      )}
       {clocking && <ClockModal onClose={() => (setClocking(false), focus())} />}
       {moving && <CashMoveModal session={session} cashier={cashier} onClose={() => (setMoving(false), focus())} />}
       {short && (
@@ -794,6 +867,40 @@ function QuickKeys({ onPick }: { onPick: (p: CatalogProduct) => void }) {
         ))}
       </div>
     </div>
+  );
+}
+
+/** Abrir una cuenta: una mesa libre o un nombre (barra, cliente conocido). */
+function OpenTabModal({ tables, taken, onOpen, onClose }: { tables: number; taken: number[]; onOpen: (label: string, table: number | null) => void; onClose: () => void }) {
+  const { t } = useTranslation();
+  const [name, setName] = useState('');
+  return (
+    <Modal title={`🍺 ${t('tabs.open')}`} onClose={onClose}>
+      <div className="stack">
+        {tables > 0 && (
+          <div className="pos-tables">
+            {Array.from({ length: tables }, (_, i) => i + 1).map((n) => (
+              <button type="button" key={n} disabled={taken.includes(n)} onClick={() => onOpen(t('tabs.table', { n }), n)}>
+                {t('tabs.table', { n })}
+              </button>
+            ))}
+          </div>
+        )}
+        <form
+          className="row"
+          style={{ flexWrap: 'nowrap' }}
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (name.trim()) onOpen(name.trim(), null);
+          }}
+        >
+          <input placeholder={t('tabs.namePlaceholder')} value={name} maxLength={40} onChange={(e) => setName(e.target.value)} />
+          <button className="primary" disabled={!name.trim()}>
+            {t('tabs.openNamed')}
+          </button>
+        </form>
+      </div>
+    </Modal>
   );
 }
 
@@ -920,7 +1027,21 @@ function PayModal({ total, onClose, onConfirm }: { total: number; onClose: () =>
   );
 }
 
-function CloseCash({ session, cashier, recent, onClose, onClosed }: { session: CashSessionLocal; cashier: PosUser; recent: LocalSale[]; onClose: () => void; onClosed: () => void }) {
+function CloseCash({
+  session,
+  cashier,
+  recent,
+  openTabs,
+  onClose,
+  onClosed,
+}: {
+  session: CashSessionLocal;
+  cashier: PosUser;
+  recent: LocalSale[];
+  openTabs: number;
+  onClose: () => void;
+  onClosed: () => void;
+}) {
   const { t } = useTranslation();
   const [counted, setCounted] = useState('');
   const [notes, setNotes] = useState('');
@@ -969,6 +1090,7 @@ function CloseCash({ session, cashier, recent, onClose, onClosed }: { session: C
   return (
     <Modal title={t('pos.closeCash')} onClose={onClose}>
       <form className="stack" onSubmit={(e) => void submit(e)}>
+        {openTabs > 0 && <p className="warn small">🍺 {t('tabs.openAtClose', { count: openTabs })}</p>}
         <table className="small">
           <tbody>
             <tr>

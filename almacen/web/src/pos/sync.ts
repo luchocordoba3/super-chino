@@ -1,5 +1,5 @@
 import type { PosEvent, SyncResult } from '@almacen/shared';
-import { type CatalogProduct, type CategoryRow, db, type Handover, kvDel, kvGet, kvSet, normalize, type OfferRow, type PosUser, type StoreInfo, type SupplierRow } from './db';
+import { type CatalogProduct, type CategoryRow, db, type Handover, type LocalTab, kvDel, kvGet, kvSet, normalize, type OfferRow, type PosUser, type StoreInfo, type SupplierRow } from './db';
 
 export class UnlinkedError extends Error {}
 
@@ -101,6 +101,21 @@ export async function enqueue(event: PosEvent) {
 }
 
 export const pendingCount = () => db.outbox.count();
+
+/** Hay cambios de cuentas de mesa sin enviar (mientras tanto manda lo que se anotó en esta caja). */
+const pendingTabEvents = () => db.outbox.filter((r) => r.event.type.startsWith('TAB_') || (r.event.type === 'SALE' && !!r.event.tabId)).count();
+
+/** Trae las cuentas abiertas (de todas las cajas y los pedidos desde la mesa). */
+export async function refreshTabs() {
+  if (await pendingTabEvents()) return;
+  const tabs = await posFetch<(LocalTab & { total: number })[]>('/pos/tabs');
+  if (await pendingTabEvents()) return;
+  await db.transaction('rw', db.tabs, async () => {
+    await db.tabs.clear();
+    await db.tabs.bulkPut(tabs.map(({ total: _total, ...t }) => t));
+  });
+  changed();
+}
 
 /** Cuántas unidades en oferta se vendieron en esta caja y todavía no se sincronizaron. */
 export async function unsyncedOfferQty(): Promise<Map<string, number>> {

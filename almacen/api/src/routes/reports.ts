@@ -11,6 +11,7 @@ import { type NewAlert, notifyAlerts, raiseAlert } from '../services/alerts';
 import { todayBoard } from '../services/attendance';
 import { createStockCount } from '../services/counts';
 import { publish } from '../services/notify';
+import { openTabs } from '../services/sales';
 import { adjustStock, lotsByProduct, stockOf } from '../services/stock';
 import { avgDailySales } from '../services/stats';
 import { storeCtx, userNames } from '../services/store';
@@ -208,7 +209,7 @@ export async function reportRoutes(app: FastifyInstance) {
   // ---------- Qué reponer ----------
   app.get('/reorder', guard('stock', 'reports'), async (req) => {
     const storeId = req.auth.sid;
-    const products = await prisma.product.findMany({ where: { storeId, active: true }, include: { supplier: true } });
+    const products = await prisma.product.findMany({ where: { storeId, active: true, recipe: { none: {} } }, include: { supplier: true } });
     const [lots, perDay, shortages] = await Promise.all([
       lotsByProduct(prisma, storeId),
       avgDailySales(prisma, storeId),
@@ -261,10 +262,11 @@ export async function reportRoutes(app: FastifyInstance) {
     ]);
     const staff = await todayBoard(storeId);
     const todayYmd = localYMD(store.timezone);
-    const [units, levelProducts, levelLots] = await Promise.all([
+    const [units, levelProducts, levelLots, tabs] = await Promise.all([
       unitsReport(storeId, todayYmd, todayYmd),
-      prisma.product.findMany({ where: { storeId, active: true }, select: { id: true, unallocatedSold: true, minStock: true, idealStock: true, refStock: true } }),
+      prisma.product.findMany({ where: { storeId, active: true, recipe: { none: {} } }, select: { id: true, unallocatedSold: true, minStock: true, idealStock: true, refStock: true } }),
       lotsByProduct(prisma, storeId),
+      openTabs(prisma, storeId),
     ]);
     const lowStock = levelProducts.filter(
       (p) =>
@@ -301,6 +303,7 @@ export async function reportRoutes(app: FastifyInstance) {
       staff: { working: staff.working, late: staff.late, absent: staff.absent },
       shiftsToday: units.shifts,
       lowStock,
+      openTabs: { count: tabs.length, total: round2(tabs.reduce((s, t) => s + t.total, 0)) },
     };
   });
 }

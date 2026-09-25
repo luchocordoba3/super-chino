@@ -16,6 +16,7 @@ export interface Product {
   idealStock: number | null;
   refStock: number | null;
   quickKey: boolean;
+  hasRecipe: boolean;
   targetMargin: number | null;
   contentQty: number | null;
   contentUnit: 'g' | 'kg' | 'ml' | 'l' | 'u' | null;
@@ -72,7 +73,15 @@ export interface Movement {
   createdAt: string;
 }
 
+export interface RecipeRow {
+  ingredientId: string;
+  name: string;
+  unit: 'UNIT' | 'KG';
+  qty: number;
+  cost: number;
+}
 export interface ProductDetail extends Product {
+  recipe: RecipeRow[];
   lots: { id: string; lotCode: string | null; expiresAt: string | null; qtyRemaining: number; unitCost: number; receivedAt: string }[];
   movements: Movement[];
   priceHistory: { id: string; oldPrice: number; newPrice: number; source: 'manual' | 'bulk' | 'margin' | 'import'; user: string | null; createdAt: string }[];

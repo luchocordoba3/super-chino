@@ -43,6 +43,7 @@ export function Layout() {
     { to: '/messages', label: t('nav.messages'), show: true },
     { to: '/alerts', label: t('nav.alerts'), show: can(me, 'owner') },
     { to: '/offers', label: t('nav.offers'), show: can(me, 'prices') },
+    { to: '/stock/levels', label: t('nav.levels'), show: can(me, 'stock') || can(me, 'reports') },
     { to: '/reorder', label: t('nav.reorder'), show: can(me, 'stock') },
     { to: '/sales', label: t('nav.sales'), show: can(me, 'reports') },
     { to: '/team', label: t('nav.team'), show: can(me, 'owner') },
@@ -62,7 +63,7 @@ export function Layout() {
   return (
     <div>
       <header className="topbar">
-        <div className="brand">🛒 {me.store.name}</div>
+        <div className="brand">🏪 {me.store.name}</div>
         <LangSwitch onChange={saveLang} />
         <button type="button" onClick={logout}>
           {t('common.logout')}

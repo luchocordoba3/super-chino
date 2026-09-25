@@ -4,6 +4,10 @@ Versión de Super Chino para **almacenes de barrio, kioscos y mini bares**. Vive
 
 Es la misma base (caja que funciona sin internet, stock por lote con vencimientos, empleados con fichaje, mensajes y tareas, panel del dueño, qué reponer) pensada para cobrar desde una tablet o un celular.
 
+## Qué agrega sobre Super Chino
+
+- **Stock en %** (menú *Stock %*): cada producto contra su 100%, con barra de color y cuántos días alcanza. El 100% es el *stock ideal* si el dueño lo carga (en la ficha del producto, en la planilla de importación o desde la misma pantalla); si no, lo que quedó después del último ingreso. Debajo del % de *Ajustes → Stock bajo* (25% por defecto) se pone en rojo y avisa.
+
 ## Cómo levantarlo
 
 Requisitos: Node 22, pnpm y PostgreSQL 16. Desde la raíz del repo:

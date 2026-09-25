@@ -13,6 +13,8 @@ export interface Product {
   price: number;
   cost: number;
   minStock: number;
+  idealStock: number | null;
+  refStock: number | null;
   targetMargin: number | null;
   contentQty: number | null;
   contentUnit: 'g' | 'kg' | 'ml' | 'l' | 'u' | null;

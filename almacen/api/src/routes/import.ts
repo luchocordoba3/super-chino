@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { parseContent } from '@almacen/shared';
-import { num, prisma, type Prisma } from '../db';
+import { num, numOrNull, prisma, type Prisma } from '../db';
 import { can, guard } from '../lib/auth';
 import { HttpError } from '../lib/http';
 import { publish } from '../services/notify';
@@ -18,6 +18,7 @@ const importRow = z.object({
   cost: z.number().min(0).max(1e10).nullish(),
   stock: z.number().min(0).max(1e7).nullish(),
   minStock: z.number().min(0).max(1e7).nullish(),
+  idealStock: z.number().min(0).max(1e7).nullish(),
   category: z.string().trim().max(60).nullish(),
   supplier: z.string().trim().max(80).nullish(),
   unit: z.enum(['UNIT', 'KG']).nullish(),
@@ -84,6 +85,7 @@ export async function importRoutes(app: FastifyInstance) {
                 price: r.price,
                 cost: r.cost ?? 0,
                 minStock: r.minStock ?? 0,
+                idealStock: r.idealStock ?? null,
                 unit: r.unit ?? 'UNIT',
                 categoryId: categoryId ?? null,
                 supplierId: supplierId ?? null,
@@ -109,6 +111,7 @@ export async function importRoutes(app: FastifyInstance) {
             }
             if (r.cost != null && r.cost !== num(found.cost)) data.cost = r.cost;
             if (r.minStock != null && r.minStock !== num(found.minStock)) data.minStock = r.minStock;
+            if (r.idealStock != null && r.idealStock !== numOrNull(found.idealStock)) data.idealStock = r.idealStock;
             if (r.unit && r.unit !== found.unit) data.unit = r.unit;
             if (categoryId && categoryId !== found.categoryId) data.categoryId = categoryId;
             if (supplierId && supplierId !== found.supplierId) data.supplierId = supplierId;

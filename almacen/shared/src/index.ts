@@ -61,6 +61,8 @@ export const StoreSettingsSchema = z.object({
   cashDiffThreshold: z.number().min(0).default(500),
   /** Productos por día en el conteo sorpresa (0 = desactivado). */
   countItemsPerDay: z.number().int().min(0).max(30).default(5),
+  /** Stock en %: por debajo de este porcentaje el producto está bajo (rojo) y avisa. */
+  lowStockPct: z.number().int().min(1).max(90).default(25),
   /** Diferencia de unidades en un conteo que dispara un aviso. */
   countDiffThreshold: z.number().min(0).default(1),
   /** Fotos por día que se pueden leer con IA. */

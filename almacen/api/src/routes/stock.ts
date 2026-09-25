@@ -1,12 +1,15 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { num, prisma } from '../db';
+import { round2 } from '@almacen/shared';
+import { num, numOrNull, prisma } from '../db';
 import { addDays, daysBetween } from '../domain/dates';
+import { type StockLevel, stockLevel } from '../domain/stockLevel';
 import { can, guard } from '../lib/auth';
 import { badRequest, HttpError, notFound } from '../lib/http';
 import { publish } from '../services/notify';
 import { checkLowStock } from '../services/sales';
-import { adjustStock, createStockEntry, lotsByProduct } from '../services/stock';
+import { avgDailySales } from '../services/stats';
+import { adjustStock, createStockEntry, lotsByProduct, stockOf } from '../services/stock';
 import { storeCtx, userNames } from '../services/store';
 import { createProduct, productBody, productDto } from './products';
 
@@ -22,6 +25,28 @@ export const entryItem = z.object({
 });
 
 export async function stockRoutes(app: FastifyInstance) {
+  /** Stock en %: cada producto contra su 100% (stock ideal o lo que había al reponer), de más bajo a más alto. */
+  app.get('/stock/levels', guard('stock', 'reports'), async (req) => {
+    const storeId = req.auth.sid;
+    const [products, lots, perDay, { settings }] = await Promise.all([
+      prisma.product.findMany({ where: { storeId, active: true }, include: { category: { select: { name: true } } } }),
+      lotsByProduct(prisma, storeId),
+      avgDailySales(prisma, storeId),
+      storeCtx(prisma, storeId),
+    ]);
+    const order: Record<StockLevel, number> = { low: 0, mid: 1, ok: 2, none: 3 };
+    return products
+      .map((p) => {
+        const { stock } = stockOf(p, lots);
+        const pd = perDay.get(p.id) ?? 0;
+        const idealStock = numOrNull(p.idealStock);
+        const refStock = numOrNull(p.refStock);
+        const lvl = stockLevel({ stock, idealStock, refStock, minStock: num(p.minStock), perDay: pd, lowPct: settings.lowStockPct });
+        return { productId: p.id, name: p.name, categoryId: p.categoryId, category: p.category?.name ?? null, unit: p.unit, stock, idealStock, refStock, perDay: round2(pd), ...lvl };
+      })
+      .sort((a, b) => order[a.level] - order[b.level] || (a.pct ?? 101) - (b.pct ?? 101) || a.name.localeCompare(b.name));
+  });
+
   /** Ingreso con varios renglones (factura / remito). */
   app.post('/stock/entries', guard('stock'), async (req) => {
     const b = z

@@ -135,6 +135,7 @@ export function ProductForm({ initial, onSaved }: { initial?: Product; onSaved?:
     price: initial ? String(initial.price) : '',
     cost: initial ? String(initial.cost) : '',
     minStock: initial ? String(initial.minStock) : '',
+    idealStock: initial?.idealStock != null ? String(initial.idealStock) : '',
     targetMargin: initial?.targetMargin != null ? String(initial.targetMargin) : '',
     contentQty: initial?.contentQty != null ? String(initial.contentQty) : '',
     contentUnit: initial?.contentUnit ?? '',
@@ -186,6 +187,7 @@ export function ProductForm({ initial, onSaved }: { initial?: Product; onSaved?:
       ...(canPrice ? { price: toNum(f.price) ?? 0 } : {}),
       cost: toNum(f.cost) ?? 0,
       minStock: toNum(f.minStock) ?? 0,
+      idealStock: toNum(f.idealStock),
       targetMargin: toNum(f.targetMargin),
       contentQty: f.contentUnit ? toNum(f.contentQty) : null,
       contentUnit: f.contentUnit && toNum(f.contentQty) ? f.contentUnit : null,
@@ -231,6 +233,9 @@ export function ProductForm({ initial, onSaved }: { initial?: Product; onSaved?:
         </Field>
         <Field label={t('products.minStock')}>
           <input value={f.minStock} onChange={set('minStock')} inputMode="decimal" />
+        </Field>
+        <Field label={t('products.idealStock')} hint={t('products.idealStockHint')}>
+          <input value={f.idealStock} onChange={set('idealStock')} inputMode="decimal" />
         </Field>
         <Field label={t('products.brand')}>
           <input value={f.brand} onChange={set('brand')} />

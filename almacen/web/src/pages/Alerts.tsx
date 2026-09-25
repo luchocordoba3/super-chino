@@ -27,7 +27,7 @@ export function useAlertText() {
       minutes: n('minutes'),
       start: String(d.start ?? ''),
     };
-    return t(`alerts.types.${a.type}`, vars);
+    return t(`alerts.types.${a.type === 'LOW_STOCK' && d.pct != null ? 'LOW_STOCK_PCT' : a.type}`, vars);
   };
 }
 

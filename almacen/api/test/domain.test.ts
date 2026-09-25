@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { allocateFefo } from '../src/domain/fefo';
 import { bulkPrice, marginPrice, roundPrice } from '../src/domain/pricing';
 import { dateOnly, localYMD, startOfLocalDay } from '../src/domain/dates';
+import { stockLevel } from '../src/domain/stockLevel';
 
 const lot = (id: string, expires: string | null, qty: number, cost = 10, received = '2026-01-01') => ({
   id,
@@ -81,5 +82,24 @@ describe('precio por unidad de medida (etiquetas)', () => {
     expect(unitPrice(500, { qty: 40, unit: 'g' })).toEqual({ value: 125, per: '10 g' });
     expect(unitPrice(9800, null, 'KG')).toEqual({ value: 9800, per: 'kg' });
     expect(unitPrice(1000, null)).toBeNull();
+  });
+});
+
+describe('stock en %', () => {
+  const base = { idealStock: null, refStock: null, minStock: 0, perDay: 0, lowPct: 25 };
+  it('usa el stock ideal si está; si no, lo que quedó al reponer', () => {
+    expect(stockLevel({ ...base, stock: 30, refStock: 40 })).toMatchObject({ pct: 75, ref: 40, level: 'ok' });
+    expect(stockLevel({ ...base, stock: 30, refStock: 40, idealStock: 60 })).toMatchObject({ pct: 50, ref: 60, level: 'mid' });
+  });
+  it('rojo en el % bajo, en el mínimo o sin stock; nunca más de 100%', () => {
+    expect(stockLevel({ ...base, stock: 10, refStock: 40 }).level).toBe('low');
+    expect(stockLevel({ ...base, stock: 30, refStock: 40, minStock: 30 }).level).toBe('low');
+    expect(stockLevel({ ...base, stock: 0 })).toMatchObject({ pct: null, level: 'low' });
+    expect(stockLevel({ ...base, stock: 5 })).toMatchObject({ pct: null, level: 'none' });
+    expect(stockLevel({ ...base, stock: 80, refStock: 40 }).pct).toBe(100);
+  });
+  it('días que alcanza al ritmo de venta', () => {
+    expect(stockLevel({ ...base, stock: 10, refStock: 40, perDay: 4 }).daysLeft).toBe(2);
+    expect(stockLevel({ ...base, stock: 10, refStock: 40 }).daysLeft).toBeNull();
   });
 });

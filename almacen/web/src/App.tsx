@@ -24,6 +24,7 @@ import { ScanInvoice } from './pages/ScanInvoice';
 import { Settings } from './pages/Settings';
 import { Suppliers } from './pages/Suppliers';
 import { Stock } from './pages/Stock';
+import { StockLevels } from './pages/StockLevels';
 import { Team } from './pages/Team';
 import { Attendance } from './pages/Attendance';
 
@@ -67,6 +68,7 @@ export function App() {
           <Route path="suppliers" element={<Suppliers />} />
           <Route path="stock" element={<Stock />} />
           <Route path="stock/scan" element={<ScanInvoice />} />
+          <Route path="stock/levels" element={<StockLevels />} />
           <Route path="messages" element={<Messages />} />
           <Route path="alerts" element={<Alerts />} />
           <Route path="offers" element={<Offers />} />

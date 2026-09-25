@@ -1,6 +1,7 @@
 import type { Prisma } from '../generated/prisma/index.js';
 import { type CashMoveKind, cashMoveSign, type Payment, type PosEvent, PosEventSchema, round2, type StoreSettings, type SyncResult } from '@almacen/shared';
-import { type Db, num, prisma, type Tx } from '../db';
+import { type Db, num, numOrNull, prisma, type Tx } from '../db';
+import { stockLevel } from '../domain/stockLevel';
 import { type NewAlert, notifyAlerts, raiseAlert, resolveAlert } from './alerts';
 import { clock } from './attendance';
 import { publish } from './notify';
@@ -18,17 +19,21 @@ interface Ctx {
 }
 type Ev<T extends PosEvent['type']> = Extract<PosEvent, { type: T }>;
 
-/** Avisa stock bajo o lo da por resuelto según el stock actual. */
+/** Avisa stock bajo (debajo del mínimo o del % bajo) o lo da por resuelto según el stock actual. */
 export async function checkLowStock(tx: Db, storeId: string, productIds: string[]) {
   const alerts: { isNew: boolean; alert: NewAlert }[] = [];
   if (productIds.length === 0) return alerts;
   const products = await tx.product.findMany({ where: { storeId, id: { in: productIds } } });
   const lots = await lotsByProduct(tx, storeId, productIds);
+  const { settings } = await storeCtx(tx, storeId);
   for (const p of products) {
     const { stock } = stockOf(p, lots);
     const min = num(p.minStock);
-    if (min > 0 && stock <= min) {
-      alerts.push(await raiseAlert(tx, storeId, 'LOW_STOCK', `LOW_STOCK:${p.id}`, { productId: p.id, name: p.name, stock, min }, 'info'));
+    const { pct } = stockLevel({ stock, idealStock: numOrNull(p.idealStock), refStock: numOrNull(p.refStock), minStock: min, perDay: 0, lowPct: settings.lowStockPct });
+    const byMin = min > 0 && stock <= min;
+    if (byMin || (pct != null && pct <= settings.lowStockPct)) {
+      const data = { productId: p.id, name: p.name, stock, min, ...(byMin ? {} : { pct }) };
+      alerts.push(await raiseAlert(tx, storeId, 'LOW_STOCK', `LOW_STOCK:${p.id}`, data, 'info'));
     } else {
       await resolveAlert(tx, storeId, `LOW_STOCK:${p.id}`);
     }

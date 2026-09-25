@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { CONTENT_UNITS, parseContent, round3 } from '@almacen/shared';
-import { num, prisma, type Prisma } from '../db';
+import { num, numOrNull, prisma, type Prisma } from '../db';
 import { startOfLocalDay } from '../domain/dates';
 import { bulkPrice } from '../domain/pricing';
 import { fefoCompare } from '../domain/fefo';
@@ -25,6 +25,8 @@ export const productBody = z.object({
   price: money,
   cost: money.optional(),
   minStock: z.number().min(0).max(1e7).optional(),
+  /** Stock "lleno" para el stock en % (vacío = automático). */
+  idealStock: z.number().min(0).max(1e7).nullish(),
   targetMargin: z.number().min(0).max(500).nullish(),
   contentQty: z.number().positive().max(1e6).nullish(),
   contentUnit: z.enum(CONTENT_UNITS).nullish(),
@@ -66,6 +68,7 @@ export async function createProduct(storeId: string, b: z.infer<typeof productBo
         price: b.price,
         cost: b.cost ?? 0,
         minStock: b.minStock ?? 0,
+        idealStock: b.idealStock ?? null,
         targetMargin: b.targetMargin ?? null,
         ...contentOf(b),
       },
@@ -92,6 +95,8 @@ export function productDto(p: ProductRow | Prisma.ProductGetPayload<object>, lot
     price: num(p.price),
     cost: num(p.cost),
     minStock: num(p.minStock),
+    idealStock: numOrNull(p.idealStock),
+    refStock: numOrNull(p.refStock),
     targetMargin: p.targetMargin == null ? null : num(p.targetMargin),
     contentQty: p.contentQty == null ? null : num(p.contentQty),
     contentUnit: p.contentUnit,

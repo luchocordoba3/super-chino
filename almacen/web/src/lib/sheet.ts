@@ -2,7 +2,7 @@
 
 export type Cell = string | number | boolean | Date | null;
 
-export const IMPORT_FIELDS = ['barcode', 'name', 'price', 'cost', 'stock', 'minStock', 'category', 'supplier', 'unit', 'expiresAt'] as const;
+export const IMPORT_FIELDS = ['barcode', 'name', 'price', 'cost', 'stock', 'minStock', 'idealStock', 'category', 'supplier', 'unit', 'expiresAt'] as const;
 export type ImportField = (typeof IMPORT_FIELDS)[number];
 export type Mapping = Record<ImportField, number>;
 
@@ -14,6 +14,7 @@ export interface ImportRow {
   cost?: number | null;
   stock?: number | null;
   minStock?: number | null;
+  idealStock?: number | null;
   category?: string | null;
   supplier?: string | null;
   unit?: 'UNIT' | 'KG' | null;
@@ -135,6 +136,7 @@ const SYNONYMS: Record<ImportField, string[]> = {
   cost: ['costo', 'precio costo', 'precio de costo', 'costo unitario', 'precio compra', 'compra'],
   stock: ['stock', 'cantidad', 'existencia', 'cant', 'stock actual'],
   minStock: ['stock minimo', 'minimo', 'stock min', 'punto de pedido'],
+  idealStock: ['stock ideal', 'ideal', 'stock maximo', 'maximo', 'stock lleno'],
   category: ['categoria', 'rubro', 'familia', 'seccion', 'departamento'],
   supplier: ['proveedor', 'distribuidor'],
   unit: ['unidad', 'se vende por', 'unidad de venta', 'medida'],
@@ -145,14 +147,26 @@ const SYNONYMS: Record<ImportField, string[]> = {
 export function guessMapping(headers: Cell[]): Mapping {
   const hs = headers.map((h) => norm(String(h ?? '')));
   const used = new Set<number>();
-  const mapping = {} as Mapping;
+  const mapping = Object.fromEntries(IMPORT_FIELDS.map((f) => [f, -1])) as Mapping;
   for (const field of IMPORT_FIELDS) {
-    const syn = SYNONYMS[field];
-    let idx = hs.findIndex((h, i) => !used.has(i) && syn.includes(h));
-    if (idx < 0) idx = hs.findIndex((h, i) => !used.has(i) && h !== '' && syn.some((s) => h.startsWith(s)));
+    const idx = hs.findIndex((h, i) => !used.has(i) && SYNONYMS[field].includes(h));
     mapping[field] = idx;
     if (idx >= 0) used.add(idx);
   }
+  // Los títulos que empiezan con un sinónimo van al dato del sinónimo más largo ("stock ideal" no es "stock").
+  hs.forEach((h, i) => {
+    if (used.has(i) || h === '') return;
+    let best: ImportField | null = null;
+    let len = 0;
+    for (const f of IMPORT_FIELDS) {
+      if (mapping[f] >= 0) continue;
+      for (const s of SYNONYMS[f]) if (h.startsWith(s) && s.length > len) [best, len] = [f, s.length];
+    }
+    if (best) {
+      mapping[best] = i;
+      used.add(i);
+    }
+  });
   return mapping;
 }
 
@@ -177,6 +191,7 @@ export function buildRows(table: Cell[][], mapping: Mapping) {
       cost: parseNumber(get('cost')),
       stock: parseNumber(get('stock')),
       minStock: parseNumber(get('minStock')),
+      idealStock: parseNumber(get('idealStock')),
       category: text('category'),
       supplier: text('supplier'),
       unit: unitText ? (/kg|kilo|peso|granel/i.test(unitText) ? 'KG' : 'UNIT') : null,

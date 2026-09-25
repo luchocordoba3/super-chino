@@ -13,3 +13,4 @@ export type Db = PrismaClient | Tx;
 
 /** Decimal | null -> number */
 export const num = (d: Prisma.Decimal | number | null | undefined) => (d == null ? 0 : Number(d));
+export const numOrNull = (d: Prisma.Decimal | number | null | undefined) => (d == null ? null : Number(d));

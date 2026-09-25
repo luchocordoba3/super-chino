@@ -165,3 +165,13 @@ td.num, th.num { text-align: right; white-space: nowrap; }
 .schedule input[type='time'] { width: auto; }
 .attendance-row { flex-wrap: wrap; border-bottom: 1px solid var(--line); padding: 6px 0; gap: 6px; }
 tr.selected td { background: rgba(200, 16, 46, 0.08); }
+
+/* Stock en % */
+.level-bar { height: 10px; background: #eee; border-radius: 999px; overflow: hidden; margin: 6px 0 4px; }
+.level-bar > span { display: block; height: 100%; border-radius: 999px; background: var(--ok); }
+.level-mid > span { background: var(--warn); }
+.level-low > span { background: var(--danger); }
+.level-none > span { background: #bbb; }
+.level-text-ok { color: var(--ok); }
+.level-text-mid { color: var(--warn); }
+.level-text-low { color: var(--danger); }

@@ -1,0 +1,25 @@
+[project]
+name = "memebot"
+version = "0.2.0"
+description = "Bot de memecoins en Solana con cuatro agentes: director, quant, risk manager y ejecución."
+requires-python = ">=3.11"
+dependencies = [
+  "anthropic>=1.8,<2",
+  "httpx>=0.28,<1",
+  "pydantic>=2.7,<3",
+  "solders>=0.29,<1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["memebot", "memebot.agents"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

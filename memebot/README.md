@@ -1,76 +1,103 @@
-# memebot: US$100.000 o desaparecer
+# memebot: 4 agentes, meta US$2.000.000
 
-Bot que opera memecoins en Solana, solo y las 24 horas, con una única meta:
+Bot en Python que opera memecoins en Solana, solo y las 24 horas, con cuatro agentes:
 
-- **Si el capital llega a US$100.000:** vende todo a USDC, avisa y **no vuelve a operar**.
-- **Si el capital cae por debajo de US$10:** vende lo que quede, avisa y **se apaga para siempre**.
+| Agente | Qué hace | Cómo |
+|---|---|---|
+| **Director** | Genera tesis de inversión y pide cerrar las posiciones cuya tesis se invalidó | Claude Opus 5 |
+| **Quant** | Valida cada tesis contra los datos; si los números no la sostienen, la rechaza | Claude Sonnet 5 |
+| **Risk manager** | Decide el tamaño y el plan de salida (stop-loss, toma de ganancia, stop dinámico, plazo) | Claude Sonnet 5 |
+| **Ejecución** | Compra, vende y retira en Solana: cotiza, controla el impacto en el precio, firma y confirma | Código, sin IA |
+
+La IA nunca toca la clave privada ni elige montos por fuera de los topes. La ejecución solo hace lo que aprobó el risk manager, y los topes duros se aplican en código:
+- tamaño máximo por operación;
+- stop-loss mínimo y máximo;
+- cantidad máxima de posiciones;
+- impacto máximo en el precio.
+
+Además, un mint que el director invente se descarta: solo se operan monedas que vinieron del escáner.
 
 Es independiente de la app del súper: no forma parte del workspace de pnpm ni de su deploy.
 
-> ⚠️ **Leé esto antes de usarlo con dinero real.** Lo más probable es perder todo el capital.
-> La mayoría de las memecoins terminan en estafa. Cada compra y venta completa cuesta entre 0,5% y 3%
-> (slippage, impacto en el precio y comisiones), y ninguna regla garantiza ganancias. Usá solo plata
-> que estés dispuesto a perder entera.
+> ⚠️ **Leé esto antes de usarlo con dinero real.** Lo más probable es perder todo el capital. La mayoría de las
+> memecoins terminan en estafa, cada compra y venta completa cuesta entre 0,5% y 3%, y ninguna IA predice
+> el precio. A eso se suma el costo de los agentes: aproximadamente US$15 por día (unos US$460 por mes) con la
+> configuración por defecto. Usá solo plata que estés dispuesto a perder entera.
 
-## Cómo decide
+## Metas y retiros
 
-Cada 15 segundos revisa las posiciones abiertas y cada 60 segundos busca candidatas. Las toma de dos lugares: los pools en tendencia de GeckoTerminal y las monedas promocionadas en DexScreener.
+El **patrimonio** es el capital en la billetera del bot más todo lo que ya se retiró.
 
-**Para entrar**, una moneda tiene que pasar todos estos filtros:
+| Patrimonio | Qué pasa |
+|---|---|
+| US$100k · 300k · 600k · 1M · 1,5M | Retira a tu billetera segura (`WITHDRAW_ADDRESS`) el 50% de la ganancia hecha desde el último retiro y sigue operando |
+| **US$2M** | Vende todo, retira todo a tu billetera y **no vuelve a operar** |
+| Capital del bot < US$10 | Vende lo que quede y **se apaga para siempre**. Lo ya retirado está a salvo |
 
-1. **Mercado:**
-   - liquidez de al menos US$30k y volumen de la última hora de al menos US$50k;
-   - entre 30 minutos y 72 horas de vida;
-   - capitalización entre US$100k y US$20M;
-   - más compras que ventas;
-   - suba a 5 min y suba a 1 h entre +10% y +200%.
-2. **Puntaje:** combina presión compradora, aceleración del volumen, tendencia y liquidez. Solo compra la mejor candidata si supera 0,5.
-3. **Anti-estafa.** Ante la duda, no compra:
-   - Nadie puede emitir más monedas ni congelarlas.
-   - En Token-2022, no tiene extensiones peligrosas (comisión por transferencia, hook, delegado permanente, pausable).
-   - RugCheck no marca ningún riesgo grave ("danger"). Si RugCheck no responde, tampoco compra.
-   - Hay ruta para venderla: se prueba cotizando una venta de US$1.
-4. **Tamaño:** el menor entre 25% del capital, 2% de la liquidez del pool y el monto con el que el impacto en el precio queda ≤ 2%. Tiene como máximo 3 posiciones abiertas a la vez.
+Por ejemplo, empezando con US$1.000:
+- **Meta de US$100k:** retira US$49.500 y sigue operando con US$50.500.
+- **Meta de US$300k:** hace falta que el capital en el bot llegue a US$250.500; retira US$100.000.
+- **Siguientes metas:** siguen la misma lógica hasta llegar a US$2M.
 
-**Para salir:**
-- **Stop-loss:** −25%.
-- **Toma de ganancia:** en +50% vende la mitad. El resto se vende si el precio cae 25% desde el máximo.
-- **Corte por tiempo:** si a los 90 min no subió al menos +10%, vende.
-- **Si la liquidez cae más de 50%** (señal de estafa en curso), vende de urgencia, aceptando más slippage.
-- **Si va perdiendo y dominan las ventas**, vende.
+Si al pasar una meta el efectivo está invertido, el retiro queda pendiente y sale cuando se cierran posiciones. Mientras tanto, esa plata no se usa para compras nuevas.
 
-Si una venta falla, la reintenta subiendo el slippage. Después de 4 pérdidas seguidas se toma 60 minutos sin comprar. No vuelve a entrar en la misma moneda por 6 horas.
+Los retiros solo pueden ir a `WITHDRAW_ADDRESS`, que sale del `.env`: ningún agente la puede cambiar. No agregues fondos a la billetera del bot después de arrancar, porque se contarían como ganancia. Si querés sumar capital, detené el bot y empezá de cero con `reset --yes`.
 
-El bot **nunca transfiere fondos** a otra dirección: solo intercambia USDC ↔ memecoins dentro de su propia billetera, a través de Jupiter.
+## Cómo funciona un ciclo
 
-## 1. Probar en simulación (recomendado: al menos una semana)
+1. **Cada 15 segundos (sin IA):** revisa las posiciones abiertas y aplica el plan de salida de cada una.
+   - **Stop-loss:** vende todo si cae el porcentaje que fijó el risk manager.
+   - **Toma de ganancia:** al alcanzarla vende la mitad. Al resto le aplica un stop que sigue el precio máximo.
+   - **Plazo:** vende si se cumple el plazo de la tesis sin que la moneda haya despegado.
+   - **Emergencia:** vende de urgencia si la liquidez cae más de 50%.
+2. **Cada 15 minutos:**
+   1. **Escáner (gratis):** busca candidatas en GeckoTerminal y DexScreener y las filtra por liquidez, volumen, antigüedad y compras contra ventas. Después aplica los controles anti-estafa y deja las 10 mejores:
+      - nadie puede emitir más monedas ni congelarlas;
+      - en Token-2022, no tiene extensiones peligrosas;
+      - RugCheck no marca riesgos graves;
+      - hay ruta para vender.
+   2. **Director:** recibe las candidatas y la cartera. Propone hasta 3 tesis o ninguna, y puede pedir cerrar posiciones abiertas.
+   3. **Quant:** valida cada tesis, empezando por la de mayor convicción.
+   4. **Risk manager:** para cada tesis aprobada, decide el tamaño y el plan de salida.
+   5. **Ejecución:** compra, con un tope de impacto en el precio y a través de Jupiter.
+3. **Frenos automáticos:**
+   - Después de 4 pérdidas seguidas se toma 60 minutos sin comprar.
+   - No vuelve a entrar en la misma moneda por 6 horas.
+   - Si se agota el presupuesto diario de IA, no hace compras nuevas hasta el día siguiente, pero las salidas siguen funcionando.
 
-Necesitás Node 22.
+Si no hay candidatas ni posiciones abiertas, no llama a la IA y no gasta.
+
+## 1. Probar en simulación
+
+Necesitás Python 3.11 o más nuevo y una clave de la API de Anthropic.
 
 ```bash
 cd memebot
-npm install
-cp .env.example .env      # MODE=paper viene por defecto
-npm run paper
+python -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+cp .env.example .env        # completá ANTHROPIC_API_KEY; MODE=paper viene por defecto
+python -m memebot start --paper
 ```
 
-En la simulación usa precios y cotizaciones reales de Jupiter con US$100 virtuales, y descuenta una comisión y 1% de slippage por operación. En otra terminal podés ver cómo va:
+La simulación usa precios y cotizaciones reales con US$1.000 virtuales, y descuenta una comisión y 1% de slippage por operación. **Los agentes sí gastan de verdad:** para probar barato, bajá `LLM_DAILY_BUDGET_USD` (por ejemplo, a 3).
 
 ```bash
-npm run status
+python -m memebot status    # patrimonio, metas, retiros, gasto en IA y posiciones
+pytest                      # tests, sin red ni IA
 ```
 
-El historial queda en `data/trades-paper.jsonl`. Si los resultados no te convencen, ajustá los parámetros en `.env`. La lista completa con sus valores por defecto está en `src/config.ts`.
+El historial de operaciones y retiros queda en `data/trades-paper.jsonl`.
 
-## 2. Operar con dinero real
+## 2. Operar con dinero real (cuando juntes el capital)
 
-1. Creá una billetera **nueva**, usada solo por el bot (por ejemplo, una cuenta nueva en Phantom), y exportá su clave privada. Nunca uses tu billetera principal.
-2. Cargale los **USDC** que vas a arriesgar y unos **0,1 SOL** para pagar las comisiones de red.
+1. Creá una billetera **nueva**, usada solo por el bot, y exportá su clave privada.
+2. Cargale los **USDC** que vas a arriesgar y unos **0,1 SOL** para comisiones.
 3. En `.env` completá:
    - `MODE=live`
-   - `WALLET_PRIVATE_KEY=...`
-   - `SOLANA_RPC_URL`: un RPC propio (Helius tiene plan gratis); el público falla seguido al enviar transacciones.
-4. Arrancá con `npm start`. Al inicio muestra la dirección y los saldos de la billetera.
+   - `WALLET_PRIVATE_KEY`
+   - `WITHDRAW_ADDRESS`: tu billetera segura, la de siempre, **distinta** de la del bot.
+   - `SOLANA_RPC_URL`: un RPC propio (Helius tiene plan gratis).
+4. Arrancá con `python -m memebot start`. Al inicio muestra la dirección del bot, los saldos y a dónde van los retiros.
 
 Si Jupiter empieza a pedir clave de API, sacala gratis en portal.jup.ag y poné `JUP_API_URL=https://api.jup.ag` y `JUP_API_KEY=...`.
 
@@ -78,41 +105,40 @@ Si Jupiter empieza a pedir clave de API, sacala gratis en portal.jup.ag y poné 
 
 | Comando | Qué hace |
 |---|---|
-| `npm start` | Arranca en el modo de `.env` |
-| `npm run paper` | Arranca en simulación, diga lo que diga `.env` |
-| `npm run status` | Capital, avance hacia la meta y posiciones abiertas |
-| `npm run panic` | En el próximo ciclo vende todo y deja de comprar |
-| `npm run resume` | Desactiva el pánico |
-| `npm run reset -- --yes` | Archiva el estado (no lo borra) para empezar de cero. Primero detené el bot |
-| `npm test` | Tests (sin red) |
+| `python -m memebot start` | Arranca en el modo del `.env` (`--paper` fuerza simulación) |
+| `python -m memebot status` | Patrimonio, metas, retiros, gasto en IA y posiciones |
+| `python -m memebot panic` | En el próximo ciclo vende todo y no consulta más a los agentes |
+| `python -m memebot resume` | Desactiva el pánico |
+| `python -m memebot reset --yes` | Archiva el estado (no lo borra) para empezar de cero. Primero detené el bot |
 
-Ctrl+C lo detiene ordenadamente: termina el ciclo en curso, guarda el estado y, al volver a arrancar, retoma las posiciones abiertas.
+Ctrl+C lo detiene ordenadamente: termina el ciclo, guarda el estado y, al volver a arrancar, retoma las posiciones abiertas.
 
 ## 3. Dejarlo corriendo 24/7
 
-Conviene un VPS chico (Hetzner, DigitalOcean o similar, US$5–6 por mes) con Docker:
+Conviene un VPS chico (US$5–6 por mes) con Docker:
 
 ```bash
 cd memebot
 cp .env.example .env   # completalo
 docker compose up -d --build
-docker compose logs -f                   # ver qué hace
-docker compose exec memebot npm run status
-docker compose exec memebot npm run panic
+docker compose logs -f
+docker compose exec memebot python -m memebot status
+docker compose exec memebot python -m memebot panic
 ```
 
-El estado queda en `memebot/data/`. El contenedor se reinicia solo si se cae o si se reinicia el servidor. Cuando el bot gana o quiebra, queda en reposo sin operar.
-
-El plan gratis de Render no sirve para esto: se duerme cuando no recibe visitas y borra el disco en cada reinicio.
+El estado queda en `memebot/data/`. El contenedor se reinicia solo si se cae o si se reinicia el servidor. Al ganar o quebrar, queda en reposo sin operar.
 
 **Avisos por Telegram (opcional):** completá `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID` para recibir:
-- compras y ventas;
+- cada compra, con su tesis;
+- ventas y retiros;
+- metas alcanzadas;
 - errores;
 - un resumen diario;
-- el aviso final, al ganar o al quebrar.
+- el aviso final.
 
 ## Límites
 
-- Las APIs externas (DexScreener, GeckoTerminal, RugCheck, Jupiter) pueden cambiar de formato. El bot valida cada respuesta: si algo no cierra, lo registra en el log y no opera con ese dato.
-- En la quiebra, las monedas que ya no tienen ruta de venta (estafas consumadas) quedan en la billetera sin valor.
-- Al ganar, el monto final puede quedar apenas por debajo de US$100.000 por el slippage de la última venta.
+- Las APIs externas pueden cambiar de formato. Cada respuesta se valida: si algo no cierra, se registra en el log y no se opera con ese dato.
+- Si el director, el quant o el risk manager fallan o devuelven algo inválido, esa operación no se hace.
+- En la quiebra, las monedas sin ruta de venta (estafas consumadas) quedan en la billetera sin valor.
+- El costo de la IA depende de cuánto razonen los modelos (`*_EFFORT`) y de cuántas candidatas haya. El tope diario lo limita.

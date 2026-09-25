@@ -1,4 +1,8 @@
-node_modules
+.venv
 data
 .env
-test
+tests
+__pycache__
+.pytest_cache
+.ruff_cache
+*.egg-info

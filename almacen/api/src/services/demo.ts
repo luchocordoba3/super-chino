@@ -123,6 +123,9 @@ export async function seedDemo() {
     products.push(await prisma.product.create({ data: { storeId, barcode: ean13(i + 1), name, categoryId, supplierId, price, cost, minStock, unit } }));
   }
   const byName = (n: string) => products.find((p) => p.name.startsWith(n))!;
+  // Botones rápidos de la caja táctil: lo que más sale del kiosco y las bebidas frías.
+  const quick = ['Alfajor', 'Chocolate', 'Galletitas', 'Papas fritas', 'Gaseosa cola 500ml', 'Cerveza lata', 'Agua mineral'];
+  await prisma.product.updateMany({ where: { id: { in: quick.map((n) => byName(n).id) } }, data: { quickKey: true } });
 
   // 1) Stock inicial de hace 20 días (sin vencimiento) que consumen las ventas de ejemplo.
   await prisma.$transaction((tx) =>

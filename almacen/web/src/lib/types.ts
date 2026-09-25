@@ -15,6 +15,7 @@ export interface Product {
   minStock: number;
   idealStock: number | null;
   refStock: number | null;
+  quickKey: boolean;
   targetMargin: number | null;
   contentQty: number | null;
   contentUnit: 'g' | 'kg' | 'ml' | 'l' | 'u' | null;

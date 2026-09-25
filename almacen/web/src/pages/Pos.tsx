@@ -2,13 +2,13 @@ import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } fro
 import { useTranslation } from 'react-i18next';
 import { CASH_MOVE_KINDS, type CashMoveKind, cashMoveSign, PAYMENT_METHODS, type PaymentMethod, type PosEvent, round2 } from '@almacen/shared';
 import { api } from '../api';
-import { beep } from '../components/BarcodeScanner';
+import { beep, ScanButton } from '../components/BarcodeScanner';
 import { Field, Modal, toast, toNum } from '../components/ui';
 import { setLang } from '../i18n';
 import { money, qtyFmt, setCurrency, timeFmt } from '../lib/format';
 import type { Me } from '../lib/me';
 import { addItem, type CartItem, cartTotal, type OfferInfo, parseScan, priceCart, settlePayments } from '../pos/cart';
-import { type CashMoveLocal, type CashSessionLocal, type CatalogProduct, db, type Handover, kvDel, kvGet, kvSet, type LocalSale, normalize, type PosUser, type StoreInfo, type SupplierRow } from '../pos/db';
+import { type CashMoveLocal, type CashSessionLocal, type CatalogProduct, type CategoryRow, db, type Handover, kvDel, kvGet, kvSet, type LocalSale, normalize, type PosUser, type StoreInfo, type SupplierRow } from '../pos/db';
 import { verifyPin } from '../pos/pin';
 import { enqueue, flushOutbox, getDeviceToken, linkDevice, pendingCount, refreshCatalog, syncEvents, UnlinkedError, unsyncedOfferQty } from '../pos/sync';
 
@@ -101,7 +101,7 @@ export function Pos() {
     return (
       <div className="center-box stack">
         <div className="row between">
-          <h1>🛒 {store?.name}</h1>
+          <h1>🏪 {store?.name}</h1>
           {status}
         </div>
         <PickUser title={t('pos.whoSells')} only={(u) => u.role === 'OWNER' || u.canSell !== false} onPicked={pickCashier} />
@@ -435,7 +435,10 @@ function SellScreen(props: {
   const [catalogCount, setCatalogCount] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const canOverride = cashier.role === 'OWNER' || cashier.perms.includes('prices');
-  const focus = () => setTimeout(() => inputRef.current?.focus(), 0);
+  // En pantallas táctiles no se pone el cursor solo: abriría el teclado en cada toque.
+  const focus = () => setTimeout(() => !TOUCH && inputRef.current?.focus(), 0);
+  const [pane, setPane] = useState<'products' | 'cart'>('products');
+  const pick = (p: CatalogProduct) => (p.unit === 'KG' ? setWeightFor(p) : add(p, 1));
 
   const loadSide = useCallback(async () => {
     const [rows, used] = await Promise.all([db.offers.toArray(), unsyncedOfferQty()]);
@@ -551,9 +554,24 @@ function SellScreen(props: {
     setTimeout(() => window.print(), 50);
   };
 
+  const scanBuf = useRef({ text: '', at: 0 });
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (paying || done || closing || weightFor || clocking || moving || short) return;
+      // Un lector "teclea" muy rápido y termina con Enter: se toma aunque no haya un campo con el cursor.
+      const el = e.target as HTMLElement | null;
+      if (!el || !['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)) {
+        const b = scanBuf.current;
+        if (e.timeStamp - b.at > 80) b.text = '';
+        b.at = e.timeStamp;
+        if (e.key === 'Enter' && b.text.length >= 3) {
+          e.preventDefault();
+          void onScan(b.text);
+          b.text = '';
+          return;
+        }
+        if (e.key.length === 1) b.text += e.key;
+      }
       if (e.key === 'F2') {
         e.preventDefault();
         inputRef.current?.focus();
@@ -570,10 +588,10 @@ function SellScreen(props: {
   });
 
   return (
-    <div className="pos">
+    <div className="pos" data-pane={pane}>
       <div className="pos-left">
         <div className="pos-top no-print">
-          <strong className="grow">🛒 {store?.name}</strong>
+          <strong className="grow">🏪 {store?.name}</strong>
           <span>{cashier.name}</span>
           {props.status}
           <button onClick={() => setClocking(true)}>🕘 {t('pos.clock')}</button>
@@ -589,7 +607,10 @@ function SellScreen(props: {
             void onScan(input);
           }}
         >
-          <input ref={inputRef} autoFocus value={input} onChange={(e) => setInput(e.target.value)} placeholder={t('pos.scanHere')} />
+          <div className="row" style={{ flexWrap: 'nowrap' }}>
+            <input ref={inputRef} autoFocus={!TOUCH} value={input} onChange={(e) => setInput(e.target.value)} placeholder={t('pos.scanHere')} />
+            <ScanButton onCode={(code) => void onScan(code)} />
+          </div>
           <div className="hint">
             {t('pos.keyboardHelp')} · {t('pos.catalogInfo', { count: catalogCount })}
           </div>
@@ -606,6 +627,9 @@ function SellScreen(props: {
             ))}
           </div>
         )}
+        <QuickKeys onPick={pick} />
+      </div>
+      <div className="pos-right no-print">
         <div className="pos-cart">
           {lines.length === 0 && <p className="muted">{t('pos.emptyCart')}</p>}
           {lines.map((l) => (
@@ -647,8 +671,6 @@ function SellScreen(props: {
             </div>
           ))}
         </div>
-      </div>
-      <div className="pos-right no-print">
         <div className="pos-total">{money(total)}</div>
         <button className="primary big" disabled={!items.length} onClick={() => setPaying(true)}>
           {t('pos.pay')} (F12)
@@ -675,6 +697,14 @@ function SellScreen(props: {
         ))}
       </div>
 
+      <div className="pos-mobile-bar no-print">
+        <button type="button" className={pane === 'products' ? 'active' : ''} onClick={() => setPane('products')}>
+          🛍 {t('pos.paneProducts')}
+        </button>
+        <button type="button" className={pane === 'cart' ? 'active' : ''} onClick={() => setPane('cart')}>
+          🧾 {t('pos.paneCart', { count: items.length })} · <strong>{money(total)}</strong>
+        </button>
+      </div>
       {weightFor && (
         <WeightModal
           product={weightFor}
@@ -712,6 +742,57 @@ function SellScreen(props: {
         />
       )}
       {printing && <Ticket sale={printing} store={store} />}
+    </div>
+  );
+}
+
+const TOUCH = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
+const TINTS = ['#fde2e4', '#e2ece9', '#fff1c1', '#dfe7fd', '#f0e6ff', '#e8f5d6', '#ffe5cc'];
+const tint = (id?: string | null) => (id ? TINTS[[...id].reduce((s, c) => s + c.charCodeAt(0), 0) % TINTS.length] : '#fff');
+
+/** Botones rápidos de la pantalla táctil, por categoría: lo que no tiene código o se vende todo el tiempo. */
+function QuickKeys({ onPick }: { onPick: (p: CatalogProduct) => void }) {
+  const { t } = useTranslation();
+  const [keys, setKeys] = useState<CatalogProduct[]>([]);
+  const [cats, setCats] = useState<CategoryRow[]>([]);
+  const [cat, setCat] = useState('');
+  const load = useCallback(async () => {
+    setKeys((await db.products.filter((p) => p.active && !!p.quickKey).toArray()).sort((a, b) => a.name.localeCompare(b.name)));
+    setCats((await kvGet<CategoryRow[]>('categories')) ?? []);
+  }, []);
+  useEffect(() => {
+    void load();
+    syncEvents.addEventListener('change', load);
+    return () => syncEvents.removeEventListener('change', load);
+  }, [load]);
+  if (keys.length === 0) return <p className="hint pos-quick">{t('pos.noQuickKeys')}</p>;
+  const used = cats.filter((c) => keys.some((k) => k.categoryId === c.id));
+  const shown = cat ? keys.filter((k) => k.categoryId === cat) : keys;
+  return (
+    <div className="pos-quick">
+      {used.length > 1 && (
+        <div className="pos-quick-cats">
+          <button type="button" className={cat === '' ? 'active' : ''} onClick={() => setCat('')}>
+            {t('pos.quickAll')}
+          </button>
+          {used.map((c) => (
+            <button type="button" key={c.id} className={cat === c.id ? 'active' : ''} onClick={() => setCat(c.id)}>
+              {c.name}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="pos-quick-grid">
+        {shown.map((p) => (
+          <button key={p.id} type="button" className="pos-key" style={{ background: tint(p.categoryId) }} onClick={() => onPick(p)}>
+            <span className="n">{p.name}</span>
+            <strong>
+              {money(p.price)}
+              {p.unit === 'KG' ? '/kg' : ''}
+            </strong>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

@@ -10,6 +10,13 @@ export interface CatalogProduct {
   active: boolean;
   updatedAt: string;
   search: string;
+  categoryId?: string | null;
+  /** Botón rápido en la caja táctil. */
+  quickKey?: boolean;
+}
+export interface CategoryRow {
+  id: string;
+  name: string;
 }
 export interface OfferRow {
   id: string;

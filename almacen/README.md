@@ -10,6 +10,7 @@ Es la misma base (caja que funciona sin internet, stock por lote con vencimiento
 - **Qué se vendió** (menú *Qué se vendió*): unidades de cada producto **por turno** (de la apertura al cierre de caja, con el empleado y el horario), **por día** (una columna por empleado) y **por semana** (lunes a domingo, con filtro por empleado). Abajo, la plata y los tickets de cada columna. Se baja a Excel. En el panel: "Hoy por turno" y cuántos productos están bajos.
 - **Pase de turno:** al cerrar la caja se anotan las novedades para el que sigue. Le llegan al dueño y al equipo como mensaje (con notificación) y se muestran al abrir el turno siguiente, aunque no haya internet en esa caja. También quedan en *Ventas → Cajas*.
 - **"Se está terminando" 📣:** desde la caja (anda sin internet) o desde la ficha del producto en el celular, el empleado avisa que queda poco. Al dueño le llega el aviso al celular y el producto entra en *Reponer* aunque los números digan que alcanza. Se cierra solo cuando se carga mercadería de ese producto.
+- **Caja táctil (tablet o celular):** botones rápidos grandes por categoría para lo que no tiene código o sale todo el tiempo (se marcan con *Botón rápido en la caja* en la ficha del producto), escáner con la cámara (📷) y, en el celular, dos pestañas: *Productos* y *Cuenta*. En pantallas táctiles no se abre el teclado solo, y un lector USB o Bluetooth anda aunque el cursor no esté en el campo de búsqueda.
 
 ## Cómo levantarlo
 

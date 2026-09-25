@@ -1,5 +1,5 @@
 import type { PosEvent, SyncResult } from '@almacen/shared';
-import { type CatalogProduct, db, type Handover, kvDel, kvGet, kvSet, normalize, type OfferRow, type PosUser, type StoreInfo, type SupplierRow } from './db';
+import { type CatalogProduct, type CategoryRow, db, type Handover, kvDel, kvGet, kvSet, normalize, type OfferRow, type PosUser, type StoreInfo, type SupplierRow } from './db';
 
 export class UnlinkedError extends Error {}
 
@@ -33,10 +33,15 @@ interface Bootstrap {
   offers: OfferRow[];
   suppliers?: SupplierRow[];
   handover?: Handover | null;
+  categories?: CategoryRow[];
 }
+
+/** Cambia cuando el catálogo local suma datos: la caja lo vuelve a bajar entero una vez. */
+const CATALOG_VERSION = 2;
 
 /** Baja catálogo, precios, ofertas y cajeros. Incremental: solo lo que cambió desde la última vez. */
 export async function refreshCatalog(full = false) {
+  if ((await kvGet<number>('catalogVersion')) !== CATALOG_VERSION) full = true;
   const since = full ? undefined : await kvGet<string>('catalogSince');
   const data = await posFetch<Bootstrap>(`/pos/bootstrap${since ? `?since=${encodeURIComponent(since)}` : ''}`);
   await db.transaction('rw', [db.products, db.users, db.offers, db.kv], async () => {
@@ -49,6 +54,8 @@ export async function refreshCatalog(full = false) {
     await kvSet('store', data.store);
     await kvSet('suppliers', data.suppliers ?? []);
     await kvSet('catalogSince', data.serverTime);
+    await kvSet('catalogVersion', CATALOG_VERSION);
+    await kvSet('categories', data.categories ?? []);
     // Pase de turno: el más nuevo entre el del servidor y el que se dejó en esta caja (quizás sin enviar).
     const local = await kvGet<Handover>('handover');
     if (data.handover && (!local || data.handover.closedAt > local.closedAt)) await kvSet('handover', data.handover);

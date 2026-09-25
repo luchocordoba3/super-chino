@@ -185,6 +185,8 @@ model Product {
   idealStock      Decimal?         @db.Decimal(12, 3)
   /// Stock que quedó después de la última reposición: el 100% automático del stock en %.
   refStock        Decimal?         @db.Decimal(12, 3)
+  /// Botón rápido en la caja táctil (lo que no tiene código: café, sándwich, cerveza...).
+  quickKey        Boolean          @default(false)
   /// Contenido neto (ej. 520 g, 1,5 l) para el precio por unidad de medida de las etiquetas.
   contentQty      Decimal?         @db.Decimal(12, 3)
   /// g | kg | ml | l | u

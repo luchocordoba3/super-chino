@@ -106,9 +106,9 @@ td.num, th.num { text-align: right; white-space: nowrap; }
 .scanner .frame { position: absolute; inset: 30% 12%; border: 3px solid var(--gold); border-radius: 8px; }
 
 /* Caja */
-.pos { display: grid; grid-template-columns: 1fr 380px; height: 100vh; background: var(--bg); }
-.pos-left { display: flex; flex-direction: column; min-height: 0; }
-.pos-top { display: flex; gap: 10px; align-items: center; padding: 10px 14px; background: var(--red); color: #fff; }
+.pos { display: grid; grid-template-columns: minmax(0, 1fr) 380px; height: 100vh; background: var(--bg); }
+.pos-left { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.pos-top { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 14px; background: var(--red); color: #fff; }
 .pos-top button { background: transparent; color: #fff; border-color: rgba(255, 255, 255, 0.4); }
 .pos-scan { padding: 12px 14px; }
 .pos-scan input { font-size: 1.3rem; min-height: 56px; }
@@ -184,3 +184,26 @@ tr.selected td { background: rgba(200, 16, 46, 0.08); }
 /* Pase de turno */
 .handover { background: #fff8e1; border: 1px solid #f3d27a; border-radius: var(--radius); padding: 10px 12px; }
 .handover p { margin: 6px 0 0; white-space: pre-wrap; }
+
+/* Caja táctil: botones rápidos y celular */
+.pos-quick { flex: 1; overflow: auto; padding: 0 14px 14px; }
+.pos-quick-cats { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 10px; }
+.pos-quick-cats button { white-space: nowrap; border-radius: 999px; }
+.pos-quick-cats button.active { background: var(--text); border-color: var(--text); color: #fff; }
+.pos-quick-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); gap: 8px; }
+.pos-key { min-height: 88px; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; gap: 6px; text-align: left; border-radius: 12px; padding: 10px; border: 1px solid rgba(0, 0, 0, 0.08); color: var(--text); }
+.pos-key .n { font-weight: 600; line-height: 1.2; }
+.pos-key:active { transform: scale(0.97); }
+.pos-right .pos-cart { flex: 1; padding: 0; min-height: 120px; }
+.pos-mobile-bar { display: none; }
+@media (max-width: 800px) {
+  .pos-top { gap: 6px; padding: 8px 10px; }
+  .pos-top button { padding: 6px 10px; min-height: 0; font-size: 0.85rem; }
+  .pos-scan .hint { display: none; }
+  .pos-total { font-size: 2rem; }
+  .pos-mobile-bar { display: grid; grid-template-columns: 1fr 1.5fr; gap: 8px; position: sticky; bottom: 0; padding: 8px; background: #fff; border-top: 1px solid var(--line); z-index: 10; }
+  .pos-mobile-bar button { min-height: 52px; }
+  .pos-mobile-bar button.active { background: var(--text); border-color: var(--text); color: #fff; }
+  .pos[data-pane='products'] .pos-right { display: none; }
+  .pos[data-pane='cart'] .pos-left > :not(.pos-top) { display: none; }
+}

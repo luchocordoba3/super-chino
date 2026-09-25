@@ -27,6 +27,8 @@ export const productBody = z.object({
   minStock: z.number().min(0).max(1e7).optional(),
   /** Stock "lleno" para el stock en % (vacío = automático). */
   idealStock: z.number().min(0).max(1e7).nullish(),
+  /** Botón rápido en la caja. */
+  quickKey: z.boolean().optional(),
   targetMargin: z.number().min(0).max(500).nullish(),
   contentQty: z.number().positive().max(1e6).nullish(),
   contentUnit: z.enum(CONTENT_UNITS).nullish(),
@@ -69,6 +71,7 @@ export async function createProduct(storeId: string, b: z.infer<typeof productBo
         cost: b.cost ?? 0,
         minStock: b.minStock ?? 0,
         idealStock: b.idealStock ?? null,
+        quickKey: b.quickKey ?? false,
         targetMargin: b.targetMargin ?? null,
         ...contentOf(b),
       },
@@ -97,6 +100,7 @@ export function productDto(p: ProductRow | Prisma.ProductGetPayload<object>, lot
     minStock: num(p.minStock),
     idealStock: numOrNull(p.idealStock),
     refStock: numOrNull(p.refStock),
+    quickKey: p.quickKey,
     targetMargin: p.targetMargin == null ? null : num(p.targetMargin),
     contentQty: p.contentQty == null ? null : num(p.contentQty),
     contentUnit: p.contentUnit,

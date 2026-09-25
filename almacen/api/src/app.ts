@@ -13,6 +13,7 @@ import { HttpError } from './lib/http';
 import { aiRoutes } from './routes/ai';
 import { mpRoutes } from './routes/mp';
 import { menuRoutes } from './routes/menu';
+import { shopRoutes } from './routes/shop';
 import { attendanceRoutes } from './routes/attendance';
 import { authRoutes } from './routes/auth';
 import { importRoutes } from './routes/import';
@@ -71,6 +72,7 @@ export async function buildApp(opts: FastifyServerOptions = {}) {
       await aiRoutes(api);
       await mpRoutes(api);
       await menuRoutes(api);
+      await shopRoutes(api);
     },
     { prefix: '/api' },
   );

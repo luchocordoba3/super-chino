@@ -9,6 +9,7 @@ import { dateTimeFmt } from '../lib/format';
 import { enablePush, pushSupported } from '../lib/live';
 import { can, useMe } from '../lib/me';
 import { MenuSettings, MercadoPagoSettings } from './MercadoPago';
+import { ShopSettings } from './Orders';
 
 const NUM_FIELDS = [
   'expiryAlertDays',
@@ -37,6 +38,7 @@ export function Settings() {
       <Notifications />
       {can(me, 'owner') && <StoreForm />}
       {can(me, 'owner') && <Devices />}
+      {can(me, 'owner') && <ShopSettings />}
       {can(me, 'owner') && <MenuSettings />}
       {can(me, 'owner') && <MercadoPagoSettings />}
       {can(me, 'owner') && <DemoReset />}

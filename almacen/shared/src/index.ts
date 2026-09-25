@@ -61,6 +61,12 @@ export const StoreSettingsSchema = z.object({
   cashDiffThreshold: z.number().min(0).default(500),
   /** Productos por día en el conteo sorpresa (0 = desactivado). */
   countItemsPerDay: z.number().int().min(0).max(30).default(5),
+  /** Pedidos por WhatsApp: número del local (con código de país y área, ej. 5493415551234). */
+  shopWhatsapp: z.string().max(20).default(''),
+  /** Pedidos por WhatsApp: se ofrece envío a domicilio (si no, solo retiro). */
+  shopDelivery: z.boolean().default(true),
+  /** Pedidos por WhatsApp: aviso para el cliente (horarios, costo de envío...). */
+  shopNote: z.string().max(200).default(''),
   /** Mesas del bar (0 = sin mesas). Se numeran del 1 en adelante. */
   tables: z.number().int().min(0).max(60).default(6),
   /** Stock en %: por debajo de este porcentaje el producto está bajo (rojo) y avisa. */
@@ -115,6 +121,8 @@ export const PosEventSchema = z.discriminatedUnion('type', [
     total: Money.min(0),
     /** Cuenta de mesa que se cobra con esta venta. */
     tabId: z.string().nullish(),
+    /** Pedido por WhatsApp que se entrega y cobra con esta venta. */
+    orderId: z.string().nullish(),
   }),
   /** Cuentas abiertas: se anota sin internet y se cobra al final con una venta (SALE con tabId). */
   z.object({ ...base, type: z.literal('TAB_OPEN'), tabId: z.string().min(1), label: z.string().trim().min(1).max(40), table: z.number().int().min(1).max(99).nullish() }),

@@ -37,6 +37,7 @@ export function Layout() {
   const links = [
     { to: '/', label: t('nav.home'), show: true },
     { to: '/pos', label: t('nav.pos'), show: can(me, 'sell') },
+    { to: '/orders', label: t('nav.orders'), show: can(me, 'sell') },
     { to: '/stock', label: t('nav.stock'), show: can(me, 'stock') || can(me, 'adjust') },
     { to: '/products', label: t('nav.products'), show: true },
     { to: '/suppliers', label: t('nav.suppliers'), show: can(me, 'stock') || can(me, 'prices') },

@@ -241,3 +241,10 @@ tr.selected td { background: rgba(200, 16, 46, 0.08); }
 .qr-pair { display: flex; gap: 3mm; justify-content: center; }
 .qr-pair figure { margin: 0; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1mm; font-size: 9pt; font-weight: 700; }
 .qr-pair img { width: 100%; max-width: 45mm; aspect-ratio: 1; object-fit: contain; }
+
+/* Pedidos por WhatsApp */
+.order { border-left: 4px solid var(--line); }
+.order-new { border-left-color: var(--danger); }
+.order-preparing { border-left-color: var(--warn); }
+.order-ready { border-left-color: var(--ok); }
+.order-delivered, .order-cancelled { opacity: 0.6; }

@@ -12,6 +12,7 @@ import { type CashMoveLocal, type CashSessionLocal, type CatalogProduct, type Ca
 import { verifyPin } from '../pos/pin';
 import { enqueue, flushOutbox, getDeviceToken, linkDevice, pendingCount, posGet, posPost, refreshCatalog, refreshTabs, syncEvents, UnlinkedError, unsyncedOfferQty } from '../pos/sync';
 import { acceptPending, cancelTab, openTab, rejectPending, setTabQty } from '../pos/tabs';
+import { openOrderCount, type OrderRow, type OrderStatus, OrdersList } from './Orders';
 
 type Phase = 'loading' | 'unlinked' | 'pick' | 'open' | 'sell';
 const uuid = () => crypto.randomUUID();
@@ -454,6 +455,44 @@ function SellScreen(props: {
     return () => clearInterval(timer);
   }, []);
 
+  // Pedidos por WhatsApp: la caja los consulta seguido, avisa los nuevos y los cobra.
+  const [orders, setOrders] = useState<OrderRow[]>([]);
+  const [showOrders, setShowOrders] = useState(false);
+  const [order, setOrder] = useState<OrderRow | null>(null);
+  const seenOrders = useRef<Set<string> | null>(null);
+  const loadOrders = useCallback(async () => {
+    try {
+      const list = await posGet<OrderRow[]>('/pos/orders');
+      setOrders(list);
+      const fresh = list.filter((o) => o.status === 'NEW' && seenOrders.current && !seenOrders.current.has(o.id));
+      if (fresh.length) {
+        beep();
+        toast(t('orders.newOrder', { number: fresh.map((o) => o.number).join(', ') }));
+      }
+      seenOrders.current = new Set(list.map((o) => o.id));
+    } catch {
+      // sin internet: se muestran los últimos que se bajaron
+    }
+  }, [t]);
+  useEffect(() => {
+    void loadOrders();
+    const timer = setInterval(() => void loadOrders(), 10_000);
+    return () => clearInterval(timer);
+  }, [loadOrders]);
+  const orderStatus = async (id: string, status: OrderStatus) => {
+    await posPost(`/pos/orders/${id}/status`, { status });
+    await loadOrders();
+  };
+  /** Cobrar un pedido: se carga en la venta y, al cobrarlo, queda entregado. */
+  const chargeOrder = async (o: OrderRow) => {
+    if (items.length && !window.confirm(t('orders.replaceCart'))) return;
+    const units = new Map((await db.products.bulkGet(o.items.map((i) => i.productId))).filter((p) => p).map((p) => [p!.id, p!.unit]));
+    setTabId(null);
+    setItems(o.items.map((i) => ({ productId: i.productId, name: i.name, unit: units.get(i.productId) ?? 'UNIT', qty: i.qty, listPrice: i.unitPrice })));
+    setOrder(o);
+    setShowOrders(false);
+  };
+
   const seenPending = useRef<Set<string> | null>(null);
   const loadSide = useCallback(async () => {
     const all = await db.tabs.toArray();
@@ -571,6 +610,7 @@ function SellScreen(props: {
       payments,
       total,
       tabId: tab?.id ?? null,
+      orderId: !tab && order ? order.id : null,
     };
     const local: LocalSale = {
       id,
@@ -588,7 +628,13 @@ function SellScreen(props: {
     const old = await db.sales.orderBy('occurredAt').reverse().offset(300).primaryKeys();
     if (old.length) await db.sales.bulkDelete(old);
     if (tab) setTabId(null);
-    else setItems([]);
+    else {
+      setItems([]);
+      if (order) {
+        setOrder(null);
+        void loadOrders();
+      }
+    }
     setPaying(false);
     setDone(local);
     void loadSide();
@@ -658,6 +704,9 @@ function SellScreen(props: {
           <button onClick={() => setClocking(true)}>🕘 {t('pos.clock')}</button>
           <button onClick={() => setMoving(true)}>💸 {t('pos.cashMove')}</button>
           <button onClick={() => setShort(true)}>📣 {t('pos.shortage')}</button>
+          <button onClick={() => setShowOrders(true)}>
+            🛵 {t('orders.title')} {openOrderCount(orders) > 0 && <span className="pill-count">{openOrderCount(orders)}</span>}
+          </button>
           <button onClick={props.onSwitch}>{t('pos.changeCashier')}</button>
           <button onClick={() => setClosing(true)}>{t('pos.closeCash')}</button>
         </div>
@@ -709,6 +758,16 @@ function SellScreen(props: {
         {tab && (
           <div className="muted small">
             {t('tabs.openedAt', { time: timeFmt(tab.openedAt) })} · {t('tabs.addHint')}
+          </div>
+        )}
+        {!tab && order && (
+          <div className="row between small tab-pending">
+            <span>
+              🛵 {t('orders.charging', { number: order.number, name: order.name })}
+            </span>
+            <button type="button" className="small ghost" aria-label={t('common.cancel')} onClick={() => setOrder(null)}>
+              ✕
+            </button>
           </div>
         )}
         {tab?.billAt && <p className="warn small">🧾 {t('tabs.billAsked', { time: timeFmt(tab.billAt) })}</p>}
@@ -857,6 +916,11 @@ function SellScreen(props: {
         </Modal>
       )}
       {closing && <CloseCash session={session} cashier={cashier} recent={recent} openTabs={tabs.length} onClose={() => setClosing(false)} onClosed={props.onClosed} />}
+      {showOrders && (
+        <Modal title={`🛵 ${t('orders.title')}`} onClose={() => setShowOrders(false)}>
+          <OrdersList orders={orders} onStatus={orderStatus} onCharge={(o) => void chargeOrder(o)} />
+        </Modal>
+      )}
       {openingTab && (
         <OpenTabModal
           tables={store?.settings.tables ?? 0}

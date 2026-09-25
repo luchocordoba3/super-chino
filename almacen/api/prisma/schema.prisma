@@ -74,6 +74,8 @@ model Store {
   timezone  String   @default("America/Argentina/Buenos_Aires")
   currency  String   @default("ARS")
   settings  Json     @default("{}")
+  /// Link público de pedidos por WhatsApp (/p/<shopSlug>). null = apagado.
+  shopSlug  String?  @unique
   createdAt DateTime @default(now())
 
   users        User[]
@@ -99,6 +101,7 @@ model Store {
   attendance   Attendance[]
   cashMoves    CashMovement[]
   tabs         Tab[]
+  orders       Order[]
 }
 
 model User {
@@ -673,4 +676,40 @@ model MenuTable {
   createdAt DateTime @default(now())
 
   @@unique([storeId, table])
+}
+
+/// Pedido que hace un cliente desde el link del local (y manda por WhatsApp).
+model Order {
+  id        String      @id @default(cuid())
+  storeId   String
+  store     Store       @relation(fields: [storeId], references: [id])
+  /// Número correlativo del local (el que se dice por WhatsApp: "pedido 12").
+  number    Int
+  name      String
+  phone     String
+  delivery  Boolean
+  address   String?
+  /// CASH | QR | TRANSFER
+  payment   String
+  note      String?
+  /// NEW | PREPARING | READY | DELIVERED | CANCELLED
+  status    String      @default("NEW")
+  total     Decimal     @db.Decimal(14, 2)
+  saleId    String?     @unique
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  items     OrderItem[]
+
+  @@unique([storeId, number])
+  @@index([storeId, status])
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id])
+  productId String
+  name      String
+  qty       Decimal @db.Decimal(12, 3)
+  unitPrice Decimal @db.Decimal(14, 2)
 }

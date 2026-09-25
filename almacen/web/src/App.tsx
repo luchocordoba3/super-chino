@@ -28,6 +28,8 @@ import { StockLevels } from './pages/StockLevels';
 import { Sold } from './pages/Sold';
 import { QrSheet } from './pages/MercadoPago';
 import { MenuPage } from './pages/Menu';
+import { ShopPage } from './pages/Shop';
+import { Orders } from './pages/Orders';
 import { Team } from './pages/Team';
 import { Attendance } from './pages/Attendance';
 
@@ -35,7 +37,7 @@ export function App() {
   const location = useLocation();
   const isPos = location.pathname.startsWith('/pos');
   // La carta del menú QR es pública: la abre el cliente desde la mesa, sin cuenta.
-  const isMenu = location.pathname.startsWith('/m/');
+  const isMenu = location.pathname.startsWith('/m/') || location.pathname.startsWith('/p/');
   const me = useQuery({ ...meQuery, enabled: !isPos && !isMenu });
 
   useEffect(() => {
@@ -51,6 +53,7 @@ export function App() {
         <Toaster />
         <Routes>
           <Route path="/m/:token" element={<MenuPage />} />
+          <Route path="/p/:slug" element={<ShopPage />} />
         </Routes>
       </>
     );
@@ -92,6 +95,7 @@ export function App() {
           <Route path="reorder" element={<Reorder />} />
           <Route path="sales" element={<Sales />} />
           <Route path="sold" element={<Sold />} />
+          <Route path="orders" element={<Orders />} />
           <Route path="team" element={<Team />} />
           <Route path="attendance" element={<Attendance />} />
           <Route path="settings" element={<Settings />} />

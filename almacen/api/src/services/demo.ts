@@ -23,6 +23,8 @@ function ean13(n: number) {
 async function wipeStoreData(storeId: string) {
   await prisma.$transaction([
     prisma.saleItemLot.deleteMany({ where: { saleItem: { sale: { storeId } } } }),
+    prisma.orderItem.deleteMany({ where: { order: { storeId } } }),
+    prisma.order.deleteMany({ where: { storeId } }),
     prisma.tabItem.deleteMany({ where: { tab: { storeId } } }),
     prisma.tab.deleteMany({ where: { storeId } }),
     prisma.recipeItem.deleteMany({ where: { product: { storeId } } }),
@@ -70,9 +72,11 @@ export async function seedDemo() {
 
   const existing = await prisma.store.findUnique({ where: { code: DEMO_CODE } });
   if (existing) await wipeStoreData(existing.id);
+  // Link de pedidos por WhatsApp prendido: /p/demo.
+  const demoStore = { name: 'Almacén Demo', settings: { shopWhatsapp: '5491100000000', shopNote: 'Envíos en el barrio de 9 a 21 hs' }, shopSlug: 'demo' };
   const store = existing
-    ? await prisma.store.update({ where: { id: existing.id }, data: { name: 'Almacén Demo', settings: {} } })
-    : await prisma.store.create({ data: { name: 'Almacén Demo', code: DEMO_CODE } });
+    ? await prisma.store.update({ where: { id: existing.id }, data: demoStore })
+    : await prisma.store.create({ data: { ...demoStore, code: DEMO_CODE } });
   const storeId = store.id;
   const settings = parseSettings(store.settings);
 
@@ -161,6 +165,25 @@ export async function seedDemo() {
     bar.push(p);
   }
   const sellable = [...products, ...bar];
+
+  // Un pedido por WhatsApp que llegó recién y falta preparar.
+  const orderLines = [
+    { p: byName('Yerba mate'), qty: 1 },
+    { p: byName('Galletitas'), qty: 2 },
+  ];
+  await prisma.order.create({
+    data: {
+      storeId,
+      number: 1,
+      name: 'Laura',
+      phone: '5491155550000',
+      delivery: true,
+      address: 'Belgrano 450',
+      payment: 'CASH',
+      total: orderLines.reduce((s, l) => s + l.qty * Number(l.p.price), 0),
+      items: { create: orderLines.map((l) => ({ productId: l.p.id, name: l.p.name, qty: l.qty, unitPrice: l.p.price })) },
+    },
+  });
   await prisma.product.update({ where: { id: byName('Cerveza lata').id }, data: { idealStock: 120 } });
   await prisma.product.update({ where: { id: byName('Alfajor').id }, data: { idealStock: 60 } });
 

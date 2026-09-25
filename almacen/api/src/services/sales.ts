@@ -187,6 +187,10 @@ async function applySale(tx: Tx, ctx: Ctx, ev: Ev<'SALE'>) {
       await tx.offer.update({ where: { id: offerId }, data: { status: 'ENDED', endedAt: new Date() } });
     }
   }
+  // Pedido por WhatsApp entregado y cobrado.
+  if (ev.orderId) {
+    await tx.order.updateMany({ where: { id: ev.orderId, storeId: ctx.storeId, status: { not: 'CANCELLED' } }, data: { status: 'DELIVERED', saleId: ev.id } });
+  }
   // Cuenta de mesa cobrada.
   if (ev.tabId) {
     await tx.tab.updateMany({ where: { id: ev.tabId, storeId: ctx.storeId, status: 'OPEN' }, data: { status: 'PAID', closedAt: new Date(ev.occurredAt), saleId: ev.id } });

@@ -134,52 +134,69 @@ export async function seedDemo() {
     }),
   );
   await prisma.lot.updateMany({ where: { storeId }, data: { receivedAt: addDays(new Date(), -20) } });
+  await prisma.product.update({ where: { id: byName('Cerveza lata').id }, data: { idealStock: 120 } });
+  await prisma.product.update({ where: { id: byName('Alfajor').id }, data: { idealStock: 60 } });
 
-  // 2) Ventas de los últimos 14 días y de hoy, en horario de comercio (hora del local).
+  // 2) Ventas de los últimos 14 días y de hoy, en dos turnos de caja por día: Sofía a la mañana (8 a 14)
+  //    y Martín a la tarde (14 a 21). Cada turno cierra con la plata justa; el turno en curso queda abierto.
   const device = await prisma.device.create({ data: { storeId, name: 'Caja demo', tokenHash: sha256(randomToken()) } });
   const now = Date.now();
+  const H = 3_600_000;
+  const iso = (t: number) => new Date(t).toISOString();
   const events: Record<string, unknown>[] = [];
-  // La caja de hoy la abrió Sofía; en el medio se le pagó a un proveedor con plata de la caja.
-  const sessionId = randomUUID();
   const todayStart = startOfLocalDay(store.timezone).getTime();
-  const openAt = Math.min(todayStart + 8 * 3_600_000, now - 3 * 3_600_000);
   for (let d = 14; d >= 0; d--) {
     const dayStart = startOfLocalDay(store.timezone, addDays(new Date(), -d)).getTime();
+    // Hoy la caja abre sí o sí (aunque la demo se cargue de madrugada) para que haya ventas del día.
+    const shifts = [
+      { id: randomUUID(), user: sofia, open: d === 0 ? Math.min(dayStart + 8 * H, now - 3 * H) : dayStart + 8 * H, close: dayStart + 14 * H },
+      { id: randomUUID(), user: martin, open: dayStart + 14 * H, close: dayStart + 21 * H },
+    ].filter((s) => s.open < now);
+    const cash = new Map(shifts.map((s) => [s.id, 30000]));
+    for (const s of shifts) events.push({ id: randomUUID(), type: 'CASH_OPEN', userId: s.user.id, occurredAt: iso(s.open), cashSessionId: s.id, openingAmount: 30000 });
     const perDay = d === 0 ? 6 : 7;
-    if (d === 0) {
-      events.push({ id: randomUUID(), type: 'CASH_OPEN', userId: sofia.id, occurredAt: new Date(openAt).toISOString(), cashSessionId: sessionId, openingAmount: 30000 });
-    }
-    for (let s = 0; s < perDay; s++) {
-      let when = dayStart + (9 + rand() * 11) * 3_600_000;
-      if (when > now) when = now - 60_000 * (s + 1);
+    for (let n = 0; n < perDay; n++) {
+      let when = dayStart + (9 + rand() * 11) * H;
+      if (when > now) when = now - 60_000 * (n + 1);
+      const shift = [...shifts].reverse().find((s) => when >= s.open) ?? shifts[0];
       const items = [...new Set(Array.from({ length: 1 + Math.floor(rand() * 3) }, () => pick(products)))].map((p) => {
         const qty = p.unit === 'KG' ? Math.round((0.2 + rand() * 0.4) * 1000) / 1000 : 1 + Math.floor(rand() * 2);
         return { productId: p.id, qty, unitPrice: Number(p.price), listPrice: Number(p.price) };
       });
       const total = Math.round(items.reduce((sum, i) => sum + i.qty * i.unitPrice, 0) * 100) / 100;
+      const method = pick(['CASH', 'CASH', 'DEBIT', 'QR']);
+      if (method === 'CASH') cash.set(shift.id, cash.get(shift.id)! + total);
       events.push({
         id: randomUUID(),
         type: 'SALE',
-        userId: pick([sofia.id, martin.id]),
-        occurredAt: new Date(when).toISOString(),
+        userId: shift.user.id,
+        occurredAt: iso(when),
         items,
-        payments: [{ method: pick(['CASH', 'CASH', 'DEBIT', 'QR']), amount: total }],
+        payments: [{ method, amount: total }],
         total,
-        cashSessionId: d === 0 ? sessionId : undefined,
+        cashSessionId: shift.id,
       });
     }
+    if (d === 0) {
+      // Hoy a la mañana se le pagó a un proveedor con plata de la caja.
+      events.push({
+        id: randomUUID(),
+        type: 'CASH_MOVE',
+        userId: sofia.id,
+        occurredAt: iso(Math.max(shifts[0].open + 60_000, Math.min(todayStart + 10.5 * H, now - 120_000))),
+        cashSessionId: shifts[0].id,
+        kind: 'SUPPLIER',
+        amount: 18500,
+        reason: 'Factura de mercadería',
+        supplierId: norte,
+      });
+      cash.set(shifts[0].id, cash.get(shifts[0].id)! - 18500);
+    }
+    for (const s of shifts) {
+      if (s.close >= now) continue;
+      events.push({ id: randomUUID(), type: 'CASH_CLOSE', userId: s.user.id, occurredAt: iso(s.close), cashSessionId: s.id, countedAmount: Math.round(cash.get(s.id)! * 100) / 100 });
+    }
   }
-  events.push({
-    id: randomUUID(),
-    type: 'CASH_MOVE',
-    userId: sofia.id,
-    occurredAt: new Date(Math.max(openAt + 60_000, Math.min(todayStart + 10.5 * 3_600_000, now - 120_000))).toISOString(),
-    cashSessionId: sessionId,
-    kind: 'SUPPLIER',
-    amount: 18500,
-    reason: 'Factura de mercadería',
-    supplierId: norte,
-  });
   await processPosEvents(storeId, device.id, events);
 
   // 3) Mercadería nueva con vencimientos (para ver avisos y ofertas).

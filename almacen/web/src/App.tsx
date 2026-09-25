@@ -25,6 +25,7 @@ import { Settings } from './pages/Settings';
 import { Suppliers } from './pages/Suppliers';
 import { Stock } from './pages/Stock';
 import { StockLevels } from './pages/StockLevels';
+import { Sold } from './pages/Sold';
 import { Team } from './pages/Team';
 import { Attendance } from './pages/Attendance';
 
@@ -68,13 +69,14 @@ export function App() {
           <Route path="suppliers" element={<Suppliers />} />
           <Route path="stock" element={<Stock />} />
           <Route path="stock/scan" element={<ScanInvoice />} />
-          <Route path="stock/levels" element={<StockLevels />} />
+          <Route path="levels" element={<StockLevels />} />
           <Route path="messages" element={<Messages />} />
           <Route path="alerts" element={<Alerts />} />
           <Route path="offers" element={<Offers />} />
           <Route path="counts/:id" element={<CountPage />} />
           <Route path="reorder" element={<Reorder />} />
           <Route path="sales" element={<Sales />} />
+          <Route path="sold" element={<Sold />} />
           <Route path="team" element={<Team />} />
           <Route path="attendance" element={<Attendance />} />
           <Route path="settings" element={<Settings />} />

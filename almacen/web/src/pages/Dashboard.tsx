@@ -5,6 +5,7 @@ import type { PaymentMethod } from '@almacen/shared';
 import { api } from '../api';
 import { ErrorBox, Loading } from '../components/ui';
 import { dayFmt, money, qtyFmt, timeFmt } from '../lib/format';
+import type { Shift } from './Sold';
 
 interface Dash {
   today: { total: number; count: number; avgTicket: number; profit: number; byMethod: Partial<Record<PaymentMethod, number>>; byCashier: { name: string; total: number; count: number }[] };
@@ -21,6 +22,8 @@ interface Dash {
     late: { userId: string; name: string; minutes: number }[];
     absent: { userId: string; name: string; start: string }[];
   };
+  shiftsToday: Shift[];
+  lowStock: number;
 }
 
 export function Dashboard() {
@@ -57,8 +60,28 @@ export function Dashboard() {
         {stat(t('dashboard.suggestedOffers'), String(d.suggestedOffers), '/offers')}
         {stat(t('dashboard.savedThisMonth'), money(d.savedThisMonth), '/offers')}
         {stat(t('dashboard.wasteThisMonth'), money(d.wasteThisMonth))}
+        {stat(t('dashboard.lowStock'), String(d.lowStock), '/levels', d.lowStock > 0)}
       </div>
       <div className="grid2">
+        <Link className="card" to="/sold" style={{ color: 'inherit' }}>
+          <h3>🧾 {t('dashboard.shiftsToday')}</h3>
+          {d.shiftsToday.length === 0 && <p className="muted">{t('dashboard.noShiftsToday')}</p>}
+          {d.shiftsToday.map((s) => (
+            <div className="row between" key={s.id}>
+              <span>
+                {s.id === '-' ? t('sold.noShift') : s.user}{' '}
+                {s.openedAt && (
+                  <span className="muted small">
+                    {timeFmt(s.openedAt)}–{s.closedAt ? timeFmt(s.closedAt) : t('sold.open')}
+                  </span>
+                )}
+              </span>
+              <span style={{ whiteSpace: 'nowrap' }}>
+                <strong>{money(s.total)}</strong> <span className="muted small">({s.tickets})</span>
+              </span>
+            </div>
+          ))}
+        </Link>
         <Link className="card" to="/attendance" style={{ color: 'inherit' }}>
           <h3>🕘 {t('dashboard.workingNow')}</h3>
           {d.staff.working.length === 0 && <p className="muted">{t('dashboard.nobodyWorking')}</p>}

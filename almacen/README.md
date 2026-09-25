@@ -7,6 +7,7 @@ Es la misma base (caja que funciona sin internet, stock por lote con vencimiento
 ## Qué agrega sobre Super Chino
 
 - **Stock en %** (menú *Stock %*): cada producto contra su 100%, con barra de color y cuántos días alcanza. El 100% es el *stock ideal* si el dueño lo carga (en la ficha del producto, en la planilla de importación o desde la misma pantalla); si no, lo que quedó después del último ingreso. Debajo del % de *Ajustes → Stock bajo* (25% por defecto) se pone en rojo y avisa.
+- **Qué se vendió** (menú *Qué se vendió*): unidades de cada producto **por turno** (de la apertura al cierre de caja, con el empleado y el horario), **por día** (una columna por empleado) y **por semana** (lunes a domingo, con filtro por empleado). Abajo, la plata y los tickets de cada columna. Se baja a Excel. En el panel: "Hoy por turno" y cuántos productos están bajos.
 
 ## Cómo levantarlo
 

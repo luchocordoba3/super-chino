@@ -175,3 +175,8 @@ tr.selected td { background: rgba(200, 16, 46, 0.08); }
 .level-text-ok { color: var(--ok); }
 .level-text-mid { color: var(--warn); }
 .level-text-low { color: var(--danger); }
+
+/* Qué se vendió */
+.units-table th.num, .units-table td.num { text-align: right; white-space: nowrap; }
+.units-table th:first-child, .units-table td:first-child { position: sticky; left: 0; background: var(--card); z-index: 1; min-width: 160px; }
+.units-table tfoot th, .units-table tfoot td { border-top: 2px solid var(--line); }

@@ -25,6 +25,7 @@ interface SessionRow {
   expectedAmount: number | null;
   countedAmount: number | null;
   difference: number | null;
+  notes: string | null;
   movementsNet: number;
   movements: { id: string; kind: CashMoveKind; amount: number; reason: string | null; supplier: string | null; user: string | null; occurredAt: string }[];
 }
@@ -108,6 +109,11 @@ export function Sales() {
                     <td className="num">{s.countedAmount != null ? money(s.countedAmount) : '—'}</td>
                     <td className={`num ${s.difference ? 'error' : 'ok'}`}>{s.difference != null ? money(s.difference) : '—'}</td>
                   </tr>
+                  {s.notes && (
+                    <tr className="small">
+                      <td colSpan={7}>🔁 {s.notes}</td>
+                    </tr>
+                  )}
                   {s.movements.map((m) => (
                     <tr key={m.id} className="small muted">
                       <td colSpan={7}>

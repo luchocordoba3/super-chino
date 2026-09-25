@@ -8,6 +8,8 @@ Es la misma base (caja que funciona sin internet, stock por lote con vencimiento
 
 - **Stock en %** (menú *Stock %*): cada producto contra su 100%, con barra de color y cuántos días alcanza. El 100% es el *stock ideal* si el dueño lo carga (en la ficha del producto, en la planilla de importación o desde la misma pantalla); si no, lo que quedó después del último ingreso. Debajo del % de *Ajustes → Stock bajo* (25% por defecto) se pone en rojo y avisa.
 - **Qué se vendió** (menú *Qué se vendió*): unidades de cada producto **por turno** (de la apertura al cierre de caja, con el empleado y el horario), **por día** (una columna por empleado) y **por semana** (lunes a domingo, con filtro por empleado). Abajo, la plata y los tickets de cada columna. Se baja a Excel. En el panel: "Hoy por turno" y cuántos productos están bajos.
+- **Pase de turno:** al cerrar la caja se anotan las novedades para el que sigue. Le llegan al dueño y al equipo como mensaje (con notificación) y se muestran al abrir el turno siguiente, aunque no haya internet en esa caja. También quedan en *Ventas → Cajas*.
+- **"Se está terminando" 📣:** desde la caja (anda sin internet) o desde la ficha del producto en el celular, el empleado avisa que queda poco. Al dueño le llega el aviso al celular y el producto entra en *Reponer* aunque los números digan que alcanza. Se cierra solo cuando se carga mercadería de ese producto.
 
 ## Cómo levantarlo
 

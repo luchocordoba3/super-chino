@@ -63,6 +63,12 @@ export interface CashSessionLocal {
   openedAt: string;
   openingAmount: number;
 }
+/** Novedades que deja el que cierra la caja para el turno siguiente. */
+export interface Handover {
+  notes: string;
+  user: string;
+  closedAt: string;
+}
 export interface StoreInfo {
   name: string;
   code: string;

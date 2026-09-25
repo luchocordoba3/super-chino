@@ -1,5 +1,5 @@
 import type { PosEvent, SyncResult } from '@almacen/shared';
-import { type CatalogProduct, db, kvDel, kvGet, kvSet, normalize, type OfferRow, type PosUser, type StoreInfo, type SupplierRow } from './db';
+import { type CatalogProduct, db, type Handover, kvDel, kvGet, kvSet, normalize, type OfferRow, type PosUser, type StoreInfo, type SupplierRow } from './db';
 
 export class UnlinkedError extends Error {}
 
@@ -32,6 +32,7 @@ interface Bootstrap {
   products: Omit<CatalogProduct, 'search'>[];
   offers: OfferRow[];
   suppliers?: SupplierRow[];
+  handover?: Handover | null;
 }
 
 /** Baja catálogo, precios, ofertas y cajeros. Incremental: solo lo que cambió desde la última vez. */
@@ -48,6 +49,9 @@ export async function refreshCatalog(full = false) {
     await kvSet('store', data.store);
     await kvSet('suppliers', data.suppliers ?? []);
     await kvSet('catalogSince', data.serverTime);
+    // Pase de turno: el más nuevo entre el del servidor y el que se dejó en esta caja (quizás sin enviar).
+    const local = await kvGet<Handover>('handover');
+    if (data.handover && (!local || data.handover.closedAt > local.closedAt)) await kvSet('handover', data.handover);
   });
   changed();
   return data;

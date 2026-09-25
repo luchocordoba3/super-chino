@@ -117,6 +117,8 @@ export const PosEventSchema = z.discriminatedUnion('type', [
     countedAmount: Money.min(0),
     notes: z.string().max(500).optional(),
   }),
+  /** "Se está terminando": el empleado avisa desde la caja que queda poco de un producto. */
+  z.object({ ...base, type: z.literal('SHORTAGE'), productId: z.string().min(1) }),
   /** Fichaje de entrada o salida en la PC de la caja. */
   z.object({ ...base, type: z.literal('CLOCK'), action: z.enum(['in', 'out']) }),
   z.object({

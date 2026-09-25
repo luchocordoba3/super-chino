@@ -128,7 +128,10 @@ export async function createStockEntry(
   // El 100% automático del stock en %: lo que quedó después de reponer.
   const fresh = await tx.product.findMany({ where: { id: { in: ids } }, select: { id: true, unallocatedSold: true } });
   const lots = await lotsByProduct(tx, a.storeId, ids);
-  for (const p of fresh) await tx.product.update({ where: { id: p.id }, data: { refStock: Math.max(0, stockOf(p, lots).stock) } });
+  for (const p of fresh) {
+    await tx.product.update({ where: { id: p.id }, data: { refStock: Math.max(0, stockOf(p, lots).stock) } });
+    await resolveAlert(tx, a.storeId, `SHORTAGE:${p.id}`);
+  }
   return { entryId: entry.id, suggestions: [...suggestions.values()] };
 }
 

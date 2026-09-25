@@ -80,6 +80,7 @@ test('caja: anular una venta, imprimir ticket y cerrar caja con arqueo', async (
   await page.getByRole('button', { name: es.pos.closeCash }).click();
   await expect(page.getByRole('dialog')).toContainText('700');
   await page.getByLabel(es.pos.countedAmount).fill('700');
+  await page.getByLabel(es.pos.handoverNotes).fill('Falta cambio chico, pedir monedas.');
   await page.getByRole('dialog').getByRole('button', { name: es.pos.closeCash }).click();
   await expect(page.getByText(es.pos.cashClosed)).toBeVisible();
   await expect
@@ -88,6 +89,14 @@ test('caja: anular una venta, imprimir ticket y cerrar caja con arqueo', async (
       return s.closedAt ? s.difference : 'abierta';
     })
     .toBe(0);
+
+  // Pase de turno: el que abre la caja ve las novedades que dejó Martín.
+  await page.getByRole('dialog').getByRole('button', { name: es.common.close, exact: true }).last().click();
+  await page.getByRole('button', { name: 'Sofía' }).click();
+  for (const d of '1234') await page.getByRole('button', { name: d, exact: true }).click();
+  await page.getByRole('button', { name: '✓' }).click();
+  await expect(page.locator('.handover')).toContainText('Falta cambio chico, pedir monedas.');
+  await expect(page.locator('.handover')).toContainText('Martín');
   expect(problems).toEqual([]);
 });
 

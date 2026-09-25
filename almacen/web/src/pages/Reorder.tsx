@@ -9,7 +9,7 @@ import { useMe } from '../lib/me';
 
 interface Group {
   supplier: { id: string; name: string; phone: string | null } | null;
-  items: { productId: string; name: string; stock: number; perDay: number; qty: number }[];
+  items: { productId: string; name: string; stock: number; perDay: number; qty: number; reportedBy: string | null }[];
 }
 
 // El pedido va en español: los proveedores son locales.
@@ -56,6 +56,7 @@ export function Reorder() {
                   <div className="muted small">
                     {t('products.stock')}: {qtyFmt(i.stock)} · {t('reorder.perDay', { qty: qtyFmt(i.perDay) })}
                   </div>
+                  {i.reportedBy != null && <div className="small warn">📣 {t('reorder.reportedBy', { name: i.reportedBy })}</div>}
                 </span>
                 <label className="row small">
                   {t('reorder.order')}

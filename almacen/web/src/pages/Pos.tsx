@@ -8,7 +8,7 @@ import { setLang } from '../i18n';
 import { money, qtyFmt, setCurrency, timeFmt } from '../lib/format';
 import type { Me } from '../lib/me';
 import { addItem, type CartItem, cartTotal, type OfferInfo, parseScan, priceCart, settlePayments } from '../pos/cart';
-import { type CashMoveLocal, type CashSessionLocal, type CatalogProduct, db, kvDel, kvGet, kvSet, type LocalSale, normalize, type PosUser, type StoreInfo, type SupplierRow } from '../pos/db';
+import { type CashMoveLocal, type CashSessionLocal, type CatalogProduct, db, type Handover, kvDel, kvGet, kvSet, type LocalSale, normalize, type PosUser, type StoreInfo, type SupplierRow } from '../pos/db';
 import { verifyPin } from '../pos/pin';
 import { enqueue, flushOutbox, getDeviceToken, linkDevice, pendingCount, refreshCatalog, syncEvents, UnlinkedError, unsyncedOfferQty } from '../pos/sync';
 
@@ -357,6 +357,10 @@ function CashMoveModal({ session, cashier, onClose }: { session: CashSessionLoca
 function OpenCash({ cashier, onOpened, onBack }: { cashier: PosUser; onOpened: (s: CashSessionLocal) => void; onBack: () => void }) {
   const { t } = useTranslation();
   const [amount, setAmount] = useState('');
+  const [handover, setHandover] = useState<Handover | null>(null);
+  useEffect(() => {
+    void kvGet<Handover>('handover').then((h) => setHandover(h && Date.now() - new Date(h.closedAt).getTime() < 36 * 3_600_000 ? h : null));
+  }, []);
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     const s: CashSessionLocal = { id: uuid(), userId: cashier.id, openedAt: nowIso(), openingAmount: toNum(amount) ?? 0 };
@@ -368,6 +372,12 @@ function OpenCash({ cashier, onOpened, onBack }: { cashier: PosUser; onOpened: (
     <form className="center-box card stack" onSubmit={submit}>
       <h1>{t('pos.openCash')}</h1>
       <p>{cashier.name}</p>
+      {handover && (
+        <div className="handover">
+          <strong>🔁 {t('pos.handoverFrom', { name: handover.user, time: timeFmt(handover.closedAt) })}</strong>
+          <p>{handover.notes}</p>
+        </div>
+      )}
       <Field label={t('pos.openingAmount')}>
         <input autoFocus inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ fontSize: '1.4rem' }} />
       </Field>
@@ -414,6 +424,12 @@ function SellScreen(props: {
   const [closing, setClosing] = useState(false);
   const [clocking, setClocking] = useState(false);
   const [moving, setMoving] = useState(false);
+  const [short, setShort] = useState(false);
+  /** Avisa al dueño que se está terminando (queda en la cola: anda sin internet). */
+  const reportShortage = async (productId: string, name: string) => {
+    await enqueue({ id: uuid(), type: 'SHORTAGE', userId: cashier.id, occurredAt: nowIso(), productId });
+    toast(t('pos.shortageSent', { name }));
+  };
   const [recent, setRecent] = useState<LocalSale[]>([]);
   const [printing, setPrinting] = useState<LocalSale | null>(null);
   const [catalogCount, setCatalogCount] = useState(0);
@@ -537,7 +553,7 @@ function SellScreen(props: {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (paying || done || closing || weightFor || clocking || moving) return;
+      if (paying || done || closing || weightFor || clocking || moving || short) return;
       if (e.key === 'F2') {
         e.preventDefault();
         inputRef.current?.focus();
@@ -562,6 +578,7 @@ function SellScreen(props: {
           {props.status}
           <button onClick={() => setClocking(true)}>🕘 {t('pos.clock')}</button>
           <button onClick={() => setMoving(true)}>💸 {t('pos.cashMove')}</button>
+          <button onClick={() => setShort(true)}>📣 {t('pos.shortage')}</button>
           <button onClick={props.onSwitch}>{t('pos.changeCashier')}</button>
           <button onClick={() => setClosing(true)}>{t('pos.closeCash')}</button>
         </div>
@@ -620,6 +637,9 @@ function SellScreen(props: {
                     $
                   </button>
                 )}
+                <button className="small ghost" title={t('pos.shortage')} aria-label={t('pos.shortage')} onClick={() => void reportShortage(l.productId, l.name)}>
+                  📣
+                </button>
                 <button className="small ghost" onClick={() => removeLine(l.productId, l.priceOverride)}>
                   ✕
                 </button>
@@ -685,8 +705,55 @@ function SellScreen(props: {
       {closing && <CloseCash session={session} cashier={cashier} recent={recent} onClose={() => setClosing(false)} onClosed={props.onClosed} />}
       {clocking && <ClockModal onClose={() => (setClocking(false), focus())} />}
       {moving && <CashMoveModal session={session} cashier={cashier} onClose={() => (setMoving(false), focus())} />}
+      {short && (
+        <ShortageModal
+          onPick={(p) => void reportShortage(p.id, p.name)}
+          onClose={() => (setShort(false), focus())}
+        />
+      )}
       {printing && <Ticket sale={printing} store={store} />}
     </div>
+  );
+}
+
+/** Buscar en el catálogo de la caja qué producto se está terminando. */
+function ShortageModal({ onPick, onClose }: { onPick: (p: CatalogProduct) => void; onClose: () => void }) {
+  const { t } = useTranslation();
+  const [term, setTerm] = useState('');
+  const [list, setList] = useState<CatalogProduct[]>([]);
+  useEffect(() => {
+    const q = normalize(term.trim());
+    if (q.length < 2) return setList([]);
+    void db.products
+      .filter((p) => p.active && p.search.includes(q))
+      .limit(8)
+      .toArray()
+      .then(setList);
+  }, [term]);
+  return (
+    <Modal title={`📣 ${t('pos.shortage')}`} onClose={onClose}>
+      <div className="stack">
+        <p className="muted small">{t('pos.shortageHelp')}</p>
+        <input autoFocus placeholder={t('pos.shortageSearch')} value={term} onChange={(e) => setTerm(e.target.value)} />
+        {list.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            className="pos-line"
+            style={{ width: '100%', textAlign: 'left' }}
+            onClick={() => {
+              onPick(p);
+              onClose();
+            }}
+          >
+            <span className="n">{p.name}</span>
+            <span className="muted small">{p.barcode}</span>
+            <span />
+            <span>📣</span>
+          </button>
+        ))}
+      </div>
+    </Modal>
   );
 }
 
@@ -775,6 +842,7 @@ function PayModal({ total, onClose, onConfirm }: { total: number; onClose: () =>
 function CloseCash({ session, cashier, recent, onClose, onClosed }: { session: CashSessionLocal; cashier: PosUser; recent: LocalSale[]; onClose: () => void; onClosed: () => void }) {
   const { t } = useTranslation();
   const [counted, setCounted] = useState('');
+  const [notes, setNotes] = useState('');
   const [result, setResult] = useState<{ expected: number; counted: number } | null>(null);
   const [moves, setMoves] = useState<CashMoveLocal[]>([]);
   useEffect(() => {
@@ -788,7 +856,10 @@ function CloseCash({ session, cashier, recent, onClose, onClosed }: { session: C
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     const c = toNum(counted) ?? 0;
-    await enqueue({ id: uuid(), type: 'CASH_CLOSE', userId: cashier.id, occurredAt: nowIso(), cashSessionId: session.id, countedAmount: c });
+    const note = notes.trim();
+    const occurredAt = nowIso();
+    await enqueue({ id: uuid(), type: 'CASH_CLOSE', userId: cashier.id, occurredAt, cashSessionId: session.id, countedAmount: c, ...(note ? { notes: note } : {}) });
+    if (note) await kvSet('handover', { notes: note, user: cashier.name, closedAt: occurredAt } satisfies Handover);
     await kvDel('cashSession');
     await kvDel(`cashMoves:${session.id}`);
     setResult({ expected, counted: c });
@@ -847,6 +918,9 @@ function CloseCash({ session, cashier, recent, onClose, onClosed }: { session: C
         </table>
         <Field label={t('pos.countedAmount')}>
           <input autoFocus inputMode="decimal" value={counted} onChange={(e) => setCounted(e.target.value)} style={{ fontSize: '1.4rem' }} required />
+        </Field>
+        <Field label={t('pos.handoverNotes')} hint={t('pos.handoverHint')}>
+          <textarea rows={3} maxLength={500} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </Field>
         <button className="primary big">{t('pos.closeCash')}</button>
       </form>

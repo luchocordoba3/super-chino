@@ -4,6 +4,7 @@ import { type Db, num, numOrNull, prisma, type Tx } from '../db';
 import { stockLevel } from '../domain/stockLevel';
 import { type NewAlert, notifyAlerts, raiseAlert, resolveAlert } from './alerts';
 import { clock } from './attendance';
+import { afterCreate, createMessage } from './messages';
 import { publish } from './notify';
 import { consumeStock, lotsByProduct, restoreAllocations, stockOf } from './stock';
 import { storeCtx } from './store';
@@ -16,8 +17,21 @@ interface Ctx {
   deviceId: string;
   today: Date;
   settings: StoreSettings;
+  /** Lo que se hace recién cuando se confirma la transacción del evento (ej. mandar un mensaje). */
+  onCommit: (() => void)[];
 }
 type Ev<T extends PosEvent['type']> = Extract<PosEvent, { type: T }>;
+
+/** "Se está terminando": aviso al dueño (con push) que queda hasta que se reponga el producto. */
+export async function reportShortage(tx: Db, storeId: string, productId: string, userId: string) {
+  const [p, user] = await Promise.all([
+    tx.product.findFirst({ where: { id: productId, storeId } }),
+    tx.user.findFirst({ where: { id: userId, storeId }, select: { name: true } }),
+  ]);
+  if (!p) throw new RejectError('product_not_found');
+  const { stock } = stockOf(p, await lotsByProduct(tx, storeId, [p.id]));
+  return raiseAlert(tx, storeId, 'SHORTAGE', `SHORTAGE:${p.id}`, { productId: p.id, name: p.name, stock, by: user?.name ?? '' }, 'warn');
+}
 
 /** Avisa stock bajo (debajo del mínimo o del % bajo) o lo da por resuelto según el stock actual. */
 export async function checkLowStock(tx: Db, storeId: string, productIds: string[]) {
@@ -158,8 +172,27 @@ async function applyCashClose(tx: Tx, ctx: Ctx, ev: Ev<'CASH_CLOSE'>) {
   const difference = round2(ev.countedAmount - expected);
   await tx.cashSession.update({
     where: { id: s.id },
-    data: { closedAt: new Date(ev.occurredAt), closedBy: ev.userId, countedAmount: ev.countedAmount, expectedAmount: expected, difference, notes: ev.notes ?? null },
+    data: { closedAt: new Date(ev.occurredAt), closedBy: ev.userId, countedAmount: ev.countedAmount, expectedAmount: expected, difference, notes: ev.notes?.trim() || null },
   });
+  // Pase de turno: las novedades le llegan al dueño y al resto del equipo como mensaje.
+  const note = ev.notes?.trim();
+  if (note) {
+    const [author, team] = await Promise.all([
+      tx.user.findUnique({ where: { id: ev.userId }, select: { lang: true } }),
+      tx.user.findMany({ where: { storeId: ctx.storeId, active: true, id: { not: ev.userId } }, select: { id: true } }),
+    ]);
+    if (team.length) {
+      const { message, needsTranslation } = await createMessage(tx, {
+        storeId: ctx.storeId,
+        fromUserId: ev.userId,
+        text: note,
+        lang: author?.lang ?? 'es',
+        recipientIds: team.map((u) => u.id),
+        meta: { type: 'HANDOVER', cashSessionId: s.id },
+      });
+      ctx.onCommit.push(() => afterCreate(ctx.storeId, message.id, needsTranslation));
+    }
+  }
   const names = new Map((await tx.user.findMany({ where: { storeId: ctx.storeId }, select: { id: true, name: true } })).map((u) => [u.id, u.name]));
   if (Math.abs(difference) >= ctx.settings.cashDiffThreshold && difference !== 0) {
     alerts.push(
@@ -199,6 +232,8 @@ async function applyEvent(tx: Tx, ctx: Ctx, ev: PosEvent) {
       return applyCashClose(tx, ctx, ev);
     case 'ITEM_REMOVED':
       return []; // queda registrado en PosEvent para el control anti-pérdidas
+    case 'SHORTAGE':
+      return [await reportShortage(tx, ctx.storeId, ev.productId, ev.userId)];
     case 'CLOCK': {
       const r = await clock(tx, { id: ev.id, storeId: ctx.storeId, userId: ev.userId, action: ev.action, at: new Date(ev.occurredAt), source: 'pos', deviceId: ctx.deviceId });
       if (!r) throw new RejectError('user_inactive');
@@ -232,7 +267,7 @@ async function applyEvent(tx: Tx, ctx: Ctx, ev: PosEvent) {
  */
 export async function processPosEvents(storeId: string, deviceId: string, raw: unknown[]): Promise<SyncResult[]> {
   const { settings, today } = await storeCtx(prisma, storeId);
-  const ctx: Ctx = { storeId, deviceId, today, settings };
+  const ctx: Ctx = { storeId, deviceId, today, settings, onCommit: [] };
   const results: SyncResult[] = [];
   const newAlerts: NewAlert[] = [];
   for (const r of raw) {
@@ -242,6 +277,7 @@ export async function processPosEvents(storeId: string, deviceId: string, raw: u
       continue;
     }
     const ev = parsed.data;
+    ctx.onCommit = [];
     try {
       const out = await prisma.$transaction(
         async (tx) => {
@@ -258,6 +294,7 @@ export async function processPosEvents(storeId: string, deviceId: string, raw: u
       if (out === null) results.push({ id: ev.id, status: 'duplicate' });
       else {
         results.push({ id: ev.id, status: 'ok' });
+        for (const f of ctx.onCommit) f();
         newAlerts.push(...out.filter((a) => a.isNew).map((a) => a.alert));
       }
     } catch (e) {

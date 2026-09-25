@@ -26,6 +26,7 @@ export function useAlertText() {
       pct: n('pct'),
       minutes: n('minutes'),
       start: String(d.start ?? ''),
+      by: String(d.by ?? ''),
     };
     return t(`alerts.types.${a.type === 'LOW_STOCK' && d.pct != null ? 'LOW_STOCK_PCT' : a.type}`, vars);
   };
@@ -35,6 +36,7 @@ export function alertLink(a: AlertRow) {
   if (a.type === 'OFFER_SUGGESTED') return '/offers';
   if (a.type === 'CASH_DIFF' || a.type === 'VOID_SPIKE') return '/sales';
   if (a.type === 'LATE' || a.type === 'ABSENT') return '/attendance';
+  if (a.type === 'SHORTAGE') return '/reorder';
   return a.data.productId ? `/products/${a.data.productId}` : null;
 }
 

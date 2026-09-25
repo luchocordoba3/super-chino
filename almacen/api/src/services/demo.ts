@@ -192,9 +192,29 @@ export async function seedDemo() {
       });
       cash.set(shifts[0].id, cash.get(shifts[0].id)! - 18500);
     }
+    if (d === 0) {
+      // Sofía avisa desde la caja que se están terminando las galletitas.
+      events.push({ id: randomUUID(), type: 'SHORTAGE', userId: sofia.id, occurredAt: iso(now - 90_000), productId: byName('Galletitas').id });
+    }
+    // Pase de turno: lo que dejó anotado el que cerró la caja.
+    const handover = (s: (typeof shifts)[number]) =>
+      d === 0 && s.user === sofia
+        ? 'Se terminó el cambio chico, hay que pedir monedas. Vino el de Coca: vuelve el jueves con el pedido.'
+        : d === 1 && s.user === martin
+          ? 'Quedan pocas cervezas en la heladera. Limpié la máquina de café.'
+          : undefined;
     for (const s of shifts) {
       if (s.close >= now) continue;
-      events.push({ id: randomUUID(), type: 'CASH_CLOSE', userId: s.user.id, occurredAt: iso(s.close), cashSessionId: s.id, countedAmount: Math.round(cash.get(s.id)! * 100) / 100 });
+      const notes = handover(s);
+      events.push({
+        id: randomUUID(),
+        type: 'CASH_CLOSE',
+        userId: s.user.id,
+        occurredAt: iso(s.close),
+        cashSessionId: s.id,
+        countedAmount: Math.round(cash.get(s.id)! * 100) / 100,
+        ...(notes ? { notes } : {}),
+      });
     }
   }
   await processPosEvents(storeId, device.id, events);

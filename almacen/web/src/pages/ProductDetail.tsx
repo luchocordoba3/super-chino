@@ -31,6 +31,18 @@ export function ProductDetail() {
         </div>
       </div>
       {p.unallocatedSold > 0 && <p className="warn">{t('stock.sinStock', { qty: qtyFmt(p.unallocatedSold) })}</p>}
+      {!can(me, 'owner') && (
+        <button
+          type="button"
+          onClick={() =>
+            void api('/stock/shortage', { method: 'POST', body: { productId: p.id } })
+              .then(() => toast(t('pos.shortageSent', { name: p.name })))
+              .catch((e) => toast(errMsg(e)))
+          }
+        >
+          📣 {t('pos.shortage')}
+        </button>
+      )}
 
       {(can(me, 'stock') || can(me, 'prices')) && (
         <div className="card">

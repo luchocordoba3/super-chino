@@ -7,7 +7,8 @@ import { type StockLevel, stockLevel } from '../domain/stockLevel';
 import { can, guard } from '../lib/auth';
 import { badRequest, HttpError, notFound } from '../lib/http';
 import { publish } from '../services/notify';
-import { checkLowStock } from '../services/sales';
+import { notifyAlerts } from '../services/alerts';
+import { checkLowStock, RejectError, reportShortage } from '../services/sales';
 import { avgDailySales } from '../services/stats';
 import { adjustStock, createStockEntry, lotsByProduct, stockOf } from '../services/stock';
 import { storeCtx, userNames } from '../services/store';
@@ -25,6 +26,17 @@ export const entryItem = z.object({
 });
 
 export async function stockRoutes(app: FastifyInstance) {
+  /** "Se está terminando" desde el celular (en la caja va como evento y anda sin internet). */
+  app.post('/stock/shortage', guard(), async (req) => {
+    const b = z.object({ productId: z.string().min(1) }).parse(req.body);
+    const r = await prisma.$transaction((tx) => reportShortage(tx, req.auth.sid, b.productId, req.auth.uid)).catch((e) => {
+      if (e instanceof RejectError) throw notFound(e.message);
+      throw e;
+    });
+    await notifyAlerts(req.auth.sid, r.isNew ? [r.alert] : []);
+    return { ok: true };
+  });
+
   /** Stock en %: cada producto contra su 100% (stock ideal o lo que había al reponer), de más bajo a más alto. */
   app.get('/stock/levels', guard('stock', 'reports'), async (req) => {
     const storeId = req.auth.sid;

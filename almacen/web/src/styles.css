@@ -180,3 +180,7 @@ tr.selected td { background: rgba(200, 16, 46, 0.08); }
 .units-table th.num, .units-table td.num { text-align: right; white-space: nowrap; }
 .units-table th:first-child, .units-table td:first-child { position: sticky; left: 0; background: var(--card); z-index: 1; min-width: 160px; }
 .units-table tfoot th, .units-table tfoot td { border-top: 2px solid var(--line); }
+
+/* Pase de turno */
+.handover { background: #fff8e1; border: 1px solid #f3d27a; border-radius: var(--radius); padding: 10px 12px; }
+.handover p { margin: 6px 0 0; white-space: pre-wrap; }

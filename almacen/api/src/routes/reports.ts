@@ -209,16 +209,27 @@ export async function reportRoutes(app: FastifyInstance) {
   app.get('/reorder', guard('stock', 'reports'), async (req) => {
     const storeId = req.auth.sid;
     const products = await prisma.product.findMany({ where: { storeId, active: true }, include: { supplier: true } });
-    const [lots, perDay] = await Promise.all([lotsByProduct(prisma, storeId), avgDailySales(prisma, storeId)]);
-    const groups = new Map<string, { supplier: { id: string; name: string; phone: string | null } | null; items: { productId: string; name: string; stock: number; perDay: number; qty: number }[] }>();
+    const [lots, perDay, shortages] = await Promise.all([
+      lotsByProduct(prisma, storeId),
+      avgDailySales(prisma, storeId),
+      prisma.alert.findMany({ where: { storeId, type: 'SHORTAGE', resolvedAt: null }, select: { data: true } }),
+    ]);
+    // Lo que el equipo avisó que se está terminando entra siempre, aunque los números digan que alcanza.
+    const reported = new Map(shortages.map((a) => [String((a.data as { productId?: string }).productId), String((a.data as { by?: string }).by ?? '')]));
+    const groups = new Map<
+      string,
+      { supplier: { id: string; name: string; phone: string | null } | null; items: { productId: string; name: string; stock: number; perDay: number; qty: number; reportedBy: string | null }[] }
+    >();
     for (const p of products) {
       const stock = stockOf(p, lots).stock;
       const pd = perDay.get(p.id) ?? 0;
-      const qty = reorderQty({ stock, minStock: num(p.minStock), perDay: pd, leadTimeDays: p.supplier?.leadTimeDays ?? 3 });
+      const leadTimeDays = p.supplier?.leadTimeDays ?? 3;
+      let qty = reorderQty({ stock, minStock: num(p.minStock), perDay: pd, leadTimeDays });
+      if (qty <= 0 && reported.has(p.id)) qty = Math.max(1, Math.ceil(pd * (leadTimeDays + 7) + num(p.minStock) - stock));
       if (qty <= 0) continue;
       const key = p.supplierId ?? '-';
       const g = groups.get(key) ?? { supplier: p.supplier ? { id: p.supplier.id, name: p.supplier.name, phone: p.supplier.phone } : null, items: [] };
-      g.items.push({ productId: p.id, name: p.name, stock, perDay: round2(pd), qty });
+      g.items.push({ productId: p.id, name: p.name, stock, perDay: round2(pd), qty, reportedBy: reported.get(p.id) ?? null });
       groups.set(key, g);
     }
     return [...groups.values()].sort((a, b) => b.items.length - a.items.length);

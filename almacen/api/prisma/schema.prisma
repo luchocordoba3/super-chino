@@ -63,6 +63,7 @@ enum AlertType {
   OFFER_SUGGESTED
   LATE
   ABSENT
+  SHORTAGE
 }
 
 model Store {

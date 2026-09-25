@@ -29,7 +29,7 @@ export async function resolveAlert(db: Db, storeId: string, key: string) {
 }
 
 /** Avisos que siempre llegan al celular del dueño, además de los graves. */
-const PUSH_TYPES = new Set<AlertType>(['LATE', 'ABSENT']);
+const PUSH_TYPES = new Set<AlertType>(['LATE', 'ABSENT', 'SHORTAGE']);
 
 /** Después de confirmar la transacción: refresca pantallas y manda push al dueño si es grave. */
 export async function notifyAlerts(storeId: string, alerts: NewAlert[]) {

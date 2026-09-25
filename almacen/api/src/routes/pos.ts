@@ -36,7 +36,7 @@ export async function posRoutes(app: FastifyInstance) {
     const { since } = z.object({ since: z.iso.datetime().optional() }).parse(req.query);
     const storeId = req.device.storeId;
     const serverTime = new Date().toISOString();
-    const [store, users, products, offers, suppliers] = await Promise.all([
+    const [store, users, products, offers, suppliers, handover] = await Promise.all([
       prisma.store.findUniqueOrThrow({ where: { id: storeId } }),
       prisma.user.findMany({ where: { storeId, active: true, pinHash: { not: null } }, orderBy: { name: 'asc' } }),
       prisma.product.findMany({
@@ -45,6 +45,12 @@ export async function posRoutes(app: FastifyInstance) {
       }),
       prisma.offer.findMany({ where: { storeId, status: 'ACTIVE' }, include: { lot: { select: { qtyRemaining: true } } } }),
       prisma.supplier.findMany({ where: { storeId }, select: { id: true, name: true }, orderBy: { name: 'asc' } }),
+      // Pase de turno: las novedades del último cierre de caja (de cualquier caja) de las últimas 36 horas.
+      prisma.cashSession.findFirst({
+        where: { storeId, notes: { not: null }, closedAt: { gte: new Date(Date.now() - 36 * 3_600_000) } },
+        orderBy: { closedAt: 'desc' },
+        select: { notes: true, closedAt: true, userId: true },
+      }),
     ]);
     return {
       serverTime,
@@ -61,6 +67,7 @@ export async function posRoutes(app: FastifyInstance) {
         pin: u.pinHash,
       })),
       suppliers,
+      handover: handover && { notes: handover.notes!, closedAt: handover.closedAt!.toISOString(), user: users.find((u) => u.id === handover.userId)?.name ?? '' },
       products: products.map((p) => ({ ...p, price: num(p.price) })),
       offers: offers.map((o) => ({ id: o.id, productId: o.productId, offerPrice: num(o.offerPrice), discountPct: o.discountPct, maxQty: num(o.lot.qtyRemaining) })),
     };

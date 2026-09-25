@@ -1,0 +1,39 @@
+# 🏪 Almacén
+
+Versión de Super Chino para **almacenes de barrio, kioscos y mini bares**. Vive en esta carpeta y no toca Super Chino (`apps/`, `packages/`).
+
+Es la misma base (caja que funciona sin internet, stock por lote con vencimientos, empleados con fichaje, mensajes y tareas, panel del dueño, qué reponer) pensada para cobrar desde una tablet o un celular.
+
+## Cómo levantarlo
+
+Requisitos: Node 22, pnpm y PostgreSQL 16. Desde la raíz del repo:
+
+```bash
+pnpm install
+cp almacen/api/.env.example almacen/api/.env   # revisar DATABASE_URL y JWT_SECRET
+pnpm almacen:db:migrate                         # crea las tablas en la base "almacen"
+pnpm almacen:db:seed                            # datos de demostración (opcional)
+pnpm almacen:dev                                # API en :3200 y web en http://localhost:5273
+```
+
+Corre al lado de Super Chino sin chocar: usa otros puertos, otra base de datos y su propio cliente de Prisma (`api/src/generated/prisma`).
+
+Usuarios de la demo:
+
+| Quién | Cómo entra |
+| --- | --- |
+| Dueño (Carlos) | `dueno@demo.com` / `demo1234` (PIN de caja `0000`) |
+| Sofía (vende y carga stock) | local `DEMO01`, usuario `sofia`, PIN `1234` |
+| Martín (vende) | local `DEMO01`, usuario `martin`, PIN `5678` |
+
+## Pruebas
+
+```bash
+pnpm almacen:test   # API (base almacen_test) + lógica de la caja
+pnpm almacen:e2e    # de punta a punta con Playwright (base almacen_e2e)
+pnpm typecheck
+```
+
+## Publicar
+
+`docker build -f almacen/Dockerfile -t almacen .` desde la raíz. En Render: **New → Web Service → Docker**, con *Dockerfile Path* `almacen/Dockerfile` y una base PostgreSQL propia (por ejemplo, Neon gratis) en `DATABASE_URL`.

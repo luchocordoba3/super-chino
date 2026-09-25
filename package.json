@@ -12,7 +12,13 @@
     "db:migrate": "pnpm --filter @super-chino/api db:migrate",
     "db:deploy": "pnpm --filter @super-chino/api db:deploy",
     "db:seed": "pnpm --filter @super-chino/api db:seed",
-    "e2e": "pnpm --filter @super-chino/web e2e"
+    "e2e": "pnpm --filter @super-chino/web e2e",
+    "almacen:dev": "pnpm --parallel --filter ./almacen/api --filter ./almacen/web dev",
+    "almacen:build": "pnpm --filter @almacen/web build",
+    "almacen:test": "pnpm --filter \"./almacen/*\" test",
+    "almacen:e2e": "pnpm --filter @almacen/web e2e",
+    "almacen:db:migrate": "pnpm --filter @almacen/api db:migrate",
+    "almacen:db:seed": "pnpm --filter @almacen/api db:seed"
   },
   "pnpm": {
     "onlyBuiltDependencies": ["@prisma/client", "@prisma/engines", "prisma", "esbuild"]

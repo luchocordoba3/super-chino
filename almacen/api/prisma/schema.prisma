@@ -1,0 +1,556 @@
+// Modelo de datos de Almacén. Todo cuelga de Store (cada almacén = un "tenant").
+
+generator client {
+  provider = "prisma-client-js"
+  // Cliente propio: con pnpm, Super Chino y el almacén compartirían `.prisma/client` y uno pisaría al otro.
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  EMPLOYEE
+}
+
+enum Lang {
+  es
+  zh
+}
+
+enum Unit {
+  UNIT
+  KG
+}
+
+enum MovementType {
+  ENTRY
+  SALE
+  VOID
+  ADJUSTMENT
+  WASTE
+  COUNT
+}
+
+enum SaleStatus {
+  COMPLETED
+  VOIDED
+}
+
+enum MessageKind {
+  MESSAGE
+  TASK
+}
+
+enum OfferStatus {
+  SUGGESTED
+  ACTIVE
+  DISMISSED
+  ENDED
+}
+
+enum AlertType {
+  EXPIRING
+  EXPIRED
+  LOW_STOCK
+  NEGATIVE_STOCK
+  VOID_SPIKE
+  CASH_DIFF
+  COUNT_DIFF
+  OFFER_SUGGESTED
+  LATE
+  ABSENT
+}
+
+model Store {
+  id        String   @id @default(cuid())
+  name      String
+  /// Código que usan los empleados para entrar (ej. "K7P2QX").
+  code      String   @unique
+  timezone  String   @default("America/Argentina/Buenos_Aires")
+  currency  String   @default("ARS")
+  settings  Json     @default("{}")
+  createdAt DateTime @default(now())
+
+  users        User[]
+  devices      Device[]
+  categories   Category[]
+  suppliers    Supplier[]
+  products     Product[]
+  lots         Lot[]
+  stockEntries StockEntry[]
+  movements    StockMovement[]
+  priceChanges PriceChange[]
+  posEvents    PosEvent[]
+  sales        Sale[]
+  cashSessions CashSession[]
+  messages     Message[]
+  alerts       Alert[]
+  offers       Offer[]
+  stockCounts  StockCount[]
+  invoiceScans InvoiceScan[]
+  aiUsage      AiUsage[]
+  pushSubs     PushSubscription[]
+  jobRuns      JobRun[]
+  attendance   Attendance[]
+  cashMoves    CashMovement[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  storeId      String
+  store        Store    @relation(fields: [storeId], references: [id])
+  role         Role     @default(EMPLOYEE)
+  name         String
+  username     String
+  email        String?  @unique
+  passwordHash String?
+  /// PBKDF2 (formato pbkdf2$iter$salt$hash): la caja lo verifica offline.
+  pinHash      String?
+  perms        String[] @default([])
+  lang         Lang     @default(es)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  // Ficha del empleado (solo la ve el dueño).
+  dni          String?
+  phone        String?
+  hiredAt      DateTime? @db.Date
+  salary       Decimal?  @db.Decimal(14, 2)
+  notes        String?
+  /// Horario semanal: 7 días (0 = domingo), cada uno null (franco) o {start, end} "HH:MM".
+  schedule     Json     @default("[]")
+
+  @@unique([storeId, username])
+}
+
+/// PC vinculada como caja.
+model Device {
+  id         String    @id @default(cuid())
+  storeId    String
+  store      Store     @relation(fields: [storeId], references: [id])
+  name       String
+  tokenHash  String    @unique
+  lastSeenAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+}
+
+model Category {
+  id       String    @id @default(cuid())
+  storeId  String
+  store    Store     @relation(fields: [storeId], references: [id])
+  name     String
+  products Product[]
+
+  @@unique([storeId, name])
+}
+
+model Supplier {
+  id           String       @id @default(cuid())
+  storeId      String
+  store        Store        @relation(fields: [storeId], references: [id])
+  name         String
+  /// WhatsApp con código de país, solo dígitos.
+  phone        String?
+  leadTimeDays Int          @default(3)
+  products     Product[]
+  stockEntries StockEntry[]
+
+  @@unique([storeId, name])
+}
+
+model Product {
+  id              String           @id @default(cuid())
+  storeId         String
+  store           Store            @relation(fields: [storeId], references: [id])
+  barcode         String?
+  name            String
+  brand           String?
+  categoryId      String?
+  category        Category?        @relation(fields: [categoryId], references: [id])
+  supplierId      String?
+  supplier        Supplier?        @relation(fields: [supplierId], references: [id])
+  unit            Unit             @default(UNIT)
+  price           Decimal          @db.Decimal(14, 2)
+  /// Último costo de compra.
+  cost            Decimal          @default(0) @db.Decimal(14, 2)
+  /// Margen objetivo propio (%); si es null se usa el del local.
+  targetMargin    Decimal?         @db.Decimal(6, 2)
+  minStock        Decimal          @default(0) @db.Decimal(12, 3)
+  /// Contenido neto (ej. 520 g, 1,5 l) para el precio por unidad de medida de las etiquetas.
+  contentQty      Decimal?         @db.Decimal(12, 3)
+  /// g | kg | ml | l | u
+  contentUnit     String?
+  /// Vendido sin stock registrado (ej. venta offline sin lotes cargados). Lo compensa el próximo ingreso.
+  unallocatedSold Decimal          @default(0) @db.Decimal(12, 3)
+  active          Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  lots            Lot[]
+  movements       StockMovement[]
+  priceChanges    PriceChange[]
+  saleItems       SaleItem[]
+  offers          Offer[]
+  countItems      StockCountItem[]
+
+  @@unique([storeId, barcode])
+  @@index([storeId, updatedAt])
+}
+
+/// Todo el stock vive en lotes. Lote y vencimiento son opcionales, así un mismo modelo
+/// cubre "vencimiento por producto" y "vencimiento por lote".
+model Lot {
+  id           String        @id @default(cuid())
+  storeId      String
+  store        Store         @relation(fields: [storeId], references: [id])
+  productId    String
+  product      Product       @relation(fields: [productId], references: [id])
+  stockEntryId String?
+  stockEntry   StockEntry?   @relation(fields: [stockEntryId], references: [id])
+  lotCode      String?
+  expiresAt    DateTime?     @db.Date
+  qtyInitial   Decimal       @db.Decimal(12, 3)
+  qtyRemaining Decimal       @db.Decimal(12, 3)
+  unitCost     Decimal       @default(0) @db.Decimal(14, 2)
+  receivedAt   DateTime      @default(now())
+  allocations  SaleItemLot[]
+  offer        Offer?
+
+  @@index([storeId, productId])
+  @@index([storeId, expiresAt])
+}
+
+model StockEntry {
+  id            String    @id @default(cuid())
+  storeId       String
+  store         Store     @relation(fields: [storeId], references: [id])
+  supplierId    String?
+  supplier      Supplier? @relation(fields: [supplierId], references: [id])
+  userId        String
+  invoiceNumber String?
+  invoiceScanId String?   @unique
+  createdAt     DateTime  @default(now())
+  lots          Lot[]
+}
+
+/// Historial de movimientos (kardex). qty positiva entra, negativa sale.
+model StockMovement {
+  id        String       @id @default(cuid())
+  storeId   String
+  store     Store        @relation(fields: [storeId], references: [id])
+  productId String
+  product   Product      @relation(fields: [productId], references: [id])
+  lotId     String?
+  type      MovementType
+  qty       Decimal      @db.Decimal(12, 3)
+  unitCost  Decimal      @default(0) @db.Decimal(14, 2)
+  refId     String?
+  userId    String?
+  reason    String?
+  createdAt DateTime     @default(now())
+
+  @@index([storeId, productId, createdAt])
+  @@index([storeId, type, createdAt])
+}
+
+model PriceChange {
+  id        String   @id @default(cuid())
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id])
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  oldPrice  Decimal  @db.Decimal(14, 2)
+  newPrice  Decimal  @db.Decimal(14, 2)
+  /// manual | bulk | margin
+  source    String
+  userId    String?
+  createdAt DateTime @default(now())
+
+  @@index([storeId, createdAt])
+  @@index([productId, createdAt])
+}
+
+/// Log de eventos de la caja. El id lo genera la PC (UUID) => sincronizar es idempotente.
+model PosEvent {
+  id         String   @id
+  storeId    String
+  store      Store    @relation(fields: [storeId], references: [id])
+  deviceId   String
+  userId     String
+  type       String
+  payload    Json
+  occurredAt DateTime
+  receivedAt DateTime @default(now())
+
+  @@index([storeId, type, occurredAt])
+}
+
+model Sale {
+  id            String     @id
+  storeId       String
+  store         Store      @relation(fields: [storeId], references: [id])
+  deviceId      String
+  userId        String
+  cashSessionId String?
+  status        SaleStatus @default(COMPLETED)
+  total         Decimal    @db.Decimal(14, 2)
+  /// Costo real de lo vendido, según el costo de cada lote descontado.
+  costTotal     Decimal    @default(0) @db.Decimal(14, 2)
+  discountTotal Decimal    @default(0) @db.Decimal(14, 2)
+  payments      Json
+  occurredAt    DateTime
+  syncedAt      DateTime   @default(now())
+  voidedAt      DateTime?
+  voidedBy      String?
+  voidReason    String?
+  items         SaleItem[]
+
+  @@index([storeId, occurredAt])
+}
+
+model SaleItem {
+  id            String        @id @default(cuid())
+  saleId        String
+  sale          Sale          @relation(fields: [saleId], references: [id])
+  productId     String
+  product       Product       @relation(fields: [productId], references: [id])
+  name          String
+  qty           Decimal       @db.Decimal(12, 3)
+  unitPrice     Decimal       @db.Decimal(14, 2)
+  listPrice     Decimal       @db.Decimal(14, 2)
+  lineTotal     Decimal       @db.Decimal(14, 2)
+  cost          Decimal       @default(0) @db.Decimal(14, 2)
+  offerId       String?
+  priceOverride Boolean       @default(false)
+  lots          SaleItemLot[]
+
+  @@index([productId])
+}
+
+/// De qué lote salió cada producto vendido (lotId null = vendido sin stock registrado).
+model SaleItemLot {
+  id         String   @id @default(cuid())
+  saleItemId String
+  saleItem   SaleItem @relation(fields: [saleItemId], references: [id])
+  lotId      String?
+  lot        Lot?     @relation(fields: [lotId], references: [id])
+  qty        Decimal  @db.Decimal(12, 3)
+  unitCost   Decimal  @db.Decimal(14, 2)
+}
+
+model CashSession {
+  id             String    @id
+  storeId        String
+  store          Store     @relation(fields: [storeId], references: [id])
+  deviceId       String
+  userId         String
+  openedAt       DateTime
+  openingAmount  Decimal   @db.Decimal(14, 2)
+  closedAt       DateTime?
+  closedBy       String?
+  countedAmount  Decimal?  @db.Decimal(14, 2)
+  expectedAmount Decimal?  @db.Decimal(14, 2)
+  difference     Decimal?  @db.Decimal(14, 2)
+  notes          String?
+
+  @@index([storeId, openedAt])
+}
+
+/// Plata que entra o sale de la caja fuera de las ventas (pagos a proveedores, gastos, retiros, cambio).
+model CashMovement {
+  /// Id del evento de la caja.
+  id            String   @id
+  storeId       String
+  store         Store    @relation(fields: [storeId], references: [id])
+  cashSessionId String
+  deviceId      String
+  userId        String
+  /// SUPPLIER | EXPENSE | WITHDRAWAL | DEPOSIT
+  kind          String
+  amount        Decimal  @db.Decimal(14, 2)
+  reason        String?
+  supplierId    String?
+  occurredAt    DateTime
+
+  @@index([cashSessionId])
+  @@index([storeId, occurredAt])
+}
+
+/// Fichajes de entrada y salida (desde la caja, el celular o cargados por el dueño).
+model Attendance {
+  id        String    @id @default(uuid())
+  storeId   String
+  store     Store     @relation(fields: [storeId], references: [id])
+  userId    String
+  inAt      DateTime?
+  outAt     DateTime?
+  /// pos | phone | manual
+  inSource  String?
+  outSource String?
+  deviceId  String?
+  /// Minutos tarde respecto del horario (en la primera entrada del día).
+  lateMin   Int?
+  note      String?
+  editedAt  DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([storeId, inAt])
+  @@index([userId, inAt])
+}
+
+/// Indicaciones y tareas. Se guarda el texto original y la traducción a cada idioma.
+model Message {
+  id                String             @id @default(cuid())
+  storeId           String
+  store             Store              @relation(fields: [storeId], references: [id])
+  /// null = mensaje del sistema (tareas automáticas).
+  fromUserId        String?
+  kind              MessageKind        @default(MESSAGE)
+  text              String
+  lang              Lang
+  translations      Json               @default("{}")
+  /// none | pending | done | failed
+  translationStatus String             @default("none")
+  requiresPhoto     Boolean            @default(false)
+  dueAt             DateTime?
+  /// Tareas del sistema: { type: 'REMOVE_EXPIRED', lotIds } | { type: 'COUNT', countId }
+  meta              Json?
+  doneAt            DateTime?
+  doneBy            String?
+  donePhoto         String?
+  doneNote          String?
+  createdAt         DateTime           @default(now())
+  recipients        MessageRecipient[]
+
+  @@index([storeId, createdAt])
+}
+
+model MessageRecipient {
+  id        String    @id @default(cuid())
+  messageId String
+  message   Message   @relation(fields: [messageId], references: [id])
+  userId    String
+  readAt    DateTime?
+
+  @@unique([messageId, userId])
+  @@index([userId])
+}
+
+model Alert {
+  id         String    @id @default(cuid())
+  storeId    String
+  store      Store     @relation(fields: [storeId], references: [id])
+  type       AlertType
+  /// info | warn | danger
+  severity   String    @default("warn")
+  /// Clave para no duplicar (ej. "EXPIRING:<lotId>").
+  key        String
+  data       Json      @default("{}")
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  @@unique([storeId, key])
+  @@index([storeId, resolvedAt])
+}
+
+/// Oferta para liquidar un lote antes de que venza (una por lote).
+model Offer {
+  id          String      @id @default(cuid())
+  storeId     String
+  store       Store       @relation(fields: [storeId], references: [id])
+  productId   String
+  product     Product     @relation(fields: [productId], references: [id])
+  lotId       String      @unique
+  lot         Lot         @relation(fields: [lotId], references: [id])
+  discountPct Int
+  offerPrice  Decimal     @db.Decimal(14, 2)
+  status      OfferStatus @default(SUGGESTED)
+  reason      Json        @default("{}")
+  soldQty     Decimal     @default(0) @db.Decimal(12, 3)
+  soldAmount  Decimal     @default(0) @db.Decimal(14, 2)
+  createdAt   DateTime    @default(now())
+  activatedAt DateTime?
+  endedAt     DateTime?
+
+  @@index([storeId, status])
+}
+
+/// Conteo sorpresa "a ciegas": el empleado no ve el stock del sistema.
+model StockCount {
+  id        String           @id @default(cuid())
+  storeId   String
+  store     Store            @relation(fields: [storeId], references: [id])
+  messageId String?
+  doneAt    DateTime?
+  doneBy    String?
+  createdAt DateTime         @default(now())
+  items     StockCountItem[]
+}
+
+model StockCountItem {
+  id          String     @id @default(cuid())
+  countId     String
+  count       StockCount @relation(fields: [countId], references: [id])
+  productId   String
+  product     Product    @relation(fields: [productId], references: [id])
+  expectedQty Decimal?   @db.Decimal(12, 3)
+  countedQty  Decimal?   @db.Decimal(12, 3)
+  difference  Decimal?   @db.Decimal(12, 3)
+}
+
+/// Foto (factura o etiqueta) leída con IA.
+model InvoiceScan {
+  id        String   @id @default(cuid())
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id])
+  userId    String
+  /// INVOICE | LABEL
+  kind      String
+  imagePath String
+  /// done | failed | confirmed
+  status    String   @default("done")
+  result    Json?
+  error     String?
+  createdAt DateTime @default(now())
+
+  @@index([storeId, createdAt])
+}
+
+model AiUsage {
+  id           String   @id @default(cuid())
+  storeId      String
+  store        Store    @relation(fields: [storeId], references: [id])
+  /// translate | invoice | label
+  feature      String
+  model        String
+  inputTokens  Int
+  outputTokens Int
+  createdAt    DateTime @default(now())
+
+  @@index([storeId, feature, createdAt])
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id])
+  userId    String
+  endpoint  String   @unique
+  keys      Json
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+/// Marca de procesos diarios ya ejecutados (idempotencia), ej. "COUNT:2026-09-24".
+model JobRun {
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id])
+  key       String
+  createdAt DateTime @default(now())
+
+  @@id([storeId, key])
+}

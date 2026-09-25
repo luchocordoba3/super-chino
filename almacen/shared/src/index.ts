@@ -1,0 +1,137 @@
+import { z } from 'zod';
+
+export const LANGS = ['es', 'zh'] as const;
+export type Lang = (typeof LANGS)[number];
+
+/** Permisos que el dueño le puede dar a cada empleado (el dueño los tiene todos). */
+export const PERMS = ['sell', 'stock', 'prices', 'adjust', 'reports'] as const;
+export type Perm = (typeof PERMS)[number];
+
+export const PAYMENT_METHODS = ['CASH', 'DEBIT', 'CREDIT', 'QR', 'TRANSFER'] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+
+/** Plata que sale o entra de la caja fuera de las ventas: pago a proveedor, gasto, retiro del dueño, ingreso de cambio. */
+export const CASH_MOVE_KINDS = ['SUPPLIER', 'EXPENSE', 'WITHDRAWAL', 'DEPOSIT'] as const;
+export type CashMoveKind = (typeof CASH_MOVE_KINDS)[number];
+/** +1 si la plata entra a la caja, -1 si sale. */
+export const cashMoveSign = (kind: CashMoveKind) => (kind === 'DEPOSIT' ? 1 : -1);
+
+// ---------- Horario de cada empleado ----------
+
+const HHMM = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
+/** "08:30" -> 510 */
+export const hhmmToMin = (s: string) => Number(s.slice(0, 2)) * 60 + Number(s.slice(3, 5));
+/** Semana de 7 días (0 = domingo); null = franco. Un tramo por día. */
+export const WeekScheduleSchema = z
+  .array(
+    z
+      .object({ start: HHMM, end: HHMM })
+      .refine((d) => hhmmToMin(d.end) > hhmmToMin(d.start), 'end_before_start')
+      .nullable(),
+  )
+  .length(7);
+export type WeekSchedule = z.infer<typeof WeekScheduleSchema>;
+/** Horario guardado -> semana válida, o null si no tiene. */
+export const parseSchedule = (raw: unknown): WeekSchedule | null => {
+  const r = WeekScheduleSchema.safeParse(raw);
+  return r.success ? r.data : null;
+};
+
+export const StoreSettingsSchema = z.object({
+  /** Días antes del vencimiento para avisar. */
+  expiryAlertDays: z.number().int().min(1).max(90).default(7),
+  /** Margen objetivo sobre el costo (%), usado para sugerir precios. */
+  targetMargin: z.number().min(0).max(500).default(40),
+  /** Redondeo de precios (ej. 10 = a los $10). 0 = sin redondeo. */
+  priceRounding: z.number().min(0).max(10000).default(10),
+  /** Descuento escalonado para lotes por vencer: a X días o menos, Y% de descuento. */
+  offerTiers: z
+    .array(z.object({ days: z.number().int().min(0).max(90), pct: z.number().int().min(1).max(90) }))
+    .default([
+      { days: 7, pct: 20 },
+      { days: 3, pct: 35 },
+      { days: 1, pct: 50 },
+    ]),
+  /** En los últimos N días antes de vencer se permite vender por debajo del costo. */
+  offerAllowBelowCostDays: z.number().int().min(0).max(30).default(1),
+  offerAutoApprove: z.boolean().default(false),
+  /** Anulaciones/borrados por cajero y turno que disparan un aviso. */
+  voidAlertThreshold: z.number().int().min(1).max(100).default(5),
+  /** Diferencia de caja ($) que dispara un aviso. */
+  cashDiffThreshold: z.number().min(0).default(500),
+  /** Productos por día en el conteo sorpresa (0 = desactivado). */
+  countItemsPerDay: z.number().int().min(0).max(30).default(5),
+  /** Diferencia de unidades en un conteo que dispara un aviso. */
+  countDiffThreshold: z.number().min(0).default(1),
+  /** Fotos por día que se pueden leer con IA. */
+  aiDailyScanLimit: z.number().int().min(0).max(500).default(30),
+  /** Minutos de tolerancia antes de avisar que alguien llegó tarde. */
+  lateToleranceMin: z.number().int().min(0).max(120).default(10),
+  /** Minutos después de la hora de entrada para avisar que alguien no vino. */
+  absentAfterMin: z.number().int().min(10).max(240).default(30),
+});
+export type StoreSettings = z.infer<typeof StoreSettingsSchema>;
+export const parseSettings = (raw: unknown): StoreSettings =>
+  StoreSettingsSchema.parse(raw && typeof raw === 'object' ? raw : {});
+
+// ---------- Eventos de la caja (se generan offline y se sincronizan) ----------
+
+const Money = z.number().finite();
+const base = {
+  id: z.uuid(),
+  userId: z.string().min(1),
+  occurredAt: z.iso.datetime(),
+  cashSessionId: z.string().nullish(),
+};
+
+export const SaleItemSchema = z.object({
+  productId: z.string().min(1),
+  qty: z.number().positive(),
+  unitPrice: Money.min(0),
+  listPrice: Money.min(0),
+  offerId: z.string().nullish(),
+  priceOverride: z.boolean().default(false),
+});
+export type SaleItemInput = z.infer<typeof SaleItemSchema>;
+
+export const PaymentSchema = z.object({ method: z.enum(PAYMENT_METHODS), amount: Money.min(0) });
+export type Payment = z.infer<typeof PaymentSchema>;
+
+export const PosEventSchema = z.discriminatedUnion('type', [
+  z.object({
+    ...base,
+    type: z.literal('SALE'),
+    items: z.array(SaleItemSchema).min(1).max(300),
+    payments: z.array(PaymentSchema).min(1).max(5),
+    total: Money.min(0),
+  }),
+  z.object({ ...base, type: z.literal('ITEM_REMOVED'), productId: z.string(), qty: z.number().positive(), amount: Money }),
+  z.object({ ...base, type: z.literal('SALE_VOIDED'), saleId: z.string(), reason: z.string().max(200).optional() }),
+  z.object({ ...base, type: z.literal('CASH_OPEN'), cashSessionId: z.string().min(1), openingAmount: Money.min(0) }),
+  z.object({
+    ...base,
+    type: z.literal('CASH_CLOSE'),
+    cashSessionId: z.string().min(1),
+    countedAmount: Money.min(0),
+    notes: z.string().max(500).optional(),
+  }),
+  /** Fichaje de entrada o salida en la PC de la caja. */
+  z.object({ ...base, type: z.literal('CLOCK'), action: z.enum(['in', 'out']) }),
+  z.object({
+    ...base,
+    type: z.literal('CASH_MOVE'),
+    cashSessionId: z.string().min(1),
+    kind: z.enum(CASH_MOVE_KINDS),
+    amount: Money.positive(),
+    reason: z.string().trim().max(200).optional(),
+    supplierId: z.string().nullish(),
+  }),
+]);
+export type PosEvent = z.infer<typeof PosEventSchema>;
+export type PosEventType = PosEvent['type'];
+
+export type SyncResult = { id: string; status: 'ok' | 'duplicate' | 'rejected'; error?: string };
+
+export const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+export const round3 = (n: number) => Math.round((n + Number.EPSILON) * 1000) / 1000;
+export * from './measure';

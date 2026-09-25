@@ -23,6 +23,9 @@ function ean13(n: number) {
 async function wipeStoreData(storeId: string) {
   await prisma.$transaction([
     prisma.saleItemLot.deleteMany({ where: { saleItem: { sale: { storeId } } } }),
+    prisma.tabItem.deleteMany({ where: { tab: { storeId } } }),
+    prisma.tab.deleteMany({ where: { storeId } }),
+    prisma.recipeItem.deleteMany({ where: { product: { storeId } } }),
     prisma.saleItem.deleteMany({ where: { sale: { storeId } } }),
     prisma.sale.deleteMany({ where: { storeId } }),
     prisma.posEvent.deleteMany({ where: { storeId } }),
@@ -117,6 +120,10 @@ export async function seedDemo() {
     ['Gaseosa cola 500ml', bebidas, norte, 1500, 950, 12, 'UNIT'],
     ['Vino tinto 750ml', bebidas, norte, 4500, 3000, 4, 'UNIT'],
     ['Jamón cocido', lacteos, sur, 14000, 10000, 1, 'KG'],
+    // Ingredientes del bar.
+    ['Pan de molde (20 rodajas)', almacen, norte, 2800, 2000, 3, 'UNIT'],
+    ['Café molido 500g', almacen, norte, 9000, 6500, 2, 'UNIT'],
+    ['Fernet 750ml', bebidas, norte, 14000, 10000, 2, 'UNIT'],
   ];
   const products: Awaited<ReturnType<typeof prisma.product.create>>[] = [];
   for (const [i, [name, categoryId, supplierId, price, cost, minStock, unit]] of catalog.entries()) {
@@ -137,6 +144,21 @@ export async function seedDemo() {
     }),
   );
   await prisma.lot.updateMany({ where: { storeId }, data: { receivedAt: addDays(new Date(), -20) } });
+
+  // Bar: productos con receta (no tienen stock propio; al venderlos se descuentan los ingredientes).
+  const barCat = await cat('Bar');
+  const recipes: [string, number, [string, number][]][] = [
+    ['Café', 1800, [['Café molido', 0.02]]],
+    ['Tostado jamón y queso', 4500, [['Pan de molde', 0.1], ['Jamón cocido', 0.04], ['Queso cremoso', 0.04]]],
+    ['Fernet con coca', 5000, [['Fernet', 0.1], ['Gaseosa cola 2,25L', 0.12]]],
+  ];
+  const bar: typeof products = [];
+  for (const [name, price, parts] of recipes) {
+    const p = await prisma.product.create({ data: { storeId, name, categoryId: barCat, price, quickKey: true } });
+    await prisma.recipeItem.createMany({ data: parts.map(([ing, qty]) => ({ productId: p.id, ingredientId: byName(ing).id, qty })) });
+    bar.push(p);
+  }
+  const sellable = [...products, ...bar];
   await prisma.product.update({ where: { id: byName('Cerveza lata').id }, data: { idealStock: 120 } });
   await prisma.product.update({ where: { id: byName('Alfajor').id }, data: { idealStock: 60 } });
 
@@ -162,7 +184,7 @@ export async function seedDemo() {
       let when = dayStart + (9 + rand() * 11) * H;
       if (when > now) when = now - 60_000 * (n + 1);
       const shift = [...shifts].reverse().find((s) => when >= s.open) ?? shifts[0];
-      const items = [...new Set(Array.from({ length: 1 + Math.floor(rand() * 3) }, () => pick(products)))].map((p) => {
+      const items = [...new Set(Array.from({ length: 1 + Math.floor(rand() * 3) }, () => pick(sellable)))].map((p) => {
         const qty = p.unit === 'KG' ? Math.round((0.2 + rand() * 0.4) * 1000) / 1000 : 1 + Math.floor(rand() * 2);
         return { productId: p.id, qty, unitPrice: Number(p.price), listPrice: Number(p.price) };
       });
@@ -196,6 +218,14 @@ export async function seedDemo() {
       cash.set(shifts[0].id, cash.get(shifts[0].id)! - 18500);
     }
     if (d === 0) {
+      // La mesa 2 está tomando algo: la cuenta sigue abierta.
+      const tabId = randomUUID();
+      const waiter = [...shifts].reverse()[0].user;
+      const when = iso(now - 40 * 60_000);
+      const fernet = bar.find((p) => p.name.startsWith('Fernet'))!;
+      events.push({ id: randomUUID(), type: 'TAB_OPEN', userId: waiter.id, occurredAt: when, tabId, label: 'Mesa 2', table: 2 });
+      events.push({ id: randomUUID(), type: 'TAB_ITEM', userId: waiter.id, occurredAt: when, tabId, productId: fernet.id, qty: 2, unitPrice: Number(fernet.price) });
+      events.push({ id: randomUUID(), type: 'TAB_ITEM', userId: waiter.id, occurredAt: when, tabId, productId: byName('Papas fritas').id, qty: 1, unitPrice: Number(byName('Papas fritas').price) });
       // Sofía avisa desde la caja que se están terminando las galletitas.
       events.push({ id: randomUUID(), type: 'SHORTAGE', userId: sofia.id, occurredAt: iso(now - 90_000), productId: byName('Galletitas').id });
     }

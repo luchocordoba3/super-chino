@@ -25,7 +25,7 @@ describe('demo', () => {
     expect(again.storeId).toBe(first.storeId);
     expect((await owner.get('/auth/me')).body.user.id).toBe(ownerId);
     expect((await owner.get('/users')).body.map((u: { username: string }) => u.username).sort()).toEqual(['dueno', 'martin', 'sofia']);
-    expect(await prisma.product.count()).toBe(21);
+    expect(await prisma.product.count()).toBe(27);
     expect(await prisma.sale.count()).toBe(first.sales);
   });
 

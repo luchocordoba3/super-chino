@@ -595,10 +595,19 @@ function SellScreen(props: {
     setTimeout(() => window.print(), 50);
   };
 
+  // El teclado lee el estado de este render (se actualiza antes de pintar): así F12 nunca ve un carrito viejo.
+  const keys = useRef({ blocked: false, hasTicket: false, escape: () => {}, scan: (_code: string) => {} });
+  keys.current = {
+    blocked: !!(paying || done || closing || weightFor || clocking || moving || short || openingTab),
+    hasTicket: ticket.length > 0,
+    escape: () => (results ? setResults(null) : clearCart()),
+    scan: (code) => void onScan(code),
+  };
   const scanBuf = useRef({ text: '', at: 0 });
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (paying || done || closing || weightFor || clocking || moving || short) return;
+      const k = keys.current;
+      if (k.blocked) return;
       // Un lector "teclea" muy rápido y termina con Enter: se toma aunque no haya un campo con el cursor.
       const el = e.target as HTMLElement | null;
       if (!el || !['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)) {
@@ -607,7 +616,7 @@ function SellScreen(props: {
         b.at = e.timeStamp;
         if (e.key === 'Enter' && b.text.length >= 3) {
           e.preventDefault();
-          void onScan(b.text);
+          k.scan(b.text);
           b.text = '';
           return;
         }
@@ -616,17 +625,16 @@ function SellScreen(props: {
       if (e.key === 'F2') {
         e.preventDefault();
         inputRef.current?.focus();
-      } else if (e.key === 'F12' && ticket.length) {
+      } else if (e.key === 'F12' && k.hasTicket) {
         e.preventDefault();
         setPaying(true);
       } else if (e.key === 'Escape') {
-        if (results) setResults(null);
-        else clearCart();
+        k.escape();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  });
+  }, []);
 
   return (
     <div className="pos" data-pane={pane}>

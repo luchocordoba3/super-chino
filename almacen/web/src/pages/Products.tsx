@@ -89,9 +89,13 @@ export function Products() {
                       <div className="muted small">{[p.barcode, p.category].filter(Boolean).join(' · ')}</div>
                     </td>
                     <td className="num">{money(p.price)}</td>
-                    <td className={`num ${p.stock <= p.minStock ? 'error' : ''}`}>
-                      {qtyFmt(p.stock)} {p.unit === 'KG' ? 'kg' : ''}
-                    </td>
+                    {p.hasRecipe ? (
+                      <td className="num muted small">🍳 {t('recipe.badge')}</td>
+                    ) : (
+                      <td className={`num ${p.stock <= p.minStock ? 'error' : ''}`}>
+                        {qtyFmt(p.stock)} {p.unit === 'KG' ? 'kg' : ''}
+                      </td>
+                    )}
                     <td>
                       {p.nearestExpiry && (
                         <span className={`badge ${days! < 0 ? 'red' : days! <= me.store.settings.expiryAlertDays ? 'gold' : 'gray'}`}>{dayFmt(p.nearestExpiry)}</span>

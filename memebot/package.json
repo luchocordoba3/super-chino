@@ -1,0 +1,28 @@
+{
+  "name": "memebot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Bot de memecoins en Solana: llegar a US$100.000 o desaparecer.",
+  "scripts": {
+    "start": "tsx src/index.ts start",
+    "paper": "tsx src/index.ts start --paper",
+    "status": "tsx src/index.ts status",
+    "panic": "tsx src/index.ts panic",
+    "resume": "tsx src/index.ts resume",
+    "reset": "tsx src/index.ts reset",
+    "test": "vitest run --silent",
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@solana/web3.js": "^1.98.0",
+    "bs58": "^6.0.0",
+    "tsx": "^4.20.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
+  }
+}

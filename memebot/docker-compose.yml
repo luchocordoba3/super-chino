@@ -1,0 +1,12 @@
+# 24/7 en un VPS: docker compose up -d --build
+services:
+  memebot:
+    build: .
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+    # Se reinicia si se cae o si se reinicia el servidor.
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }

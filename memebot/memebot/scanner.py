@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from .config import Config
+from .learning import Journal
 from .market import Market
 from .models import PairMetrics
 from .safety import Safety
@@ -87,9 +88,15 @@ class Scanner:
         safety: Safety,
         execution: ExecutionAgent,
         cfg: Config,
+        journal: Journal | None = None,
         now: Callable[[], float] = time.time,
     ):
-        self.market, self.safety, self.execution, self.cfg, self.now = market, safety, execution, cfg, now
+        self.market, self.safety, self.execution, self.cfg = market, safety, execution, cfg
+        self.journal, self.now = journal, now
+
+    def _observe(self, m: PairMetrics, sc: float, stage: str, detail: str = "") -> None:
+        if self.journal is not None:
+            self.journal.observe(m, sc, stage, detail)
 
     def candidates(self, exclude: set[str]) -> list[Candidate]:
         cfg = self.cfg
@@ -97,18 +104,31 @@ class Scanner:
         if not mints:
             return []
         now = self.now()
-        scored = [(score(m, cfg), m) for m in self.market.metrics(mints).values() if reject_reason(m, cfg, now) is None]
+        scored: list[tuple[float, PairMetrics]] = []
+        for m in self.market.metrics(mints).values():
+            sc = score(m, cfg)
+            reason = reject_reason(m, cfg, now)
+            if reason:
+                self._observe(m, sc, "filtrada", reason)
+            elif sc < cfg.MIN_SCORE:
+                self._observe(m, sc, "puntaje bajo")
+            else:
+                scored.append((sc, m))
         scored.sort(key=lambda x: x[0], reverse=True)
         out: list[Candidate] = []
-        for sc, m in scored[: cfg.MAX_CANDIDATES * 3]:
-            if sc < cfg.MIN_SCORE or len(out) >= cfg.MAX_CANDIDATES:
-                break
+        for sc, m in scored:
+            if len(out) >= cfg.MAX_CANDIDATES:
+                self._observe(m, sc, "puntaje bajo", "no quedó entre las mejores")
+                continue
             report = self.safety.check(m.mint)
             if not report.ok or report.decimals is None:
                 log.info("%s: descartada (%s)", m.symbol, report.reason)
+                self._observe(m, sc, "insegura", report.reason)
                 continue
             if not self.execution.sellable(m.mint, m.price_usd, report.decimals):
+                self._observe(m, sc, "insegura", "sin ruta de venta")
                 continue
+            self._observe(m, sc, "candidata")
             out.append(Candidate(m, report.decimals, round(sc, 2), report.warnings))
         log.info("escáner: %d monedas, %d candidatas para el director", len(mints), len(out))
         return out

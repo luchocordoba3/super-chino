@@ -18,6 +18,8 @@ def test_director_quant_risk_y_ejecucion(make_env):
     assert env.llm.calls == ["director", "quant", "risk"]
     [p] = env.state.positions
     assert p.cost_usd == approx(200)  # 20% de 1000, lo que decidió el risk manager
+    assert p.plan.take_profit_pct == 100  # vende la mitad al duplicar
+    assert env.journal.data.observations["aaa"].stage == "comprada"
     assert p.plan.stop_loss_pct == 20
     assert p.thesis.startswith("volumen")
     assert env.store.load() == env.state
@@ -93,6 +95,8 @@ def test_stop_loss_del_plan_y_enfriamiento(make_env):
     assert env.state.positions == []
     assert env.state.cash_usd == approx(800 + 158)
     assert env.state.loss_streak == 1
+    [closed] = env.journal.data.closed
+    assert closed.exit_reason == "stop-loss" and closed.pnl_pct == approx(-21)
     env.market.price("aaa", 0.01)
     env.advance(CYCLE)
     env.tick()
@@ -104,19 +108,25 @@ def test_toma_de_ganancia_y_stop_dinamico(make_env):
     env.market.set("aaa")
     with_thesis(env, "aaa")
     env.tick()
-    env.market.price("aaa", 0.016)
+    env.market.price("aaa", 0.016)  # +60%: todavía no duplicó
+    env.advance(TICK)
+    env.tick()
+    assert not env.state.positions[0].took_profit
+    env.market.price("aaa", 0.021)  # duplicó: vende la mitad
     env.advance(TICK)
     env.tick()
     [p] = env.state.positions
     assert p.took_profit and p.amount_raw == 10_000_000_000
-    env.market.price("aaa", 0.02)
+    env.market.price("aaa", 0.03)
     env.advance(TICK)
     env.tick()
-    env.market.price("aaa", 0.0145)
+    env.market.price("aaa", 0.022)  # cae más de 25% desde el máximo: sale el resto
     env.advance(TICK)
     env.tick()
     assert env.state.positions == []
-    assert env.state.cash_usd == approx(800 + 160 + 145)
+    assert env.state.cash_usd == approx(800 + 210 + 220)
+    assert [t.exit_reason for t in env.journal.data.closed] == ["stop dinámico"]
+    assert env.journal.data.closed[0].peak_multiple == approx(3)
 
 
 def test_el_director_puede_cerrar_una_posicion(make_env):
@@ -166,8 +176,14 @@ def test_objetivo_final_vende_todo_retira_todo_y_no_vuelve_a_operar(make_env):
     assert s.cash_usd == approx(0)
     assert any("OBJETIVO FINAL" in n for n in env.notes)
     reloaded = Bot(
-        cfg=env.cfg, state=env.store.load(), store=env.store, scanner=env.bot.scanner,
-        agents=_agents(env.bot), notify=env.notes.append, now=lambda: env.clock[0],
+        cfg=env.cfg,
+        state=env.store.load(),
+        store=env.store,
+        scanner=env.bot.scanner,
+        agents=_agents(env.bot),
+        journal=env.journal,
+        notify=env.notes.append,
+        now=lambda: env.clock[0],
     )
     assert reloaded.tick() is False
 

@@ -10,6 +10,7 @@ import sys
 import threading
 import time
 from datetime import datetime
+from pathlib import Path
 
 import anthropic
 import httpx
@@ -24,6 +25,7 @@ from .bot import Agents, Bot
 from .chain import SolanaRpc, load_keypair
 from .config import Config, load_config
 from .goals import next_milestone, wealth
+from .learning import Journal
 from .market import LiveMarket
 from .models import State
 from .notify import Notifier
@@ -64,7 +66,10 @@ def start(cfg: Config, store: Store) -> int:
         usdc, sol = broker.cash_usd(), broker.sol_balance()
         log.warning(
             "MODO REAL, con dinero de verdad. Billetera %s: %s en USDC y %.4f SOL. Retiros a %s.",
-            broker.owner, fmt_usd(usdc), sol, withdraw_to,
+            broker.owner,
+            fmt_usd(usdc),
+            sol,
+            withdraw_to,
         )
         state = state or State.fresh("live", usdc, time.time())
         broker.reconcile(state)
@@ -74,12 +79,25 @@ def start(cfg: Config, store: Store) -> int:
 
     if state.status == "running":
         if not os.environ.get("ANTHROPIC_API_KEY"):
-            log.warning("No hay ANTHROPIC_API_KEY: si no configuraste credenciales de otra forma, los agentes van a fallar")
+            log.warning(
+                "No hay ANTHROPIC_API_KEY: si no configuraste credenciales de otra forma, los agentes van a fallar"
+            )
         llm = ClaudeLLM(anthropic.Anthropic(timeout=120.0, max_retries=2), state, cfg.LLM_DAILY_BUDGET_USD)
         execution = ExecutionAgent(broker, cfg)
-        scanner = Scanner(LiveMarket(http), ChainSafety(rpc, http, cfg.RUGCHECK_API_URL), execution, cfg)
+        journal = Journal(Path(cfg.DATA_DIR) / "learning.json")
+        safety = ChainSafety(rpc, http, cfg.RUGCHECK_API_URL)
+        scanner = Scanner(LiveMarket(http), safety, execution, cfg, journal=journal)
         agents = Agents(Director(llm, cfg), Quant(llm, cfg), RiskManager(llm, cfg), execution)
-        Bot(cfg=cfg, state=state, store=store, scanner=scanner, agents=agents, notify=Notifier(cfg, http)).run(stop)
+        bot = Bot(
+            cfg=cfg,
+            state=state,
+            store=store,
+            scanner=scanner,
+            agents=agents,
+            journal=journal,
+            notify=Notifier(cfg, http),
+        )
+        bot.run(stop)
         if state.status == "running":
             return 0  # detenido con Ctrl+C o por Docker
     log.info("Este bot terminó (%s) y no vuelve a operar. Para empezar de cero: reset --yes", STATUS[state.status])
@@ -112,6 +130,9 @@ def status(cfg: Config, store: Store) -> int:
     for p in s.positions:
         opened = datetime.fromtimestamp(p.opened_at).strftime("%d/%m %H:%M")
         lines.append(f"  • {p.symbol}: costo {fmt_usd(p.cost_usd)}, stop -{p.plan.stop_loss_pct:g}%, desde {opened}")
+    journal = Journal(Path(cfg.DATA_DIR) / "learning.json")
+    lines.append(f"Aprendizaje: {len(journal.pending())} monedas en seguimiento, {len(journal.lessons)} lecciones")
+    lines.extend(f"  • {x}" for x in journal.lessons)
     if s.paused_until > time.time():
         lines.append(f"En pausa hasta {datetime.fromtimestamp(s.paused_until).strftime('%d/%m %H:%M')}")
     print("\n".join(lines))

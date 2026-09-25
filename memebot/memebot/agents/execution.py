@@ -228,7 +228,8 @@ class ExecutionAgent:
             return False
 
     def open(self, mint: str, usd: float) -> Fill | None:
-        """Compra hasta `usd`. Si el impacto en el precio supera el tope, prueba con la mitad; si sigue alto, no compra."""
+        """Compra hasta `usd`. Si el impacto en el precio supera el tope, prueba con la mitad;
+        si sigue alto, no compra."""
         bps = self.cfg.SLIPPAGE_BPS
 
         def rate(q: Quote) -> float:
@@ -252,7 +253,9 @@ class ExecutionAgent:
         """Vende; si falla, reintenta subiendo el slippage (hasta 3 intentos)."""
         cfg = self.cfg
         mid = (cfg.SLIPPAGE_BPS + cfg.EMERGENCY_SLIPPAGE_BPS) // 2
-        attempts = [cfg.EMERGENCY_SLIPPAGE_BPS] * 3 if emergency else [cfg.SLIPPAGE_BPS, mid, cfg.EMERGENCY_SLIPPAGE_BPS]
+        attempts = (
+            [cfg.EMERGENCY_SLIPPAGE_BPS] * 3 if emergency else [cfg.SLIPPAGE_BPS, mid, cfg.EMERGENCY_SLIPPAGE_BPS]
+        )
         error: Exception | None = None
         for bps in attempts:
             try:

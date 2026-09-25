@@ -5,7 +5,6 @@ from __future__ import annotations
 import math
 import threading
 import time
-from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -20,6 +19,7 @@ from .chain import raw_to_usd, usd_to_raw
 from .config import Config
 from .exits import exit_decision
 from .goals import apply_milestones, crossed_milestones, next_milestone, wealth
+from .learning import Journal
 from .market import USDC_MINT
 from .models import ExitPlan, PairMetrics, Position, State, Trade
 from .scanner import Candidate, Scanner
@@ -46,18 +46,24 @@ class Bot:
         store: Store,
         scanner: Scanner,
         agents: Agents,
+        journal: Journal,
         notify: Callable[[str], None],
         now: Callable[[], float] = time.time,
     ):
         self.cfg, self.state, self.store, self.scanner, self.notify, self.now = cfg, state, store, scanner, notify, now
-        self.director, self.quant, self.risk, self.execution = agents.director, agents.quant, agents.risk, agents.execution
+        self.director, self.quant, self.risk, self.execution = (
+            agents.director,
+            agents.quant,
+            agents.risk,
+            agents.execution,
+        )
         self.broker = agents.execution.broker
+        self.journal = journal
         self.last_cycle = -math.inf
         self.last_error = -math.inf
         self.last_fee_warning = -math.inf
         self.budget_warned_day = ""
         self.last_summary = now()
-        self.recent: deque[dict[str, Any]] = deque(maxlen=10)
 
     def run(self, stop: threading.Event) -> None:
         mode = "REAL" if self.cfg.MODE == "live" else "simulación"
@@ -92,12 +98,14 @@ class Bot:
                     self._manage_exits(held)
                     if self.now() - self.last_cycle >= self.cfg.DIRECTOR_MINUTES * 60:
                         self.last_cycle = self.now()
+                        self._learn()
                         self._investment_cycle(equity, held)
                 self._maybe_summary()
         except Exception as e:
             self._report_error(e)
         finally:
             self.store.save(s)
+            self.journal.save()
         return s.status == "running"
 
     # ---- fin del juego -------------------------------------------------------------------------
@@ -174,7 +182,9 @@ class Bot:
         s.withdrawn_usd += usd
         s.cash_usd = self.broker.cash_usd()
         self._record("withdraw", USDC_MINT, "USDC", usd, usd_to_raw(usd), reason, signature=signature)
-        self.notify(f"🏦 Retiro de {fmt_usd(usd)} a tu billetera ({reason}). Total retirado: {fmt_usd(s.withdrawn_usd)}.")
+        self.notify(
+            f"🏦 Retiro de {fmt_usd(usd)} a tu billetera ({reason}). Total retirado: {fmt_usd(s.withdrawn_usd)}."
+        )
 
     # ---- posiciones ----------------------------------------------------------------------------
 
@@ -232,15 +242,14 @@ class Bot:
         self._record("sell", p.mint, p.symbol, fill.usd, amount, reason, pnl_usd=pnl, signature=fill.signature)
         self.notify(f"🔴 Venta {p.symbol} ({reason}): {fmt_usd(fill.usd)}, resultado {signed_usd(pnl)}")
         if p.amount_raw == 0:
-            self._close(p)
+            self._close(p, reason)
         return True
 
-    def _close(self, p: Position) -> None:
+    def _close(self, p: Position, reason: str) -> None:
         s, cfg, now = self.state, self.cfg, self.now()
         s.positions = [x for x in s.positions if x is not p]
         s.cooldowns[p.mint] = now + cfg.REENTRY_COOLDOWN_HOURS * 3600
-        pnl_pct = p.realized_pnl_usd / p.invested_usd * 100 if p.invested_usd else 0
-        self.recent.append({"simbolo": p.symbol, "resultado_pct": round(pnl_pct, 1), "tesis": p.thesis[:160]})
+        self.journal.record_close(p, reason)
         if p.realized_pnl_usd >= 0:
             s.loss_streak = 0
             return
@@ -255,28 +264,55 @@ class Bot:
     def _free_cash(self) -> float:
         return self.broker.cash_usd() - self.state.pending_withdrawal_usd - self.broker.swap_fee_usd
 
+    def _learn(self) -> None:
+        """Mide cuánto multiplicó cada moneda observada y, cuando toca, hace la revisión y escribe lecciones."""
+        pending = self.journal.pending()
+        prices: dict[str, float] = {}
+        if pending:
+            try:
+                prices = {mint: m.price_usd for mint, m in self.scanner.market.metrics(pending).items()}
+            except Exception as e:
+                log.warning("no se pudieron seguir las monedas observadas: %s", e)
+        self.journal.track(prices, self.cfg)
+        if not self.journal.review_due(self.cfg):
+            return
+        try:
+            review = self.director.review(self.journal.stats(self.cfg), self.journal.lessons)
+        except BudgetExceeded as e:
+            self._budget_warning(e)
+            return
+        except AgentError as e:
+            log.warning("%s", e)
+            return
+        self.journal.apply_review(review.lessons, review.summary, self.cfg)
+        lessons = "\n".join(f"• {x}" for x in self.journal.lessons)
+        self.notify(f"🧠 Revisión: {self.journal.data.last_review_summary}\nLecciones:\n{lessons}")
+
     def _investment_cycle(self, equity: float, held: dict[str, PairMetrics]) -> None:
         s, cfg, now = self.state, self.cfg, self.now()
         for mint, until in list(s.cooldowns.items()):
             if until <= now:
                 del s.cooldowns[mint]
         can_open = (
-            now >= s.paused_until
-            and len(s.positions) < cfg.MAX_POSITIONS
-            and self._free_cash() >= cfg.MIN_TRADE_USD
+            now >= s.paused_until and len(s.positions) < cfg.MAX_POSITIONS and self._free_cash() >= cfg.MIN_TRADE_USD
         )
         if can_open and not self.broker.can_pay_fees():
             can_open = False
             if now - self.last_fee_warning >= 3600:
                 self.last_fee_warning = now
-                self.notify(f"Falta SOL para las comisiones (mínimo {cfg.SOL_FEE_RESERVE} SOL): no se abren posiciones.")
+                self.notify(
+                    f"Falta SOL para las comisiones (mínimo {cfg.SOL_FEE_RESERVE} SOL): no se abren posiciones."
+                )
         exclude = {p.mint for p in s.positions} | set(s.cooldowns)
-        candidates = self.scanner.candidates(exclude) if can_open else []
+        # El escáner corre siempre para que el bot siga observando y aprendiendo,
+        # aunque solo se le pasan candidatas al director cuando se puede comprar.
+        found = self.scanner.candidates(exclude)
+        candidates = found if can_open else []
         if not candidates and not s.positions:
             return  # nada que analizar: no se gasta en IA
 
         try:
-            report = self.director.run(candidates, self._portfolio(equity, held), now)
+            report = self.director.run(candidates, self._portfolio(equity, held), now, self.journal.lessons)
         except BudgetExceeded as e:
             self._budget_warning(e)
             return
@@ -291,11 +327,13 @@ class Bot:
             if not can_open or len(s.positions) >= cfg.MAX_POSITIONS or self._free_cash() < cfg.MIN_TRADE_USD:
                 break
             candidate = by_mint[thesis.mint]
+            self.journal.mark(thesis.mint, "tesis")
             try:
-                verdict = self.quant.run(thesis, candidate, now)
+                verdict = self.quant.run(thesis, candidate, now, self.journal.lessons)
                 if not verdict.approved:
                     log.info("quant rechazó %s: %s", thesis.symbol, verdict.reasoning)
                     continue
+                self.journal.mark(thesis.mint, "aprobada por el quant")
                 decision = self.risk.run(thesis, verdict, candidate, self._portfolio(equity, held), now)
             except BudgetExceeded as e:
                 self._budget_warning(e)
@@ -327,7 +365,7 @@ class Bot:
         entry = fill.usd / (fill.amount_raw / 10**c.decimals)
         plan = ExitPlan(
             stop_loss_pct=d.stop_loss_pct,
-            take_profit_pct=d.take_profit_pct,
+            take_profit_pct=self.cfg.TAKE_PROFIT_PCT,
             trailing_stop_pct=d.trailing_stop_pct,
             max_hold_minutes=d.max_hold_minutes,
         )
@@ -347,10 +385,12 @@ class Bot:
                 thesis=thesis.thesis,
             )
         )
+        self.journal.mark(m.mint, "comprada")
         self._record("buy", m.mint, m.symbol, fill.usd, fill.amount_raw, thesis.thesis[:200], signature=fill.signature)
         self.notify(
             f"🟢 Compra {m.symbol}: {fmt_usd(fill.usd)}. Tesis: {thesis.thesis[:200]} "
-            f"| stop -{plan.stop_loss_pct:g}% · objetivo +{plan.take_profit_pct:g}%"
+            f"| stop -{plan.stop_loss_pct:g}% · vende la mitad en +{plan.take_profit_pct:g}% "
+            f"· stop dinámico {plan.trailing_stop_pct:g}%"
         )
 
     def _portfolio(self, equity: float, held: dict[str, PairMetrics]) -> dict[str, Any]:
@@ -375,7 +415,7 @@ class Bot:
                 for p in s.positions
             ],
             "racha_de_perdidas": s.loss_streak,
-            "ultimas_operaciones": list(self.recent),
+            "ultimas_operaciones": self.journal.recent_trades(),
             "metas": {
                 "patrimonio_usd": round(wealth(s, equity), 2),
                 "retirado_usd": round(s.withdrawn_usd, 2),
@@ -399,8 +439,15 @@ class Bot:
     ) -> None:
         self.state.trades += 1
         trade = Trade(
-            at=self.now(), side=side, mint=mint, symbol=symbol, usd=usd,  # type: ignore[arg-type]
-            amount_raw=amount_raw, reason=reason, pnl_usd=pnl_usd, signature=signature,
+            at=self.now(),
+            side=side,
+            mint=mint,
+            symbol=symbol,
+            usd=usd,  # type: ignore[arg-type]
+            amount_raw=amount_raw,
+            reason=reason,
+            pnl_usd=pnl_usd,
+            signature=signature,
         )
         self.store.append_trade(trade)
 

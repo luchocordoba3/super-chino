@@ -27,15 +27,19 @@ acompaña la suba, compras dominando en 5 minutos y en 1 hora, liquidez suficien
 ninguna alerta grave. Si la tesis se apoya en algo que los datos no muestran, rechazala.
 
 Sé exigente: en memecoins la mayoría de las tesis fallan. Explicá tu razonamiento en pocas oraciones y listá \
-las señales de alerta."""
+las señales de alerta. Tené en cuenta las lecciones aprendidas: salen de medir qué pasó con todas las \
+monedas que vio el bot."""
 
 
 class Quant:
     def __init__(self, llm: Asker, cfg: Config):
         self.llm, self.cfg = llm, cfg
 
-    def run(self, thesis: Thesis, candidate: Candidate, now: float) -> QuantVerdict:
-        prompt = json.dumps({"tesis": thesis.model_dump(), "datos": candidate.describe(now)}, ensure_ascii=False)
+    def run(self, thesis: Thesis, candidate: Candidate, now: float, lessons: list[str]) -> QuantVerdict:
+        prompt = json.dumps(
+            {"tesis": thesis.model_dump(), "datos": candidate.describe(now), "lecciones_aprendidas": lessons},
+            ensure_ascii=False,
+        )
         return self.llm.ask(
             agent="quant",
             model=self.cfg.QUANT_MODEL,

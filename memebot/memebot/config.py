@@ -51,14 +51,17 @@ class Config(BaseModel):
     MAX_THESES: int = Field(3, ge=1)
     LLM_DAILY_BUDGET_USD: float = Field(20, ge=0)
 
-    # Topes duros de riesgo: ningún agente los puede pasar
-    MAX_POSITIONS: int = Field(3, ge=1)
-    MAX_POSITION_PCT: float = Field(25, gt=0, le=100)
+    # Topes duros de riesgo: ningún agente los puede pasar.
+    # Muchas apuestas chicas: la mayoría pierde poco y unas pocas ganadoras pagan todo.
+    MAX_POSITIONS: int = Field(8, ge=1)
+    MAX_POSITION_PCT: float = Field(5, gt=0, le=100)
     MAX_POOL_FRACTION: float = Field(0.02, gt=0, le=1)
     MAX_PRICE_IMPACT_PCT: float = Field(2, ge=0)
     MIN_TRADE_USD: float = Field(5, ge=0)
     STOP_LOSS_MIN_PCT: float = Field(5, gt=0)
     STOP_LOSS_MAX_PCT: float = Field(40, gt=0, lt=100)
+    TRAILING_STOP_MIN_PCT: float = Field(15, gt=0)
+    TRAILING_STOP_MAX_PCT: float = Field(60, gt=0, lt=100)
     MAX_HOLD_MINUTES: int = Field(24 * 60, ge=10)
     SLIPPAGE_BPS: int = Field(300, ge=1)
     EMERGENCY_SLIPPAGE_BPS: int = Field(1500, ge=1)
@@ -75,7 +78,8 @@ class Config(BaseModel):
     MIN_BUY_SELL_RATIO: float = 1.2
     MIN_SCORE: float = 0.5
 
-    # Salidas
+    # Salidas: al subir TAKE_PROFIT_PCT se vende esa fracción y el resto queda corriendo
+    TAKE_PROFIT_PCT: float = Field(100, gt=0)
     TAKE_PROFIT_SELL_FRACTION: float = Field(0.5, gt=0, le=1)
     TIME_STOP_MIN_GAIN_PCT: float = 10
     RUG_LIQ_DROP_PCT: float = Field(50, gt=0, le=100)
@@ -85,6 +89,13 @@ class Config(BaseModel):
     PAUSE_MINUTES: float = Field(60, ge=0)
     REENTRY_COOLDOWN_HOURS: float = Field(6, ge=0)
     TICK_SECONDS: float = Field(15, gt=0)
+
+    # Aprendizaje: seguimiento de todas las monedas vistas y revisión periódica
+    OBSERVE_HOURS: float = Field(24, gt=0)
+    REVIEW_HOURS: float = Field(24, gt=0)
+    WINNER_MULTIPLE: float = Field(3, gt=1)
+    MIN_REVIEW_OBSERVATIONS: int = Field(20, ge=1)
+    MAX_LESSONS: int = Field(10, ge=1)
 
     @field_validator("MILESTONES_USD", mode="before")
     @classmethod
@@ -100,6 +111,8 @@ class Config(BaseModel):
             raise ValueError("MILESTONES_USD tiene que ir de menor a mayor, sin repetir y por debajo de TARGET_USD")
         if self.STOP_LOSS_MIN_PCT > self.STOP_LOSS_MAX_PCT:
             raise ValueError("STOP_LOSS_MIN_PCT no puede ser mayor que STOP_LOSS_MAX_PCT")
+        if self.TRAILING_STOP_MIN_PCT > self.TRAILING_STOP_MAX_PCT:
+            raise ValueError("TRAILING_STOP_MIN_PCT no puede ser mayor que TRAILING_STOP_MAX_PCT")
         return self
 
 

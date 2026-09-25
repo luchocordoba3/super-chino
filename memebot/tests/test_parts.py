@@ -53,13 +53,10 @@ def test_varias_metas_juntas_hacen_un_solo_retiro():
 
 def test_los_topes_duros_recortan_la_decision():
     d = RiskDecision(
-        approve=True, size_pct=80, stop_loss_pct=1, take_profit_pct=5000, trailing_stop_pct=90,
-        max_hold_minutes=100_000, rationale="",
+        approve=True, size_pct=80, stop_loss_pct=1, trailing_stop_pct=90, max_hold_minutes=100_000, rationale=""
     )
     c = enforce_limits(d, cfg_with())
-    assert (c.size_pct, c.stop_loss_pct, c.take_profit_pct, c.trailing_stop_pct, c.max_hold_minutes) == (
-        25, 5, 1000, 50, 24 * 60,
-    )
+    assert (c.size_pct, c.stop_loss_pct, c.trailing_stop_pct, c.max_hold_minutes) == (5, 5, 60, 24 * 60)
 
 
 class _Out(BaseModel):
@@ -71,10 +68,14 @@ def _fake_client(model_served: str):
 
     def parse(**kw):
         calls.append(kw)
-        usage = SimpleNamespace(input_tokens=10_000, output_tokens=2_000, cache_creation_input_tokens=0, cache_read_input_tokens=0)
+        usage = SimpleNamespace(
+            input_tokens=10_000, output_tokens=2_000, cache_creation_input_tokens=0, cache_read_input_tokens=0
+        )
         return SimpleNamespace(model=model_served, usage=usage, stop_reason="end_turn", parsed_output=_Out(ok=True))
 
-    client = SimpleNamespace(messages=SimpleNamespace(parse=parse), beta=SimpleNamespace(messages=SimpleNamespace(parse=parse)))
+    client = SimpleNamespace(
+        messages=SimpleNamespace(parse=parse), beta=SimpleNamespace(messages=SimpleNamespace(parse=parse))
+    )
     return client, calls
 
 
@@ -109,7 +110,10 @@ def test_configuracion():
     c = parse_config({"MILESTONES_USD": "1000, 5000", "TARGET_USD": "9000", "MODE": ""})
     assert c.MILESTONES_USD == [1000, 5000] and c.MODE == "paper"
     assert parse_config({}).MILESTONES_USD == [100_000, 300_000, 600_000, 1_000_000, 1_500_000]
-    assert parse_config({}).TARGET_USD == 2_000_000
+    defaults = parse_config({})
+    assert defaults.TARGET_USD == 2_000_000
+    # Muchas apuestas chicas: 5% por compra, hasta 8 posiciones, vende la mitad al duplicar.
+    assert (defaults.MAX_POSITION_PCT, defaults.MAX_POSITIONS, defaults.TAKE_PROFIT_PCT) == (5, 8, 100)
     with pytest.raises(ValidationError):
         parse_config({"MILESTONES_USD": "300000,100000"})
     with pytest.raises(ValidationError):
@@ -148,15 +152,20 @@ def test_puntaje():
 
 def _pair(**o):
     base = {
-        "chainId": "solana", "dexId": "raydium", "pairAddress": "P1",
+        "chainId": "solana",
+        "dexId": "raydium",
+        "pairAddress": "P1",
         "baseToken": {"address": "MEME", "name": "Meme", "symbol": "MEME"},
         "quoteToken": {"address": SOL_MINT, "symbol": "SOL"},
-        "priceNative": "0.00001", "priceUsd": "0.0015",
+        "priceNative": "0.00001",
+        "priceUsd": "0.0015",
         "txns": {"m5": {"buys": 30, "sells": 10}, "h1": {"buys": 300, "sells": 150}},
         "volume": {"h24": 1_000_000, "h6": 500_000, "h1": 100_000, "m5": 20_000},
         "priceChange": {"m5": 3.2, "h1": 45, "h6": 120, "h24": 300},
         "liquidity": {"usd": 80_000, "base": 1, "quote": 2},
-        "fdv": 1_500_000, "marketCap": 1_400_000, "pairCreatedAt": 1_758_800_000_000,
+        "fdv": 1_500_000,
+        "marketCap": 1_400_000,
+        "pairCreatedAt": 1_758_800_000_000,
     }
     return {**base, **o}
 
@@ -172,12 +181,20 @@ def test_dexscreener_elige_el_mejor_par_y_descarta_incompletos():
     out = best_pairs(payload)
     assert list(out) == ["MEME"]
     m = out["MEME"]
-    assert (m.price_usd, m.liquidity_usd, m.buys_m5, m.volume_h1, m.created_at) == (0.0016, 120_000, 30, 100_000, 1_758_800_000)
+    assert (m.price_usd, m.liquidity_usd, m.buys_m5, m.volume_h1, m.created_at) == (
+        0.0016,
+        120_000,
+        30,
+        100_000,
+        1_758_800_000,
+    )
     assert len(best_pairs({"pairs": [_pair()]})) == 1 and best_pairs(None) == {}
 
 
 def test_listas_de_monedas():
-    assert dexscreener_mints([{"chainId": "solana", "tokenAddress": "A"}, {"chainId": "ethereum", "tokenAddress": "B"}, 3]) == ["A"]
+    assert dexscreener_mints(
+        [{"chainId": "solana", "tokenAddress": "A"}, {"chainId": "ethereum", "tokenAddress": "B"}, 3]
+    ) == ["A"]
     gecko = {"data": [{"relationships": {"base_token": {"data": {"id": "solana_MEME"}}}}, {"id": "raro"}]}
     assert gecko_mints(gecko) == ["MEME"] and gecko_mints({}) == []
 
@@ -192,8 +209,16 @@ def _mint(program="spl-token", **info):
     [
         (_mint(mintAuthority="X"), "alguien puede emitir más monedas"),
         (_mint(freezeAuthority="X"), "alguien puede congelar monedas"),
-        (_mint("spl-token-2022", extensions=[{"extension": "transferFeeConfig", "state": {}}]), "extensión peligrosa: transferFeeConfig"),
-        (_mint("spl-token-2022", extensions=[{"extension": "defaultAccountState", "state": {"accountState": "frozen"}}]), "extensión peligrosa: defaultAccountState"),
+        (
+            _mint("spl-token-2022", extensions=[{"extension": "transferFeeConfig", "state": {}}]),
+            "extensión peligrosa: transferFeeConfig",
+        ),
+        (
+            _mint(
+                "spl-token-2022", extensions=[{"extension": "defaultAccountState", "state": {"accountState": "frozen"}}]
+            ),
+            "extensión peligrosa: defaultAccountState",
+        ),
         ({"parsed": {"type": "account", "info": {}}}, "no es un token"),
         ({"parsed": {"type": "mint", "info": {"decimals": 6}}}, "datos del token ilegibles"),
         (None, "no es un token"),

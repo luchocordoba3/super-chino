@@ -4,7 +4,7 @@ Bot en Python que opera memecoins en Solana, solo y las 24 horas, con cuatro age
 
 | Agente | Qué hace | Cómo |
 |---|---|---|
-| **Director** | Genera tesis de inversión y pide cerrar las posiciones cuya tesis se invalidó | Claude Opus 5 |
+| **Director** | Genera tesis de inversión, pide cerrar las posiciones cuya tesis se invalidó y una vez por día escribe las lecciones aprendidas | Claude Opus 5 |
 | **Quant** | Valida cada tesis contra los datos; si los números no la sostienen, la rechaza | Claude Sonnet 5 |
 | **Risk manager** | Decide el tamaño y el plan de salida (stop-loss, toma de ganancia, stop dinámico, plazo) | Claude Sonnet 5 |
 | **Ejecución** | Compra, vende y retira en Solana: cotiza, controla el impacto en el precio, firma y confirma | Código, sin IA |
@@ -46,8 +46,8 @@ Los retiros solo pueden ir a `WITHDRAW_ADDRESS`, que sale del `.env`: ningún ag
 ## Cómo funciona un ciclo
 
 1. **Cada 15 segundos (sin IA):** revisa las posiciones abiertas y aplica el plan de salida de cada una.
-   - **Stop-loss:** vende todo si cae el porcentaje que fijó el risk manager.
-   - **Toma de ganancia:** al alcanzarla vende la mitad. Al resto le aplica un stop que sigue el precio máximo.
+   - **Stop-loss:** vende todo si cae el porcentaje que fijó el risk manager (entre 5% y 40%).
+   - **Al duplicar:** vende la mitad, con lo que recupera lo invertido. El resto queda corriendo con un stop que sigue el precio máximo (entre 15% y 60%, lo elige el risk manager), para no cortar una moneda que va a multiplicar.
    - **Plazo:** vende si se cumple el plazo de la tesis sin que la moneda haya despegado.
    - **Emergencia:** vende de urgencia si la liquidez cae más de 50%.
 2. **Cada 15 minutos:**
@@ -58,14 +58,30 @@ Los retiros solo pueden ir a `WITHDRAW_ADDRESS`, que sale del `.env`: ningún ag
       - hay ruta para vender.
    2. **Director:** recibe las candidatas y la cartera. Propone hasta 3 tesis o ninguna, y puede pedir cerrar posiciones abiertas.
    3. **Quant:** valida cada tesis, empezando por la de mayor convicción.
-   4. **Risk manager:** para cada tesis aprobada, decide el tamaño y el plan de salida.
+   4. **Risk manager:** para cada tesis aprobada, decide el tamaño (hasta 5% del capital) y el plan de salida. Puede haber hasta 8 posiciones abiertas a la vez.
    5. **Ejecución:** compra, con un tope de impacto en el precio y a través de Jupiter.
-3. **Frenos automáticos:**
+3. **Aprendizaje:** en cada ciclo mide cuánto multiplicó cada moneda que vio, y una vez por día el director escribe lecciones (ver abajo).
+4. **Frenos automáticos:**
    - Después de 4 pérdidas seguidas se toma 60 minutos sin comprar.
    - No vuelve a entrar en la misma moneda por 6 horas.
    - Si se agota el presupuesto diario de IA, no hace compras nuevas hasta el día siguiente, pero las salidas siguen funcionando.
 
 Si no hay candidatas ni posiciones abiertas, no llama a la IA y no gasta.
+
+## Cómo aprende
+
+La estrategia es de muchas apuestas chicas: hasta 5% del capital por compra y hasta 8 posiciones a la vez. La mayoría va a perder poco por el stop-loss; la idea es que unas pocas ganadoras paguen todo.
+
+Para aprender a reconocerlas, el bot no mira solo sus operaciones:
+1. **Sigue todas las monedas que ve el escáner**, las compre o no, durante 24 horas, y mide cuánto multiplicaron. También guarda hasta dónde llegó cada una: si la filtró, si la descartó por insegura, si el director la propuso o si la compró.
+2. **Una vez por día, el director revisa:**
+   - cómo eran, en el momento en que el bot las vio, las que multiplicaron por 3 o más y las que se desplomaron;
+   - qué ganadoras se le escaparon y por qué.
+
+   Con eso escribe hasta 10 lecciones concretas.
+3. **El director y el quant leen esas lecciones en cada ciclo.** En cada revisión se confirman, se corrigen o se descartan.
+
+El diario queda en `data/learning.json` y se comparte entre simulación y real, así que lo que aprende mientras simulás lo usa cuando arranques con plata. `status` muestra las lecciones vigentes, y la revisión cuesta centavos por día. Con pocos días de datos, las lecciones son hipótesis, no reglas: el aprendizaje mejora a medida que junta observaciones.
 
 ## 1. Probar en simulación
 
@@ -109,7 +125,7 @@ Si Jupiter empieza a pedir clave de API, sacala gratis en portal.jup.ag y poné 
 | `python -m memebot status` | Patrimonio, metas, retiros, gasto en IA y posiciones |
 | `python -m memebot panic` | En el próximo ciclo vende todo y no consulta más a los agentes |
 | `python -m memebot resume` | Desactiva el pánico |
-| `python -m memebot reset --yes` | Archiva el estado (no lo borra) para empezar de cero. Primero detené el bot |
+| `python -m memebot reset --yes` | Archiva el estado (no lo borra) para empezar de cero; las lecciones se conservan. Primero detené el bot |
 
 Ctrl+C lo detiene ordenadamente: termina el ciclo, guarda el estado y, al volver a arrancar, retoma las posiciones abiertas.
 

@@ -14,34 +14,33 @@ from .director import Thesis
 from .llm import Asker
 from .quant import QuantVerdict
 
-TAKE_PROFIT_RANGE = (5.0, 1000.0)
-TRAILING_STOP_RANGE = (5.0, 50.0)
 MIN_HOLD_MINUTES = 10
 
 
 class RiskDecision(BaseModel):
     approve: bool
     size_pct: float = Field(description="Porcentaje del capital a invertir")
-    stop_loss_pct: float
-    take_profit_pct: float
-    trailing_stop_pct: float
-    max_hold_minutes: int
+    stop_loss_pct: float = Field(description="Stop-loss antes de duplicar")
+    trailing_stop_pct: float = Field(description="Stop dinámico de lo que queda corriendo, desde el máximo")
+    max_hold_minutes: int = Field(description="Plazo para que la tesis despegue")
     rationale: str
 
 
-SYSTEM = """Sos el risk manager de un bot que opera memecoins en Solana. Para cada tesis aprobada por el quant \
-decidís cuánto arriesgar y el plan de salida.
+SYSTEM = """Sos el risk manager de un bot que opera memecoins en Solana con una estrategia de muchas apuestas \
+chicas: la mayoría pierde poco por el stop-loss y unas pocas ganadoras pagan todo. Para cada tesis aprobada por \
+el quant decidís el tamaño y cómo salir.
 
-Topes que se aplican siempre (si los pasás, se recortan):
-- tamaño: hasta {max_pos}% del capital por operación;
-- stop-loss: entre {sl_min}% y {sl_max}%;
-- toma de ganancia: entre {tp_min}% y {tp_max}% (al alcanzarla se vende el {tp_sell}% de la posición);
-- stop dinámico después de la toma de ganancia: entre {tr_min}% y {tr_max}% desde el máximo;
-- plazo máximo: entre {hold_min} y {hold_max} minutos.
+Una parte del plan de salida es fija: cuando la moneda sube +{tp}%, se vende el {tp_sell}% de la posición \
+(se recupera lo invertido) y el resto queda corriendo. Vos elegís:
+- tamaño: hasta {max_pos}% del capital;
+- stop-loss antes de llegar a +{tp}%: entre {sl_min}% y {sl_max}%;
+- stop dinámico de lo que queda corriendo: entre {tr_min}% y {tr_max}% desde el máximo (más amplio deja \
+correr más a una ganadora, pero devuelve más ganancia si se da vuelta);
+- plazo: entre {hold_min} y {hold_max} minutos; si en ese plazo no sube al menos {min_gain}%, se vende.
+Si pasás un tope, se recorta.
 
 Tené en cuenta la convicción del director, la confianza del quant, cuánto capital ya está invertido, la racha \
-de pérdidas y el avance hacia las metas. Si el riesgo no se justifica, no apruebes. Nunca propongas más que el \
-efectivo libre."""
+de pérdidas y el avance hacia las metas. Si el riesgo no se justifica, no apruebes."""
 
 
 def enforce_limits(d: RiskDecision, cfg: Config) -> RiskDecision:
@@ -50,8 +49,7 @@ def enforce_limits(d: RiskDecision, cfg: Config) -> RiskDecision:
         update={
             "size_pct": clamp(d.size_pct, 0, cfg.MAX_POSITION_PCT),
             "stop_loss_pct": clamp(d.stop_loss_pct, cfg.STOP_LOSS_MIN_PCT, cfg.STOP_LOSS_MAX_PCT),
-            "take_profit_pct": clamp(d.take_profit_pct, *TAKE_PROFIT_RANGE),
-            "trailing_stop_pct": clamp(d.trailing_stop_pct, *TRAILING_STOP_RANGE),
+            "trailing_stop_pct": clamp(d.trailing_stop_pct, cfg.TRAILING_STOP_MIN_PCT, cfg.TRAILING_STOP_MAX_PCT),
             "max_hold_minutes": int(clamp(d.max_hold_minutes, MIN_HOLD_MINUTES, cfg.MAX_HOLD_MINUTES)),
         }
     )
@@ -61,16 +59,16 @@ class RiskManager:
     def __init__(self, llm: Asker, cfg: Config):
         self.llm, self.cfg = llm, cfg
         self.system = SYSTEM.format(
-            max_pos=cfg.MAX_POSITION_PCT,
-            sl_min=cfg.STOP_LOSS_MIN_PCT,
-            sl_max=cfg.STOP_LOSS_MAX_PCT,
-            tp_min=TAKE_PROFIT_RANGE[0],
-            tp_max=TAKE_PROFIT_RANGE[1],
+            tp=f"{cfg.TAKE_PROFIT_PCT:g}",
             tp_sell=round(cfg.TAKE_PROFIT_SELL_FRACTION * 100),
-            tr_min=TRAILING_STOP_RANGE[0],
-            tr_max=TRAILING_STOP_RANGE[1],
+            max_pos=f"{cfg.MAX_POSITION_PCT:g}",
+            sl_min=f"{cfg.STOP_LOSS_MIN_PCT:g}",
+            sl_max=f"{cfg.STOP_LOSS_MAX_PCT:g}",
+            tr_min=f"{cfg.TRAILING_STOP_MIN_PCT:g}",
+            tr_max=f"{cfg.TRAILING_STOP_MAX_PCT:g}",
             hold_min=MIN_HOLD_MINUTES,
             hold_max=cfg.MAX_HOLD_MINUTES,
+            min_gain=f"{cfg.TIME_STOP_MIN_GAIN_PCT:g}",
         )
 
     def run(

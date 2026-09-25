@@ -142,6 +142,19 @@ export const PosEventSchema = z.discriminatedUnion('type', [
     countedAmount: Money.min(0),
     notes: z.string().max(500).optional(),
   }),
+  /** El cliente pidió factura de una venta: se manda después de la venta (anda sin internet). */
+  z.object({
+    ...base,
+    type: z.literal('INVOICE_REQUEST'),
+    saleId: z.string().min(1),
+    /** 80 = CUIT, 96 = DNI, 99 = consumidor final sin identificar. */
+    docType: z.union([z.literal(80), z.literal(96), z.literal(99)]),
+    /** Con o sin guiones y puntos (se guardan solo los números). */
+    docNumber: z.string().trim().max(15).default('0'),
+    customerName: z.string().trim().max(80).optional(),
+    /** Condición del cliente: 1 = responsable inscripto, 5 = consumidor final, 6 = monotributo. */
+    customerVat: z.union([z.literal(1), z.literal(5), z.literal(6)]).default(5),
+  }),
   /** "Se está terminando": el empleado avisa desde la caja que queda poco de un producto. */
   z.object({ ...base, type: z.literal('SHORTAGE'), productId: z.string().min(1) }),
   /** Fichaje de entrada o salida en la PC de la caja. */

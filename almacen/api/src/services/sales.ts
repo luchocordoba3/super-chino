@@ -4,6 +4,8 @@ import { type Db, num, numOrNull, prisma, type Tx } from '../db';
 import { stockLevel } from '../domain/stockLevel';
 import { type NewAlert, notifyAlerts, raiseAlert, resolveAlert } from './alerts';
 import { clock } from './attendance';
+import { HttpError } from '../lib/http';
+import { authorizeInvoice, requestInvoice } from './arca';
 import { afterCreate, createMessage } from './messages';
 import { publish } from './notify';
 import { type Allocation } from '../domain/fefo';
@@ -305,6 +307,22 @@ async function applyEvent(tx: Tx, ctx: Ctx, ev: PosEvent) {
       return []; // queda registrado en PosEvent para el control anti-pérdidas
     case 'SHORTAGE':
       return [await reportShortage(tx, ctx.storeId, ev.productId, ev.userId)];
+    case 'INVOICE_REQUEST': {
+      // El cliente pidió factura: queda pendiente y se le pide el CAE a ARCA al confirmar.
+      const inv = await requestInvoice(tx, {
+        storeId: ctx.storeId,
+        saleId: ev.saleId,
+        docType: ev.docType,
+        docNumber: ev.docNumber,
+        customerName: ev.customerName,
+        customerVat: ev.customerVat,
+      }).catch((e) => {
+        if (e instanceof HttpError) throw new RejectError(e.code);
+        throw e;
+      });
+      if (inv.status !== 'AUTHORIZED') ctx.onCommit.push(() => void authorizeInvoice(ctx.storeId, inv.id));
+      return [];
+    }
     case 'TAB_OPEN':
       await tx.tab.upsert({
         where: { id: ev.tabId },

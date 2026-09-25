@@ -29,6 +29,7 @@ import { Sold } from './pages/Sold';
 import { QrSheet } from './pages/MercadoPago';
 import { MenuPage } from './pages/Menu';
 import { ShopPage } from './pages/Shop';
+import { InvoicePage } from './pages/Invoice';
 import { Orders } from './pages/Orders';
 import { Team } from './pages/Team';
 import { Attendance } from './pages/Attendance';
@@ -37,7 +38,7 @@ export function App() {
   const location = useLocation();
   const isPos = location.pathname.startsWith('/pos');
   // La carta del menú QR es pública: la abre el cliente desde la mesa, sin cuenta.
-  const isMenu = location.pathname.startsWith('/m/') || location.pathname.startsWith('/p/');
+  const isMenu = ['/m/', '/p/', '/f/'].some((prefix) => location.pathname.startsWith(prefix));
   const me = useQuery({ ...meQuery, enabled: !isPos && !isMenu });
 
   useEffect(() => {
@@ -54,6 +55,7 @@ export function App() {
         <Routes>
           <Route path="/m/:token" element={<MenuPage />} />
           <Route path="/p/:slug" element={<ShopPage />} />
+          <Route path="/f/:token" element={<InvoicePage />} />
         </Routes>
       </>
     );

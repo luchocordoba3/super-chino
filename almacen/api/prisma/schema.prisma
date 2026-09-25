@@ -713,3 +713,57 @@ model OrderItem {
   qty       Decimal @db.Decimal(12, 3)
   unitPrice Decimal @db.Decimal(14, 2)
 }
+
+/// Datos para facturar en ARCA (factura electrónica). El certificado, la clave y el acceso van cifrados.
+model FiscalConfig {
+  storeId      String    @id
+  cuit         String
+  businessName String
+  address      String?
+  /// MONOTRIBUTO (factura C) | RESPONSABLE_INSCRIPTO (B a consumidor final, A a otro responsable inscripto)
+  taxStatus    String
+  pointOfSale  Int
+  /// IVA que se discrimina en facturas A y B (%).
+  vatRate      Decimal   @default(21) @db.Decimal(5, 2)
+  production   Boolean   @default(false)
+  enabled      Boolean   @default(true)
+  certPem      String
+  keyPem       String
+  /// Acceso de WSAA (dura 12 horas).
+  wsaaToken    String?
+  wsaaSign     String?
+  wsaaExpires  DateTime?
+  updatedAt    DateTime  @updatedAt
+}
+
+/// Factura electrónica de una venta (solo si el cliente la pide).
+model Invoice {
+  id           String    @id @default(cuid())
+  storeId      String
+  saleId       String    @unique
+  /// Para ver la factura sin cuenta (link que se manda por WhatsApp).
+  publicToken  String    @unique
+  /// 1 = A, 6 = B, 11 = C
+  type         Int
+  pointOfSale  Int
+  number       Int?
+  /// 80 = CUIT, 96 = DNI, 99 = consumidor final
+  docType      Int
+  docNumber    String
+  customerName String?
+  /// 1 = responsable inscripto, 5 = consumidor final, 6 = monotributo
+  customerVat  Int
+  total        Decimal   @db.Decimal(14, 2)
+  net          Decimal   @db.Decimal(14, 2)
+  vat          Decimal   @db.Decimal(14, 2)
+  cae          String?
+  caeDue       DateTime?
+  issuedAt     DateTime?
+  /// PENDING | AUTHORIZED | ERROR
+  status       String    @default("PENDING")
+  error        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([storeId, status])
+}

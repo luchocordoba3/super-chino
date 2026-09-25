@@ -40,6 +40,9 @@ export const env = {
   MP_WEBHOOK_SECRET: process.env.MP_WEBHOOK_SECRET ?? '',
   MP_API_BASE: process.env.MP_API_BASE || 'https://api.mercadopago.com',
   MP_AUTH_BASE: process.env.MP_AUTH_BASE || 'https://auth.mercadopago.com',
+  /** ARCA (factura electrónica): se pueden cambiar las direcciones para pruebas. */
+  ARCA_WSAA_URL: process.env.ARCA_WSAA_URL ?? '',
+  ARCA_WSFE_URL: process.env.ARCA_WSFE_URL ?? '',
   /** Clave para guardar cifradas las credenciales de terceros (Mercado Pago, ARCA). Si falta, se usa JWT_SECRET. */
   SECRETS_KEY: process.env.SECRETS_KEY ?? '',
 };

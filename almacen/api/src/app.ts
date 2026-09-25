@@ -14,6 +14,7 @@ import { aiRoutes } from './routes/ai';
 import { mpRoutes } from './routes/mp';
 import { menuRoutes } from './routes/menu';
 import { shopRoutes } from './routes/shop';
+import { fiscalRoutes } from './routes/fiscal';
 import { attendanceRoutes } from './routes/attendance';
 import { authRoutes } from './routes/auth';
 import { importRoutes } from './routes/import';
@@ -73,6 +74,7 @@ export async function buildApp(opts: FastifyServerOptions = {}) {
       await mpRoutes(api);
       await menuRoutes(api);
       await shopRoutes(api);
+      await fiscalRoutes(api);
     },
     { prefix: '/api' },
   );

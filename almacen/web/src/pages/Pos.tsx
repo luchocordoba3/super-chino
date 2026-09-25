@@ -13,6 +13,7 @@ import { verifyPin } from '../pos/pin';
 import { enqueue, flushOutbox, getDeviceToken, linkDevice, pendingCount, posGet, posPost, refreshCatalog, refreshTabs, syncEvents, UnlinkedError, unsyncedOfferQty } from '../pos/sync';
 import { acceptPending, cancelTab, openTab, rejectPending, setTabQty } from '../pos/tabs';
 import { openOrderCount, type OrderRow, type OrderStatus, OrdersList } from './Orders';
+import { type InvoiceCustomer, InvoiceCustomerForm, InvoiceStatus, type InvoiceView } from './Invoice';
 
 type Phase = 'loading' | 'unlinked' | 'pick' | 'open' | 'sell';
 const uuid = () => crypto.randomUUID();
@@ -427,6 +428,7 @@ function SellScreen(props: {
   const [clocking, setClocking] = useState(false);
   const [moving, setMoving] = useState(false);
   const [short, setShort] = useState(false);
+  const [invoicing, setInvoicing] = useState<LocalSale | null>(null);
   /** Avisa al dueño que se está terminando (queda en la cola: anda sin internet). */
   const reportShortage = async (productId: string, name: string) => {
     await enqueue({ id: uuid(), type: 'SHORTAGE', userId: cashier.id, occurredAt: nowIso(), productId });
@@ -656,7 +658,7 @@ function SellScreen(props: {
   // El teclado lee el estado de este render (se actualiza antes de pintar): así F12 nunca ve un carrito viejo.
   const keys = useRef({ blocked: false, hasTicket: false, escape: () => {}, scan: (_code: string) => {} });
   keys.current = {
-    blocked: !!(paying || done || closing || weightFor || clocking || moving || short || openingTab),
+    blocked: !!(paying || done || closing || weightFor || clocking || moving || short || openingTab || invoicing),
     hasTicket: ticket.length > 0,
     escape: () => (results ? setResults(null) : clearCart()),
     scan: (code) => void onScan(code),
@@ -862,6 +864,11 @@ function SellScreen(props: {
             <button className="small ghost" onClick={() => print(s)} title={t('pos.printTicket')}>
               🖨
             </button>
+            {store?.invoicing && !s.voided && (
+              <button className="small ghost" onClick={() => setInvoicing(s)} title={t('invoice.button')} aria-label={t('invoice.button')}>
+                🧾
+              </button>
+            )}
             {!s.voided && (
               <button className="small danger" onClick={() => void voidSale(s)}>
                 {t('pos.voidSale')}
@@ -909,6 +916,7 @@ function SellScreen(props: {
               </div>
             )}
             <button onClick={() => print(done)}>🖨 {t('pos.printTicket')}</button>
+            {store?.invoicing && <button onClick={() => setInvoicing(done)}>🧾 {t('invoice.button')}</button>}
             <button className="primary big" autoFocus onClick={() => (setDone(null), focus())}>
               {t('pos.newSale')}
             </button>
@@ -916,6 +924,9 @@ function SellScreen(props: {
         </Modal>
       )}
       {closing && <CloseCash session={session} cashier={cashier} recent={recent} openTabs={tabs.length} onClose={() => setClosing(false)} onClosed={props.onClosed} />}
+      {invoicing && (
+        <PosInvoice sale={invoicing} cashier={cashier} ri={store?.invoicing === 'RESPONSABLE_INSCRIPTO'} onClose={() => (setInvoicing(null), focus())} />
+      )}
       {showOrders && (
         <Modal title={`🛵 ${t('orders.title')}`} onClose={() => setShowOrders(false)}>
           <OrdersList orders={orders} onStatus={orderStatus} onCharge={(o) => void chargeOrder(o)} />
@@ -995,6 +1006,62 @@ function QuickKeys({ onPick }: { onPick: (p: CatalogProduct) => void }) {
         ))}
       </div>
     </div>
+  );
+}
+
+/**
+ * Factura de una venta, solo si el cliente la pide: el pedido viaja en la cola (anda sin internet) y la caja
+ * muestra cómo quedó en ARCA (CAE) para mandarla por WhatsApp o imprimirla.
+ */
+function PosInvoice({ sale, cashier, ri, onClose }: { sale: LocalSale; cashier: PosUser; ri: boolean; onClose: () => void }) {
+  const { t } = useTranslation();
+  const [asked, setAsked] = useState(false);
+  const [inv, setInv] = useState<InvoiceView | null>(null);
+  const [busy, setBusy] = useState(false);
+  // ¿Ya se había pedido? (por ejemplo, desde "Últimas ventas").
+  useEffect(() => {
+    void posGet<InvoiceView | null>(`/pos/invoices/by-sale/${sale.id}`)
+      .then((r) => {
+        if (r) {
+          setInv(r);
+          setAsked(true);
+        }
+      })
+      .catch(() => undefined);
+  }, [sale.id]);
+  useEffect(() => {
+    if (!asked || (inv && inv.status !== 'PENDING')) return;
+    const timer = setTimeout(() => {
+      void posGet<InvoiceView | null>(`/pos/invoices/by-sale/${sale.id}`)
+        .then((r) => setInv(r ?? null))
+        .catch(() => setInv((x) => x));
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [asked, inv, sale.id]);
+  const request = async (c: InvoiceCustomer) => {
+    setBusy(true);
+    await enqueue({ id: uuid(), type: 'INVOICE_REQUEST', userId: cashier.id, occurredAt: nowIso(), saleId: sale.id, ...c });
+    setAsked(true);
+    setBusy(false);
+  };
+  const retry = async () => {
+    if (!inv) return;
+    setInv({ ...inv, status: 'PENDING' });
+    setInv(await posPost<InvoiceView>(`/pos/invoices/${inv.id}/retry`).catch(() => inv));
+  };
+  return (
+    <Modal title={`🧾 ${t('invoice.title')} · ${money(sale.total)}`} onClose={onClose}>
+      {!asked ? (
+        <InvoiceCustomerForm ri={ri} busy={busy} onSubmit={(c) => void request(c)} />
+      ) : inv ? (
+        <InvoiceStatus inv={inv} onRetry={() => void retry()} />
+      ) : (
+        <div className="mp-wait">
+          <div className="spinner" />
+          <span>{navigator.onLine ? t('invoice.pending') : t('invoice.offline')}</span>
+        </div>
+      )}
+    </Modal>
   );
 }
 

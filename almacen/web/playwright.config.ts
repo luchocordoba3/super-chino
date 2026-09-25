@@ -31,6 +31,8 @@ export default defineConfig({
         SEED_DEMO: 'true',
         AUTH_RATE_LIMIT: '1000',
         MP_API_BASE: 'http://localhost:3399',
+        ARCA_WSAA_URL: 'http://localhost:3399/arca/wsaa',
+        ARCA_WSFE_URL: 'http://localhost:3399/arca/wsfe',
       },
       reuseExistingServer: false,
       timeout: 120_000,

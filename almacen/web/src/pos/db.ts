@@ -105,6 +105,8 @@ export interface StoreInfo {
   settings: StoreSettings;
   /** Hay QR de Mercado Pago armados: se puede cobrar con el monto cargado. */
   mp?: boolean;
+  /** Factura electrónica de ARCA activa (y cómo factura el local). */
+  invoicing?: 'MONOTRIBUTO' | 'RESPONSABLE_INSCRIPTO' | null;
 }
 
 class PosDB extends Dexie {

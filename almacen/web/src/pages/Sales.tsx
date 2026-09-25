@@ -5,6 +5,7 @@ import type { CashMoveKind, Payment } from '@almacen/shared';
 import { api } from '../api';
 import { Empty, ErrorBox, Loading, Tabs } from '../components/ui';
 import { dateTimeFmt, money, timeFmt, todayISO } from '../lib/format';
+import { InvoicesTab } from './Invoice';
 
 interface SaleRow {
   id: string;
@@ -32,7 +33,7 @@ interface SessionRow {
 
 export function Sales() {
   const { t } = useTranslation();
-  const [tab, setTab] = useState<'sales' | 'cash'>('sales');
+  const [tab, setTab] = useState<'sales' | 'cash' | 'invoices'>('sales');
   const [date, setDate] = useState(todayISO());
   const sales = useQuery({ queryKey: ['sales', date], queryFn: () => api<SaleRow[]>(`/sales?date=${date}`), enabled: tab === 'sales' });
   const sessions = useQuery({ queryKey: ['sales', 'sessions'], queryFn: () => api<SessionRow[]>('/cash-sessions'), enabled: tab === 'cash' });
@@ -47,8 +48,10 @@ export function Sales() {
         tabs={[
           { id: 'sales', label: t('sales.title') },
           { id: 'cash', label: t('sales.cashSessions') },
+          { id: 'invoices', label: t('invoice.tab') },
         ]}
       />
+      {tab === 'invoices' && <InvoicesTab />}
       {tab === 'sales' && (
         <>
           <div className="row">

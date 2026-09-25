@@ -216,7 +216,7 @@ tr.selected td { background: rgba(200, 16, 46, 0.08); }
 .pos-tables button { min-height: 64px; font-size: 1.05rem; font-weight: 600; }
 
 /* Carteles de QR para imprimir */
-.qr-sheet { display: grid; grid-template-columns: repeat(auto-fill, minmax(62mm, 1fr)); gap: 6mm; }
+.qr-sheet { display: grid; grid-template-columns: repeat(auto-fill, minmax(88mm, 1fr)); gap: 6mm; }
 .qr-card { border: 2px solid #111; border-radius: 4mm; padding: 4mm; text-align: center; background: #fff; color: #000; break-inside: avoid; display: flex; flex-direction: column; gap: 3mm; }
 .qr-card .qr-title { font-size: 20pt; font-weight: 800; }
 .qr-card img { width: 100%; max-width: 55mm; margin: 0 auto; aspect-ratio: 1; object-fit: contain; }
@@ -226,3 +226,18 @@ tr.selected td { background: rgba(200, 16, 46, 0.08); }
 .mp-wait { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; padding: 8px 0; }
 .spinner { width: 42px; height: 42px; border-radius: 50%; border: 4px solid var(--line); border-top-color: #009ee3; animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* Carta del menú QR (celular del cliente) */
+.menu { max-width: 560px; margin: 0 auto; padding: 12px 12px 96px; display: flex; flex-direction: column; gap: 12px; }
+.menu-head { background: var(--red); color: #fff; border-radius: var(--radius); padding: 14px; }
+.menu-store { font-size: 1.3rem; font-weight: 800; }
+.menu-table { opacity: 0.9; }
+.menu-item { align-items: center; }
+.menu-item .n { font-weight: 600; }
+.menu-item.off { opacity: 0.5; }
+.menu-cartbar { position: fixed; left: 0; right: 0; bottom: 0; display: flex; gap: 10px; align-items: center; justify-content: space-between; padding: 10px 16px; background: #fff; border-top: 1px solid var(--line); z-index: 10; }
+.menu-cartbar button { min-height: 48px; }
+.tab-pending { background: #e8f4fd; border: 1px solid #9cc9ee; border-radius: var(--radius); padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+.qr-pair { display: flex; gap: 3mm; justify-content: center; }
+.qr-pair figure { margin: 0; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1mm; font-size: 9pt; font-weight: 700; }
+.qr-pair img { width: 100%; max-width: 45mm; aspect-ratio: 1; object-fit: contain; }

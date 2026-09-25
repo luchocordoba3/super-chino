@@ -133,6 +133,8 @@ export async function seedDemo() {
   // Botones rápidos de la caja táctil: lo que más sale del kiosco y las bebidas frías.
   const quick = ['Alfajor', 'Chocolate', 'Galletitas', 'Papas fritas', 'Gaseosa cola 500ml', 'Cerveza lata', 'Agua mineral'];
   await prisma.product.updateMany({ where: { id: { in: quick.map((n) => byName(n).id) } }, data: { quickKey: true } });
+  // En la carta del menú QR: lo del bar y el kiosco.
+  await prisma.product.updateMany({ where: { id: { in: [...quick, 'Vino tinto'].map((n) => byName(n).id) } }, data: { menu: true } });
 
   // 1) Stock inicial de hace 20 días (sin vencimiento) que consumen las ventas de ejemplo.
   await prisma.$transaction((tx) =>
@@ -154,7 +156,7 @@ export async function seedDemo() {
   ];
   const bar: typeof products = [];
   for (const [name, price, parts] of recipes) {
-    const p = await prisma.product.create({ data: { storeId, name, categoryId: barCat, price, quickKey: true } });
+    const p = await prisma.product.create({ data: { storeId, name, categoryId: barCat, price, quickKey: true, menu: true } });
     await prisma.recipeItem.createMany({ data: parts.map(([ing, qty]) => ({ productId: p.id, ingredientId: byName(ing).id, qty })) });
     bar.push(p);
   }

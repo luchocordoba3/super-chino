@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { api, errMsg } from '../api';
+import QRCode from 'qrcode';
 import { Field, toast, toNum } from '../components/ui';
 
 export interface MpQr {
@@ -156,27 +157,79 @@ export function MercadoPagoSettings() {
   );
 }
 
-/** Carteles para imprimir: el QR de pago de cada mesa y del mostrador. */
+/** Carteles para imprimir: en cada mesa, el QR de la carta (para pedir) y el de pago de Mercado Pago. */
 export function QrSheet() {
   const { t } = useTranslation();
-  const q = useQuery(mpQuery);
+  const qc = useQueryClient();
+  const mp = useQuery(mpQuery);
+  const tables = useQuery({ queryKey: ['menu-tables'], queryFn: () => api<{ table: number; path: string }[]>('/menu/tables') });
+  const [codes, setCodes] = useState<Record<number, string>>({});
+  useEffect(() => {
+    if (!tables.data) return;
+    void Promise.all(tables.data.map(async (x) => [x.table, await QRCode.toDataURL(window.location.origin + x.path, { margin: 1, width: 360 })] as const)).then((pairs) =>
+      setCodes(Object.fromEntries(pairs)),
+    );
+  }, [tables.data]);
+  const payQr = (table: number | null) => mp.data?.qrs.find((q) => q.table === table)?.qrImage;
+  const rotate = async (table: number) => {
+    if (!window.confirm(t('qrs.rotateConfirm', { n: table }))) return;
+    await api(`/menu/tables/${table}/rotate`, { method: 'POST' });
+    await qc.invalidateQueries({ queryKey: ['menu-tables'] });
+  };
+  const counter = payQr(null);
   return (
-    <div className="stack">
+    <div className="stack main">
       <div className="row between no-print">
         <Link to="/settings">← {t('common.back')}</Link>
         <button type="button" className="primary" onClick={() => window.print()}>
           🖨 {t('common.print')}
         </button>
       </div>
+      <p className="muted no-print">{t('qrs.help')}</p>
       <div className="qr-sheet print-area">
-        {q.data?.qrs.map((x) => (
-          <div className="qr-card" key={x.externalId}>
-            <div className="qr-title">{x.table == null ? t('mp.counter') : t('tabs.table', { n: x.table })}</div>
-            <img src={x.qrImage} alt={`QR ${x.externalId}`} />
-            <div className="qr-foot">{t('mp.payHere')}</div>
+        {tables.data?.map((x) => (
+          <div className="qr-card" key={x.table}>
+            <div className="qr-title">{t('tabs.table', { n: x.table })}</div>
+            <div className="qr-pair">
+              <figure>
+                {codes[x.table] && <img src={codes[x.table]} alt={t('qrs.menu')} />}
+                <figcaption>📋 {t('qrs.menu')}</figcaption>
+              </figure>
+              {payQr(x.table) && (
+                <figure>
+                  <img src={payQr(x.table)} alt={t('qrs.pay')} />
+                  <figcaption>💳 {t('qrs.pay')}</figcaption>
+                </figure>
+              )}
+            </div>
+            <div className="qr-foot">{payQr(x.table) ? t('qrs.footBoth') : t('qrs.footMenu')}</div>
+            <button type="button" className="small no-print" onClick={() => void rotate(x.table)}>
+              {t('qrs.rotate')}
+            </button>
           </div>
         ))}
+        {counter && (
+          <div className="qr-card">
+            <div className="qr-title">{t('mp.counter')}</div>
+            <img src={counter} alt={t('qrs.pay')} />
+            <div className="qr-foot">{t('mp.payHere')}</div>
+          </div>
+        )}
       </div>
+    </div>
+  );
+}
+
+/** Ajustes → Carta con QR. */
+export function MenuSettings() {
+  const { t } = useTranslation();
+  return (
+    <div className="card stack">
+      <h2>📋 {t('qrs.title')}</h2>
+      <p className="muted small">{t('qrs.settingsHelp')}</p>
+      <Link className="btn" to="/qrs">
+        🖨 {t('qrs.print')}
+      </Link>
     </div>
   );
 }

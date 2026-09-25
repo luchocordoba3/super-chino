@@ -88,6 +88,8 @@ export interface LocalTab {
   items: TabLine[];
   /** Lo que pidió el cliente desde el menú QR y falta aceptar. */
   pending: TabLine[];
+  /** El cliente pidió la cuenta desde la carta. */
+  billAt?: string | null;
 }
 /** Novedades que deja el que cierra la caja para el turno siguiente. */
 export interface Handover {

@@ -16,6 +16,7 @@ export interface Product {
   idealStock: number | null;
   refStock: number | null;
   quickKey: boolean;
+  menu: boolean;
   hasRecipe: boolean;
   targetMargin: number | null;
   contentQty: number | null;

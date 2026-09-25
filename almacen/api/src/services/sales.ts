@@ -63,6 +63,7 @@ export async function openTabs(db: Db, storeId: string) {
       label: t.label,
       table: t.table,
       openedAt: t.openedAt.toISOString(),
+      billAt: t.billAt?.toISOString() ?? null,
       items,
       pending: t.items.filter((i) => i.status === 'PENDING').map(item),
       total: round2(items.reduce((s, i) => s + i.qty * i.unitPrice, 0)),
@@ -312,6 +313,27 @@ async function applyEvent(tx: Tx, ctx: Ctx, ev: PosEvent) {
       await setTabItem(tx, ctx.storeId, ev);
       publish(ctx.storeId, 'tabs');
       return [];
+    case 'TAB_ACCEPT':
+    case 'TAB_REJECT': {
+      const tab = await openTab(tx, ctx.storeId, ev.tabId);
+      const item = await tx.tabItem.findFirst({ where: { id: ev.itemId, tabId: tab.id, status: 'PENDING' } });
+      // Ya lo resolvió otra caja: no hay nada que hacer.
+      if (!item) return [];
+      if (ev.type === 'TAB_REJECT') {
+        await tx.tabItem.update({ where: { id: item.id }, data: { status: 'REJECTED', addedBy: ev.userId } });
+      } else {
+        // Un solo renglón por producto: si ya estaba anotado, se suma.
+        const ok = await tx.tabItem.findFirst({ where: { tabId: tab.id, productId: item.productId, status: 'OK' } });
+        if (ok) {
+          await tx.tabItem.update({ where: { id: ok.id }, data: { qty: { increment: item.qty } } });
+          await tx.tabItem.update({ where: { id: item.id }, data: { status: 'ACCEPTED', addedBy: ev.userId } });
+        } else {
+          await tx.tabItem.update({ where: { id: item.id }, data: { status: 'OK', addedBy: ev.userId } });
+        }
+      }
+      publish(ctx.storeId, 'tabs');
+      return [];
+    }
     case 'TAB_CANCEL': {
       const tab = await openTab(tx, ctx.storeId, ev.tabId);
       await tx.tab.update({ where: { id: tab.id }, data: { status: 'CANCELLED', closedAt: new Date(ev.occurredAt) } });

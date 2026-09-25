@@ -33,3 +33,23 @@ export async function cancelTab(userId: string, tabId: string) {
   await db.tabs.delete(tabId);
   await enqueue({ id: uuid(), type: 'TAB_CANCEL', userId, occurredAt: nowIso(), tabId });
 }
+
+/** Acepta lo que pidió el cliente desde la carta: pasa a la cuenta (sumado si ya estaba anotado). */
+export async function acceptPending(userId: string, tabId: string, itemId: string) {
+  const tab = await db.tabs.get(tabId);
+  const it = tab?.pending.find((x) => x.id === itemId);
+  if (!tab || !it) return;
+  const items = [...tab.items];
+  const i = items.findIndex((x) => x.productId === it.productId);
+  if (i >= 0) items[i] = { ...items[i], qty: round3(items[i].qty + it.qty) };
+  else items.push(it);
+  await db.tabs.put({ ...tab, items, pending: tab.pending.filter((x) => x.id !== itemId) });
+  await enqueue({ id: uuid(), type: 'TAB_ACCEPT', userId, occurredAt: nowIso(), tabId, itemId });
+}
+
+export async function rejectPending(userId: string, tabId: string, itemId: string) {
+  const tab = await db.tabs.get(tabId);
+  if (!tab) return;
+  await db.tabs.put({ ...tab, pending: tab.pending.filter((x) => x.id !== itemId) });
+  await enqueue({ id: uuid(), type: 'TAB_REJECT', userId, occurredAt: nowIso(), tabId, itemId });
+}

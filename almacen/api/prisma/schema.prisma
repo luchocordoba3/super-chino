@@ -188,6 +188,8 @@ model Product {
   refStock        Decimal?         @db.Decimal(12, 3)
   /// Botón rápido en la caja táctil (lo que no tiene código: café, sándwich, cerveza...).
   quickKey        Boolean          @default(false)
+  /// Aparece en la carta que el cliente ve con el QR de la mesa.
+  menu            Boolean          @default(false)
   /// Contenido neto (ej. 520 g, 1,5 l) para el precio por unidad de medida de las etiquetas.
   contentQty      Decimal?         @db.Decimal(12, 3)
   /// g | kg | ml | l | u
@@ -595,6 +597,8 @@ model Tab {
   openedBy  String
   closedAt  DateTime?
   saleId    String?   @unique
+  /// El cliente pidió la cuenta desde la carta.
+  billAt    DateTime?
   items     TabItem[]
 
   @@index([storeId, status])
@@ -658,4 +662,15 @@ model MpCharge {
   updatedAt     DateTime @updatedAt
 
   @@index([storeId, createdAt])
+}
+
+/// QR de la carta de cada mesa: el link lleva un token secreto (así nadie manda pedidos desde afuera).
+model MenuTable {
+  id        String   @id @default(cuid())
+  storeId   String
+  table     Int
+  token     String   @unique
+  createdAt DateTime @default(now())
+
+  @@unique([storeId, table])
 }

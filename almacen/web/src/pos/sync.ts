@@ -69,13 +69,20 @@ export async function refreshCatalog(full = false) {
 }
 
 let flushing: Promise<void> | null = null;
+/** Llegaron eventos mientras se enviaba: al terminar se vuelve a enviar (si no, esperarían al próximo intento). */
+let again = false;
 
 /** Manda a la API los eventos pendientes, en orden. Si no hay internet, quedan para después. */
 export function flushOutbox(): Promise<void> {
-  if (flushing) return flushing;
+  if (flushing) {
+    again = true;
+    return flushing;
+  }
+  again = false;
   flushing = (async () => {
     try {
-      for (;;) {
+      // Hasta vaciar la cola (con tope, por las dudas).
+      for (let round = 0; round < 50; round++) {
         const batch = await db.outbox.orderBy('seq').limit(100).toArray();
         if (batch.length === 0) break;
         const { results } = await posFetch<{ results: SyncResult[] }>('/pos/sync', {
@@ -87,11 +94,11 @@ export function flushOutbox(): Promise<void> {
           await db.outbox.where('id').anyOf(results.map((r) => r.id)).delete();
           await db.rejected.bulkPut(rejected.map((r) => ({ id: r.id, error: r.error, event: batch.find((b) => b.id === r.id)?.event })));
         });
-        if (batch.length < 100) break;
       }
     } finally {
       flushing = null;
       changed();
+      if (again) void flushOutbox().catch(() => undefined);
     }
   })();
   return flushing;

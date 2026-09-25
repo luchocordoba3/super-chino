@@ -16,7 +16,7 @@ test('Mercado Pago: conectar, imprimir los QR y cobrar con el monto ya cargado',
   expect(setup.ok()).toBe(true);
   await page.reload();
   await page.getByRole('link', { name: es.mp.printQrs.replace('{{count}}', '7') }).click();
-  await expect(page.locator('.qr-card', { hasText: 'Mesa 3' }).locator('img')).toBeVisible();
+  await expect(page.locator('.qr-card', { hasText: 'Mesa 3' }).getByRole('img', { name: es.qrs.pay })).toBeVisible();
   await expect(page.locator('.qr-card', { hasText: es.mp.counter })).toBeVisible();
 
   // En la caja: QR → se manda el monto al QR del mostrador y la venta se cierra sola cuando pagan.

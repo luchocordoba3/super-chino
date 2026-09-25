@@ -11,7 +11,7 @@ import { addItem, type CartItem, cartTotal, type OfferInfo, parseScan, priceCart
 import { type CashMoveLocal, type CashSessionLocal, type CatalogProduct, type CategoryRow, db, type Handover, type LocalTab, kvDel, kvGet, kvSet, type LocalSale, normalize, type PosUser, type StoreInfo, type SupplierRow } from '../pos/db';
 import { verifyPin } from '../pos/pin';
 import { enqueue, flushOutbox, getDeviceToken, linkDevice, pendingCount, posGet, posPost, refreshCatalog, refreshTabs, syncEvents, UnlinkedError, unsyncedOfferQty } from '../pos/sync';
-import { cancelTab, openTab, setTabQty } from '../pos/tabs';
+import { acceptPending, cancelTab, openTab, rejectPending, setTabQty } from '../pos/tabs';
 
 type Phase = 'loading' | 'unlinked' | 'pick' | 'open' | 'sell';
 const uuid = () => crypto.randomUUID();
@@ -454,13 +454,25 @@ function SellScreen(props: {
     return () => clearInterval(timer);
   }, []);
 
+  const seenPending = useRef<Set<string> | null>(null);
   const loadSide = useCallback(async () => {
-    setTabs(await db.tabs.toArray());
+    const all = await db.tabs.toArray();
+    setTabs(all);
+    // Pedido nuevo desde la carta de una mesa: suena y avisa.
+    const ids = new Set(all.flatMap((x) => x.pending.map((p) => p.id)));
+    if (seenPending.current) {
+      const fresh = all.filter((x) => x.pending.some((p) => !seenPending.current!.has(p.id)));
+      if (fresh.length) {
+        beep();
+        toast(t('tabs.newOrder', { label: fresh.map((x) => x.label).join(', ') }));
+      }
+    }
+    seenPending.current = ids;
     const [rows, used] = await Promise.all([db.offers.toArray(), unsyncedOfferQty()]);
     setOffers(new Map(rows.map((o) => [o.productId, { id: o.id, offerPrice: o.offerPrice, remaining: Math.max(0, o.maxQty - (used.get(o.id) ?? 0)) }])));
     setRecent(await db.sales.where('cashSessionId').equals(session.id).reverse().sortBy('occurredAt'));
     setCatalogCount(await db.products.count());
-  }, [session.id]);
+  }, [session.id, t]);
 
   useEffect(() => {
     void loadSide();
@@ -686,6 +698,7 @@ function SellScreen(props: {
           {tabs.map((x) => (
             <button type="button" key={x.id} className={x.id === tabId ? 'active' : ''} onClick={() => setTabId(x.id)}>
               {x.label}
+              {x.billAt && ' 🧾'}
               {x.pending.length > 0 && <span className="pill-count">{x.pending.length}</span>}
             </button>
           ))}
@@ -696,6 +709,40 @@ function SellScreen(props: {
         {tab && (
           <div className="muted small">
             {t('tabs.openedAt', { time: timeFmt(tab.openedAt) })} · {t('tabs.addHint')}
+          </div>
+        )}
+        {tab?.billAt && <p className="warn small">🧾 {t('tabs.billAsked', { time: timeFmt(tab.billAt) })}</p>}
+        {tab && tab.pending.length > 0 && (
+          <div className="tab-pending">
+            <div className="row between">
+              <strong>📲 {t('tabs.pendingTitle')}</strong>
+              <button
+                type="button"
+                className="small primary"
+                onClick={async () => {
+                  // De a uno: cada aceptación guarda la mesa entera.
+                  for (const p of tab.pending) await acceptPending(cashier.id, tab.id, p.id);
+                  await loadSide();
+                }}
+              >
+                {t('tabs.acceptAll')}
+              </button>
+            </div>
+            {tab.pending.map((p) => (
+              <div className="row between" key={p.id}>
+                <span>
+                  {qtyFmt(p.qty)} × {p.name}
+                </span>
+                <span className="row" style={{ flexWrap: 'nowrap' }}>
+                  <button type="button" className="small" aria-label={t('tabs.accept', { name: p.name })} onClick={() => void acceptPending(cashier.id, tab.id, p.id).then(loadSide)}>
+                    ✓
+                  </button>
+                  <button type="button" className="small ghost" aria-label={t('tabs.reject', { name: p.name })} onClick={() => void rejectPending(cashier.id, tab.id, p.id).then(loadSide)}>
+                    ✕
+                  </button>
+                </span>
+              </div>
+            ))}
           </div>
         )}
         <div className="pos-cart">

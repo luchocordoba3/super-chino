@@ -141,6 +141,7 @@ export function ProductForm({ initial, onSaved }: { initial?: Product; onSaved?:
     minStock: initial ? String(initial.minStock) : '',
     idealStock: initial?.idealStock != null ? String(initial.idealStock) : '',
     quickKey: initial?.quickKey ?? false,
+    menu: initial?.menu ?? false,
     targetMargin: initial?.targetMargin != null ? String(initial.targetMargin) : '',
     contentQty: initial?.contentQty != null ? String(initial.contentQty) : '',
     contentUnit: initial?.contentUnit ?? '',
@@ -194,6 +195,7 @@ export function ProductForm({ initial, onSaved }: { initial?: Product; onSaved?:
       minStock: toNum(f.minStock) ?? 0,
       idealStock: toNum(f.idealStock),
       quickKey: f.quickKey,
+      menu: f.menu,
       targetMargin: toNum(f.targetMargin),
       contentQty: f.contentUnit ? toNum(f.contentQty) : null,
       contentUnit: f.contentUnit && toNum(f.contentQty) ? f.contentUnit : null,
@@ -246,6 +248,11 @@ export function ProductForm({ initial, onSaved }: { initial?: Product; onSaved?:
         <Field label={t('products.quickKey')} hint={t('products.quickKeyHint')}>
           <label className="row">
             <input type="checkbox" checked={f.quickKey} onChange={(e) => setF({ ...f, quickKey: e.target.checked })} /> ⚡
+          </label>
+        </Field>
+        <Field label={t('products.menu')} hint={t('products.menuHint')}>
+          <label className="row">
+            <input type="checkbox" checked={f.menu} onChange={(e) => setF({ ...f, menu: e.target.checked })} /> 📋
           </label>
         </Field>
         <Field label={t('products.brand')}>

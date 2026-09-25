@@ -121,6 +121,9 @@ export const PosEventSchema = z.discriminatedUnion('type', [
   /** Cantidad total de un producto en la cuenta (0 = se saca). */
   z.object({ ...base, type: z.literal('TAB_ITEM'), tabId: z.string().min(1), productId: z.string().min(1), qty: z.number().min(0).max(1e5), unitPrice: Money.min(0) }),
   z.object({ ...base, type: z.literal('TAB_CANCEL'), tabId: z.string().min(1) }),
+  /** Lo que el cliente pidió desde la carta (menú QR): el vendedor lo acepta o lo rechaza. */
+  z.object({ ...base, type: z.literal('TAB_ACCEPT'), tabId: z.string().min(1), itemId: z.string().min(1) }),
+  z.object({ ...base, type: z.literal('TAB_REJECT'), tabId: z.string().min(1), itemId: z.string().min(1) }),
   z.object({ ...base, type: z.literal('ITEM_REMOVED'), productId: z.string(), qty: z.number().positive(), amount: Money }),
   z.object({ ...base, type: z.literal('SALE_VOIDED'), saleId: z.string(), reason: z.string().max(200).optional() }),
   z.object({ ...base, type: z.literal('CASH_OPEN'), cashSessionId: z.string().min(1), openingAmount: Money.min(0) }),

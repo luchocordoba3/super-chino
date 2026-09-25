@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import { type CashMoveKind, cashMoveSign, round2 } from '@super-chino/shared';
 import { num, prisma } from '../db';
 import { addDays, dateOnly, startOfLocalDay } from '../domain/dates';
 import { guard } from '../lib/auth';
@@ -46,9 +47,26 @@ export async function salesRoutes(app: FastifyInstance) {
       prisma.cashSession.findMany({ where: { storeId: req.auth.sid }, orderBy: { openedAt: 'desc' }, take: 60 }),
       userNames(prisma, req.auth.sid),
     ]);
+    const [moves, suppliers] = await Promise.all([
+      prisma.cashMovement.findMany({ where: { cashSessionId: { in: sessions.map((s) => s.id) } }, orderBy: { occurredAt: 'asc' } }),
+      prisma.supplier.findMany({ where: { storeId: req.auth.sid }, select: { id: true, name: true } }),
+    ]);
+    const supplierName = new Map(suppliers.map((s) => [s.id, s.name]));
     return sessions.map((s) => ({
       ...s,
       user: names.get(s.userId) ?? null,
+      movements: moves
+        .filter((m) => m.cashSessionId === s.id)
+        .map((m) => ({
+          id: m.id,
+          kind: m.kind,
+          amount: num(m.amount),
+          reason: m.reason,
+          supplier: m.supplierId ? (supplierName.get(m.supplierId) ?? null) : null,
+          user: names.get(m.userId) ?? null,
+          occurredAt: m.occurredAt,
+        })),
+      movementsNet: round2(moves.filter((m) => m.cashSessionId === s.id).reduce((sum, m) => sum + cashMoveSign(m.kind as CashMoveKind) * num(m.amount), 0)),
       openingAmount: num(s.openingAmount),
       countedAmount: s.countedAmount == null ? null : num(s.countedAmount),
       expectedAmount: s.expectedAmount == null ? null : num(s.expectedAmount),

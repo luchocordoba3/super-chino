@@ -1,7 +1,8 @@
 import type { Prisma } from '@prisma/client';
-import { type Payment, type PosEvent, PosEventSchema, round2, type StoreSettings, type SyncResult } from '@super-chino/shared';
+import { type CashMoveKind, cashMoveSign, type Payment, type PosEvent, PosEventSchema, round2, type StoreSettings, type SyncResult } from '@super-chino/shared';
 import { type Db, num, prisma, type Tx } from '../db';
 import { type NewAlert, notifyAlerts, raiseAlert, resolveAlert } from './alerts';
+import { clock } from './attendance';
 import { publish } from './notify';
 import { consumeStock, lotsByProduct, restoreAllocations, stockOf } from './stock';
 import { storeCtx } from './store';
@@ -145,7 +146,10 @@ async function applyCashClose(tx: Tx, ctx: Ctx, ev: Ev<'CASH_CLOSE'>) {
   if (!s) throw new RejectError('cash_session_not_found');
   if (s.closedAt) return alerts;
   const sales = await tx.sale.findMany({ where: { storeId: ctx.storeId, cashSessionId: s.id, status: 'COMPLETED' }, select: { payments: true } });
-  const expected = round2(num(s.openingAmount) + sales.reduce((sum, x) => sum + cashOf(x.payments), 0));
+  // Pagos a proveedores, gastos y retiros restan; el cambio que se agrega suma.
+  const moves = await tx.cashMovement.findMany({ where: { cashSessionId: s.id }, select: { kind: true, amount: true } });
+  const movesNet = moves.reduce((sum, m) => sum + cashMoveSign(m.kind as CashMoveKind) * num(m.amount), 0);
+  const expected = round2(num(s.openingAmount) + sales.reduce((sum, x) => sum + cashOf(x.payments), 0) + movesNet);
   const difference = round2(ev.countedAmount - expected);
   await tx.cashSession.update({
     where: { id: s.id },
@@ -190,6 +194,30 @@ async function applyEvent(tx: Tx, ctx: Ctx, ev: PosEvent) {
       return applyCashClose(tx, ctx, ev);
     case 'ITEM_REMOVED':
       return []; // queda registrado en PosEvent para el control anti-pérdidas
+    case 'CLOCK': {
+      const r = await clock(tx, { id: ev.id, storeId: ctx.storeId, userId: ev.userId, action: ev.action, at: new Date(ev.occurredAt), source: 'pos', deviceId: ctx.deviceId });
+      if (!r) throw new RejectError('user_inactive');
+      return r.alerts;
+    }
+    case 'CASH_MOVE': {
+      const s = await tx.cashSession.findFirst({ where: { id: ev.cashSessionId, storeId: ctx.storeId } });
+      if (!s || s.closedAt) throw new RejectError('cash_session_not_found');
+      await tx.cashMovement.create({
+        data: {
+          id: ev.id,
+          storeId: ctx.storeId,
+          cashSessionId: s.id,
+          deviceId: ctx.deviceId,
+          userId: ev.userId,
+          kind: ev.kind,
+          amount: ev.amount,
+          reason: ev.reason || null,
+          supplierId: ev.supplierId ?? null,
+          occurredAt: new Date(ev.occurredAt),
+        },
+      });
+      return [];
+    }
   }
 }
 
@@ -235,6 +263,7 @@ export async function processPosEvents(storeId: string, deviceId: string, raw: u
   }
   if (results.some((r) => r.status === 'ok')) {
     publish(storeId, 'sales');
+    if (results.some((r, i) => r.status === 'ok' && (raw[i] as { type?: string })?.type === 'CLOCK')) publish(storeId, 'attendance');
     await notifyAlerts(storeId, newAlerts);
   }
   return results;

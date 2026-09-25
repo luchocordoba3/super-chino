@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type { Lang, Payment, PosEvent, StoreSettings } from '@super-chino/shared';
+import type { CashMoveKind, Lang, Payment, PosEvent, StoreSettings } from '@super-chino/shared';
 
 export interface CatalogProduct {
   id: string;
@@ -24,7 +24,22 @@ export interface PosUser {
   lang: Lang;
   role: 'OWNER' | 'EMPLOYEE';
   perms: string[];
+  /** Puede cobrar (el resto solo ficha). Las cajas viejas no lo traen: se toma como sí. */
+  canSell?: boolean;
   pin: string;
+}
+export interface SupplierRow {
+  id: string;
+  name: string;
+}
+/** Pago, gasto, retiro o ingreso de cambio anotado en la caja (para calcular el cierre sin internet). */
+export interface CashMoveLocal {
+  id: string;
+  kind: CashMoveKind;
+  amount: number;
+  reason?: string;
+  supplierName?: string;
+  occurredAt: string;
 }
 export interface OutboxRow {
   seq?: number;

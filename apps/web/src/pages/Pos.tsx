@@ -1,6 +1,6 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { PAYMENT_METHODS, type PaymentMethod, type PosEvent, round2 } from '@super-chino/shared';
+import { CASH_MOVE_KINDS, type CashMoveKind, cashMoveSign, PAYMENT_METHODS, type PaymentMethod, type PosEvent, round2 } from '@super-chino/shared';
 import { api } from '../api';
 import { beep } from '../components/BarcodeScanner';
 import { Field, Modal, toast, toNum } from '../components/ui';
@@ -8,7 +8,7 @@ import { setLang } from '../i18n';
 import { money, qtyFmt, setCurrency, timeFmt } from '../lib/format';
 import type { Me } from '../lib/me';
 import { addItem, type CartItem, cartTotal, type OfferInfo, parseScan, priceCart, settlePayments } from '../pos/cart';
-import { type CashSessionLocal, type CatalogProduct, db, kvDel, kvGet, kvSet, type LocalSale, normalize, type PosUser, type StoreInfo } from '../pos/db';
+import { type CashMoveLocal, type CashSessionLocal, type CatalogProduct, db, kvDel, kvGet, kvSet, type LocalSale, normalize, type PosUser, type StoreInfo, type SupplierRow } from '../pos/db';
 import { verifyPin } from '../pos/pin';
 import { enqueue, flushOutbox, getDeviceToken, linkDevice, pendingCount, refreshCatalog, syncEvents, UnlinkedError, unsyncedOfferQty } from '../pos/sync';
 
@@ -25,6 +25,7 @@ export function Pos() {
   const [session, setSession] = useState<CashSessionLocal | null>(null);
   const [online, setOnline] = useState(navigator.onLine);
   const [pending, setPending] = useState(0);
+  const [clocking, setClocking] = useState(false);
 
   const loadLocal = useCallback(async () => {
     const s = await kvGet<StoreInfo>('store');
@@ -103,7 +104,11 @@ export function Pos() {
           <h1>🛒 {store?.name}</h1>
           {status}
         </div>
-        <PickCashier onPicked={pickCashier} />
+        <PickUser title={t('pos.whoSells')} only={(u) => u.role === 'OWNER' || u.canSell !== false} onPicked={pickCashier} />
+        <button className="big" onClick={() => setClocking(true)}>
+          🕘 {t('pos.clockInOut')}
+        </button>
+        {clocking && <ClockModal onClose={() => setClocking(false)} />}
         <a href="/">← {t('nav.home')}</a>
       </div>
     );
@@ -187,7 +192,8 @@ function LinkScreen({ onLinked }: { onLinked: () => void }) {
   );
 }
 
-function PickCashier({ onPicked }: { onPicked: (u: PosUser) => void }) {
+/** Elegir a una persona y pedirle el PIN (se verifica en la PC, sin internet). */
+function PickUser({ title, only, onPicked }: { title: string; only: (u: PosUser) => boolean; onPicked: (u: PosUser) => void }) {
   const { t } = useTranslation();
   const [users, setUsers] = useState<PosUser[]>([]);
   const [sel, setSel] = useState<PosUser | null>(null);
@@ -209,9 +215,9 @@ function PickCashier({ onPicked }: { onPicked: (u: PosUser) => void }) {
   if (!sel) {
     return (
       <div className="card stack">
-        <h2>{t('pos.whoSells')}</h2>
+        <h2>{title}</h2>
         <div className="user-tiles">
-          {users.map((u) => (
+          {users.filter(only).map((u) => (
             <button key={u.id} onClick={() => setSel(u)}>
               {u.name}
             </button>
@@ -249,6 +255,102 @@ function PickCashier({ onPicked }: { onPicked: (u: PosUser) => void }) {
         ← {t('common.back')}
       </button>
     </form>
+  );
+}
+
+/** Fichar entrada o salida en la caja: se elige la persona, pone su PIN y listo (anda sin internet). */
+function ClockModal({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
+  const [who, setWho] = useState<PosUser | null>(null);
+  const [last, setLast] = useState<Record<string, 'in' | 'out'>>({});
+  useEffect(() => {
+    void kvGet<Record<string, 'in' | 'out'>>('clockLast').then((v) => setLast(v ?? {}));
+  }, []);
+  const clock = async (action: 'in' | 'out') => {
+    if (!who) return;
+    const occurredAt = nowIso();
+    await enqueue({ id: uuid(), type: 'CLOCK', userId: who.id, occurredAt, action });
+    await kvSet('clockLast', { ...last, [who.id]: action });
+    toast(t(action === 'in' ? 'pos.clockedIn' : 'pos.clockedOut', { name: who.name, time: timeFmt(occurredAt) }));
+    onClose();
+  };
+  // Se sugiere lo que corresponde según el último fichaje hecho en esta PC.
+  const next = who && last[who.id] === 'in' ? 'out' : 'in';
+  return (
+    <Modal title={`🕘 ${t('pos.clockInOut')}`} onClose={onClose}>
+      {!who ? (
+        <PickUser title={t('pos.clockWho')} only={(u) => u.role !== 'OWNER'} onPicked={setWho} />
+      ) : (
+        <div className="stack">
+          <h2>{who.name}</h2>
+          <button className={`big ${next === 'in' ? 'primary' : ''}`} onClick={() => void clock('in')}>
+            ▶ {t('pos.clockIn')}
+          </button>
+          <button className={`big ${next === 'out' ? 'primary' : ''}`} onClick={() => void clock('out')}>
+            ⏹ {t('pos.clockOut')}
+          </button>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+/** Pago a proveedor, gasto, retiro o ingreso de cambio: queda anotado para que el cierre dé bien. */
+function CashMoveModal({ session, cashier, onClose }: { session: CashSessionLocal; cashier: PosUser; onClose: () => void }) {
+  const { t } = useTranslation();
+  const [kind, setKind] = useState<CashMoveKind>('SUPPLIER');
+  const [amount, setAmount] = useState('');
+  const [supplierId, setSupplierId] = useState('');
+  const [reason, setReason] = useState('');
+  const [suppliers, setSuppliers] = useState<SupplierRow[]>([]);
+  useEffect(() => {
+    void kvGet<SupplierRow[]>('suppliers').then((s) => setSuppliers(s ?? []));
+  }, []);
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    const n = toNum(amount);
+    if (!n || n <= 0) return;
+    const id = uuid();
+    const occurredAt = nowIso();
+    const supplier = kind === 'SUPPLIER' ? suppliers.find((s) => s.id === supplierId) : undefined;
+    const why = reason.trim() || undefined;
+    await enqueue({ id, type: 'CASH_MOVE', userId: cashier.id, occurredAt, cashSessionId: session.id, kind, amount: n, reason: why, supplierId: supplier?.id ?? null });
+    const key = `cashMoves:${session.id}`;
+    await kvSet(key, [...((await kvGet<CashMoveLocal[]>(key)) ?? []), { id, kind, amount: n, reason: why, supplierName: supplier?.name, occurredAt }]);
+    toast(t('pos.moveSaved', { amount: money(n) }));
+    onClose();
+  };
+  return (
+    <Modal title={`💸 ${t('pos.cashMove')}`} onClose={onClose}>
+      <form className="stack" onSubmit={(e) => void submit(e)}>
+        <div className="grid2">
+          {CASH_MOVE_KINDS.map((k) => (
+            <label key={k} className="check">
+              <input type="radio" name="kind" checked={kind === k} onChange={() => setKind(k)} /> {t(`pos.moveKinds.${k}`)}
+            </label>
+          ))}
+        </div>
+        <Field label={t('pos.amount')}>
+          <input autoFocus inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ fontSize: '1.4rem' }} required />
+        </Field>
+        {kind === 'SUPPLIER' && suppliers.length > 0 && (
+          <Field label={t('products.supplier')}>
+            <select value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
+              <option value="">—</option>
+              {suppliers.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
+        <Field label={t('common.reason')}>
+          <input value={reason} maxLength={200} onChange={(e) => setReason(e.target.value)} />
+        </Field>
+        <button className="primary big">{t('common.save')}</button>
+      </form>
+    </Modal>
   );
 }
 
@@ -310,6 +412,8 @@ function SellScreen(props: {
   const [paying, setPaying] = useState(false);
   const [done, setDone] = useState<LocalSale | null>(null);
   const [closing, setClosing] = useState(false);
+  const [clocking, setClocking] = useState(false);
+  const [moving, setMoving] = useState(false);
   const [recent, setRecent] = useState<LocalSale[]>([]);
   const [printing, setPrinting] = useState<LocalSale | null>(null);
   const [catalogCount, setCatalogCount] = useState(0);
@@ -433,7 +537,7 @@ function SellScreen(props: {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (paying || done || closing || weightFor) return;
+      if (paying || done || closing || weightFor || clocking || moving) return;
       if (e.key === 'F2') {
         e.preventDefault();
         inputRef.current?.focus();
@@ -456,6 +560,8 @@ function SellScreen(props: {
           <strong className="grow">🛒 {store?.name}</strong>
           <span>{cashier.name}</span>
           {props.status}
+          <button onClick={() => setClocking(true)}>🕘 {t('pos.clock')}</button>
+          <button onClick={() => setMoving(true)}>💸 {t('pos.cashMove')}</button>
           <button onClick={props.onSwitch}>{t('pos.changeCashier')}</button>
           <button onClick={() => setClosing(true)}>{t('pos.closeCash')}</button>
         </div>
@@ -577,6 +683,8 @@ function SellScreen(props: {
         </Modal>
       )}
       {closing && <CloseCash session={session} cashier={cashier} recent={recent} onClose={() => setClosing(false)} onClosed={props.onClosed} />}
+      {clocking && <ClockModal onClose={() => (setClocking(false), focus())} />}
+      {moving && <CashMoveModal session={session} cashier={cashier} onClose={() => (setMoving(false), focus())} />}
       {printing && <Ticket sale={printing} store={store} />}
     </div>
   );
@@ -668,14 +776,21 @@ function CloseCash({ session, cashier, recent, onClose, onClosed }: { session: C
   const { t } = useTranslation();
   const [counted, setCounted] = useState('');
   const [result, setResult] = useState<{ expected: number; counted: number } | null>(null);
-  const expected = round2(
-    session.openingAmount + recent.filter((s) => !s.voided).reduce((sum, s) => sum + s.payments.filter((p) => p.method === 'CASH').reduce((a, p) => a + p.amount, 0), 0),
-  );
+  const [moves, setMoves] = useState<CashMoveLocal[]>([]);
+  useEffect(() => {
+    void kvGet<CashMoveLocal[]>(`cashMoves:${session.id}`).then((m) => setMoves(m ?? []));
+  }, [session.id]);
+  const cashSales = round2(recent.filter((s) => !s.voided).reduce((sum, s) => sum + s.payments.filter((p) => p.method === 'CASH').reduce((a, p) => a + p.amount, 0), 0));
+  const out = round2(moves.filter((m) => cashMoveSign(m.kind) < 0).reduce((s, m) => s + m.amount, 0));
+  const inflow = round2(moves.filter((m) => cashMoveSign(m.kind) > 0).reduce((s, m) => s + m.amount, 0));
+  // Esperado = inicial + ventas en efectivo − pagos/gastos/retiros + cambio agregado.
+  const expected = round2(session.openingAmount + cashSales - out + inflow);
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     const c = toNum(counted) ?? 0;
     await enqueue({ id: uuid(), type: 'CASH_CLOSE', userId: cashier.id, occurredAt: nowIso(), cashSessionId: session.id, countedAmount: c });
     await kvDel('cashSession');
+    await kvDel(`cashMoves:${session.id}`);
     setResult({ expected, counted: c });
   };
   if (result) {
@@ -702,6 +817,34 @@ function CloseCash({ session, cashier, recent, onClose, onClosed }: { session: C
   return (
     <Modal title={t('pos.closeCash')} onClose={onClose}>
       <form className="stack" onSubmit={(e) => void submit(e)}>
+        <table className="small">
+          <tbody>
+            <tr>
+              <td>{t('pos.openingAmount')}</td>
+              <td className="num">{money(session.openingAmount)}</td>
+            </tr>
+            <tr>
+              <td>+ {t('pos.cashSales')}</td>
+              <td className="num">{money(cashSales)}</td>
+            </tr>
+            {out > 0 && (
+              <tr>
+                <td>− {t('pos.moveOut')}</td>
+                <td className="num">{money(out)}</td>
+              </tr>
+            )}
+            {inflow > 0 && (
+              <tr>
+                <td>+ {t('pos.moveKinds.DEPOSIT')}</td>
+                <td className="num">{money(inflow)}</td>
+              </tr>
+            )}
+            <tr>
+              <th>{t('pos.expected')}</th>
+              <th className="num">{money(expected)}</th>
+            </tr>
+          </tbody>
+        </table>
         <Field label={t('pos.countedAmount')}>
           <input autoFocus inputMode="decimal" value={counted} onChange={(e) => setCounted(e.target.value)} style={{ fontSize: '1.4rem' }} required />
         </Field>

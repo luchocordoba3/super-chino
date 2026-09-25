@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import type { Payment } from '@super-chino/shared';
+import type { CashMoveKind, Payment } from '@super-chino/shared';
 import { api } from '../api';
 import { Empty, ErrorBox, Loading, Tabs } from '../components/ui';
 import { dateTimeFmt, money, timeFmt, todayISO } from '../lib/format';
@@ -25,6 +25,8 @@ interface SessionRow {
   expectedAmount: number | null;
   countedAmount: number | null;
   difference: number | null;
+  movementsNet: number;
+  movements: { id: string; kind: CashMoveKind; amount: number; reason: string | null; supplier: string | null; user: string | null; occurredAt: string }[];
 }
 
 export function Sales() {
@@ -86,6 +88,7 @@ export function Sales() {
                 <th>{t('sales.cashier')}</th>
                 <th>{t('common.date')}</th>
                 <th className="num">{t('pos.openingAmount')}</th>
+                <th className="num">{t('sales.movements')}</th>
                 <th className="num">{t('pos.expected')}</th>
                 <th className="num">{t('pos.countedAmount')}</th>
                 <th className="num">{t('pos.difference')}</th>
@@ -93,16 +96,29 @@ export function Sales() {
             </thead>
             <tbody>
               {sessions.data?.map((s) => (
-                <tr key={s.id}>
-                  <td>{s.user}</td>
-                  <td className="small">
-                    {dateTimeFmt(s.openedAt)} {s.closedAt ? `→ ${timeFmt(s.closedAt)}` : <span className="badge gold">{t('sales.open')}</span>}
-                  </td>
-                  <td className="num">{money(s.openingAmount)}</td>
-                  <td className="num">{s.expectedAmount != null ? money(s.expectedAmount) : '—'}</td>
-                  <td className="num">{s.countedAmount != null ? money(s.countedAmount) : '—'}</td>
-                  <td className={`num ${s.difference ? 'error' : 'ok'}`}>{s.difference != null ? money(s.difference) : '—'}</td>
-                </tr>
+                <Fragment key={s.id}>
+                  <tr>
+                    <td>{s.user}</td>
+                    <td className="small">
+                      {dateTimeFmt(s.openedAt)} {s.closedAt ? `→ ${timeFmt(s.closedAt)}` : <span className="badge gold">{t('sales.open')}</span>}
+                    </td>
+                    <td className="num">{money(s.openingAmount)}</td>
+                    <td className="num">{s.movements.length ? money(s.movementsNet) : '—'}</td>
+                    <td className="num">{s.expectedAmount != null ? money(s.expectedAmount) : '—'}</td>
+                    <td className="num">{s.countedAmount != null ? money(s.countedAmount) : '—'}</td>
+                    <td className={`num ${s.difference ? 'error' : 'ok'}`}>{s.difference != null ? money(s.difference) : '—'}</td>
+                  </tr>
+                  {s.movements.map((m) => (
+                    <tr key={m.id} className="small muted">
+                      <td colSpan={7}>
+                        💸 {timeFmt(m.occurredAt)} · {t(`pos.moveKinds.${m.kind}`)} {money(m.amount)}
+                        {m.supplier ? ` · ${m.supplier}` : ''}
+                        {m.reason ? ` · ${m.reason}` : ''}
+                        {m.user ? ` (${m.user})` : ''}
+                      </td>
+                    </tr>
+                  ))}
+                </Fragment>
               ))}
             </tbody>
           </table>

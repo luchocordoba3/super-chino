@@ -19,9 +19,11 @@ const NUM_FIELDS = [
   'countItemsPerDay',
   'countDiffThreshold',
   'aiDailyScanLimit',
+  'lateToleranceMin',
+  'absentAfterMin',
 ] as const;
 type NumField = (typeof NUM_FIELDS)[number];
-const INT_FIELDS = new Set<NumField>(['expiryAlertDays', 'offerAllowBelowCostDays', 'voidAlertThreshold', 'countItemsPerDay', 'aiDailyScanLimit']);
+const INT_FIELDS = new Set<NumField>(['expiryAlertDays', 'offerAllowBelowCostDays', 'voidAlertThreshold', 'countItemsPerDay', 'aiDailyScanLimit', 'lateToleranceMin', 'absentAfterMin']);
 
 export function Settings() {
   const me = useMe();

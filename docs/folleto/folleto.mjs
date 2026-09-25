@@ -72,6 +72,15 @@ const mock = {
     <div class="chips"><span>📈 ${m.bulk}</span></div>
     <div class="muted small">${m.note}</div>
   </div>`,
+  staff: (m) => `<div class="mock">
+    <div class="mhead"><b>🕘 ${m.today}</b><span class="muted">${m.title}</span></div>
+    <div class="lot"><span><b>Sofía</b></span><span>${m.sofia}</span></div>
+    <div class="lot warn"><span><b>Martín</b></span><span>${m.martin}</span></div>
+    <div class="lot bad"><span><b>Lucas</b></span><span>${m.lucas}</span></div>
+    <div class="order"><span>${m.month}</span><span class="btn xl">📥 Excel</span></div>
+  </div>`,
+  timeline: (items) =>
+    `<div class="timeline">${items.map(([time, icon, text]) => `<div class="tl-row"><span class="tl-time">${time}</span><span class="tl-dot">${icon}</span><span class="tl-text">${text}</span></div>`).join('')}</div>`,
   dash: (m) => `<div class="mock">
     <div class="kpis">${m.kpis.map(([a, b]) => `<div><small>${a}</small><b>${b}</b></div>`).join('')}</div>
     <div class="bars">${m.bars.map(([a, p]) => `<div><span>${a}</span><span class="track"><i style="width:${p}%"></i></span><em>${p}%</em></div>`).join('')}</div>
@@ -89,8 +98,10 @@ const T = {
       tiles: [
         ['🧾', 'Caja rápida'],
         ['📅', 'Vencimientos bajo control'],
+        ['👥', 'Empleados y fichaje'],
         ['💬', 'Mensajes traducidos'],
         ['🛡️', 'Control anti-pérdidas'],
+        ['📶', 'Anda sin internet'],
       ],
       foot: 'Funciona en PC, tablet y celular. Sin instalar nada.',
     },
@@ -101,13 +112,15 @@ const T = {
         ['🧾', 'Caja', 'Escaneás, cobrás y el stock se descuenta solo.'],
         ['📦', 'Stock por lote', 'Cada lote con su fecha de vencimiento.'],
         ['🏷️', 'Ofertas', 'Lo que está por vencer se vende en vez de tirarse.'],
+        ['👥', 'Empleados', 'Fichaje, horas para el sueldo y aviso si llegan tarde.'],
         ['💬', 'Mensajes', 'Vos escribís en chino, tu equipo lee en español.'],
         ['🛡️', 'Anti-pérdidas', 'Avisos de anulaciones, faltantes de caja y conteos sorpresa.'],
         ['💲', 'Precios', 'Aumentos masivos y etiquetas con precio por kilo.'],
+        ['💸', 'Pagos de caja', 'Pagos a proveedores y retiros anotados: el cierre da justo.'],
         ['📊', 'Reportes', 'Ventas y ganancia del día en tu celular.'],
         ['🚚', 'Reposición', 'Qué pedirle a cada proveedor, por WhatsApp.'],
       ],
-      band: '📶 Si se corta internet, la caja sigue vendiendo.',
+      band: '📶 Sin internet, la caja sigue vendiendo.',
     },
     pages: [
       {
@@ -122,7 +135,28 @@ const T = {
           '<b>Efectivo, débito, crédito, QR o transferencia</b>, y pagos combinados. Calcula el vuelto.',
           '<b>Productos por peso</b> (fiambre, verdura): ponés los kilos y listo.',
           '<b>Sin internet sigue vendiendo</b> y sube todo cuando vuelve la conexión.',
-          '<b>Cada cajero entra con su PIN</b> y cierra su caja con la diferencia calculada. Sabés quién vendió qué.',
+          '<b>Cada cajero con su PIN.</b> Los pagos a proveedores y retiros de la caja quedan anotados, y el cierre da justo.',
+        ],
+      },
+      {
+        label: 'Empleados',
+        icon: '👥',
+        title: 'Tus empleados, bajo control',
+        sub: 'Quién vino, a qué hora y cuántas horas trabajó. Sin planillas.',
+        mock: mock.staff({
+          today: 'Hoy',
+          title: 'Horarios',
+          sofia: 'entró 07:58 ✓',
+          martin: '⚠️ 13:17 · 17 min tarde',
+          lucas: '⛔ no vino (entraba 09:00)',
+          month: 'Horas del mes: Sofía 162 h · Martín 148 h',
+        }),
+        points: [
+          '<b>Fichan entrada y salida</b> en la caja con su PIN (aunque no haya internet) o desde el celular.',
+          '<b>Te avisa si alguien llega tarde o no viene</b>, según su horario.',
+          '<b>Horas trabajadas</b> por día, semana y mes, con tardanzas y faltas. Se bajan a Excel para los sueldos.',
+          '<b>Ficha de cada uno:</b> DNI, teléfono, ingreso y sueldo. Solo la ves vos.',
+          '<b>Usuario, PIN y permisos</b> para cada uno, y sabés quién vendió qué. Al que se va, lo desactivás.',
         ],
       },
       {
@@ -172,16 +206,16 @@ const T = {
         ],
       },
       {
-        label: 'Equipo',
+        label: 'Tareas',
         icon: '💬',
-        title: 'Tu equipo, en tu idioma',
+        title: 'Indicaciones en tu idioma',
         sub: 'Vos escribís en chino y tus empleados leen en español. Y al revés.',
         mock: mock.chat({ owner: 'Dueño', read: '✓✓ Leído por Sofía y Martín', done: '✓ Tarea hecha, con foto' }),
         points: [
-          '<b>Cada empleado con su usuario y PIN.</b> Vos elegís qué puede hacer: vender, cargar stock, cambiar precios, ajustar o ver ventas.',
-          '<b>Mandás indicaciones o tareas</b> a uno o a todos, con fecha límite.',
+          '<b>Mandás indicaciones o tareas</b> a uno o a todos, con fecha límite y fotos.',
           '<b>Se traducen solas</b> chino ↔ español, con inteligencia artificial.',
           '<b>Ves quién leyó y quién cumplió.</b> Podés pedir una foto como prueba.',
+          '<b>Tareas automáticas:</b> retirar lo vencido y el conteo sorpresa.',
           '<b>Avisos en tu celular</b>, aunque no estés en el local.',
         ],
       },
@@ -245,6 +279,24 @@ const T = {
           '<b>Historial de ventas y de cierres de caja.</b>',
         ],
       },
+      {
+        label: 'Día a día',
+        icon: '📅',
+        title: 'Un día en tu súper',
+        sub: 'Así es un día normal con Super Chino.',
+        mock: mock.timeline([
+          ['07:58', '🕗', '<b>Sofía ficha la entrada</b> en la caja y la abre con el cambio.'],
+          ['09:30', '🚚', '<b>Llega el proveedor:</b> foto de la factura y la mercadería queda cargada con sus vencimientos.'],
+          ['09:45', '💸', '<b>Le pagás con plata de la caja:</b> queda anotado como pago al proveedor.'],
+          ['10:00', '💬', '<b>Le mandás una tarea en chino.</b> Sofía la lee en español y la cumple con foto.'],
+          ['13:17', '⚠️', '<b>Martín llega 17 minutos tarde:</b> te llega el aviso al celular.'],
+          ['15:00', '🔎', '<b>Conteo sorpresa:</b> 5 productos contados sin ver cuánto dice el sistema.'],
+          ['17:00', '🏷️', '<b>Ofertas</b> de lo que vence mañana, con el cartel impreso.'],
+          ['20:30', '🧾', '<b>Cierre de caja:</b> ya descontó el pago al proveedor y da justo.'],
+          ['21:00', '📊', '<b>Resumen del día en tu celular:</b> ventas, ganancia y avisos.'],
+        ]),
+        points: [],
+      },
     ],
     last: {
       label: 'Empezar',
@@ -272,8 +324,10 @@ const T = {
       tiles: [
         ['🧾', '快速收银'],
         ['📅', '保质期全掌握'],
+        ['👥', '员工考勤'],
         ['💬', '消息自动翻译'],
         ['🛡️', '防损防漏'],
+        ['📶', '断网也能用'],
       ],
       foot: '电脑、平板、手机都能用，不用安装。',
     },
@@ -284,9 +338,11 @@ const T = {
         ['🧾', '收银', '扫码收款，库存自动扣减。'],
         ['📦', '批次库存', '每一批货都有自己的到期日。'],
         ['🏷️', '临期促销', '快过期的打折卖掉，不用扔。'],
+        ['👥', '员工考勤', '打卡、算工时发工资，迟到会提醒。'],
         ['💬', '员工消息', '你写中文，员工看到西班牙语。'],
         ['🛡️', '防损', '删单作废、收银差额、抽查盘点都会提醒。'],
         ['💲', '改价', '批量调价，价签自动标每公斤价格。'],
+        ['💸', '钱箱支出', '付供应商、老板取钱都记账，交班分毫不差。'],
         ['📊', '报表', '今天卖了多少、赚了多少，手机上就能看。'],
         ['🚚', '补货', '该向哪个供应商订什么，用 WhatsApp 发订单。'],
       ],
@@ -305,7 +361,29 @@ const T = {
           '<b>现金、借记卡、信用卡、二维码、转账</b>都能收，可以混合付款，自动算找零。',
           '<b>称重商品</b>（熟食、蔬菜水果）：输入公斤数就行。',
           '<b>断网照样收银</b>，网络恢复后自动上传。',
-          '<b>每个收银员用自己的 PIN 登录</b>，交班自动算差额，谁卖的一清二楚。',
+          '<b>每个收银员用自己的 PIN 登录。</b>用钱箱里的钱付供应商、老板取钱都会记下来，交班分毫不差。',
+        ],
+      },
+      {
+        label: '员工',
+        icon: '👥',
+        title: '员工管理',
+        sub: '谁来了、几点来的、干了几个小时，一目了然。',
+        mock: mock.staff({
+          today: '今天',
+          title: '考勤',
+          sofia: '07:58 上班 ✓',
+          martin: '⚠️ 13:17 · 迟到 17 分钟',
+          lucas: '⛔ 没来（应 09:00 上班）',
+          month: '本月工时：Sofía 162 小时 · Martín 148 小时',
+        }),
+        points: [
+          '<b>上下班打卡：</b>在收银台用 PIN 打卡（断网也行），或者用自己的手机打卡。',
+          '<b>迟到、没来都会提醒你</b>，按你给每个人设的排班。',
+          '<b>工时统计：</b>按天、周、月算工作小时，还有迟到和缺勤，可以导出 Excel 算工资。',
+          '<b>员工档案：</b>证件号、电话、入职日期和工资，只有你能看到。',
+          '<b>每人一个账号和 PIN</b>，权限你来定：收银、入库、改价或查看销售。人走了一键停用。',
+          '<b>谁卖了什么</b>，每个收银员的交班对账都清清楚楚。',
         ],
       },
       {
@@ -355,16 +433,16 @@ const T = {
         ],
       },
       {
-        label: '员工',
+        label: '任务',
         icon: '💬',
         title: '语言不通也不怕',
         sub: '你写中文，员工看到西班牙语；员工回西语，你看到中文。',
         mock: mock.chat({ owner: '老板', read: '✓✓ Sofía、Martín 已读', done: '✓ 任务已完成（附照片）' }),
         points: [
-          '<b>每个员工有自己的账号和 PIN。</b>你决定谁能收银、入库、改价、盘点调整或查看销售。',
-          '<b>给一个人或全体员工发指示和任务</b>，可以设截止时间。',
+          '<b>给一个人或全体员工发指示和任务</b>，可以设截止时间、附照片。',
           '<b>中文和西班牙语自动互译</b>（AI），随时能看原文。',
           '<b>谁看了、谁做了，一目了然。</b>任务可以要求拍照为证。',
+          '<b>自动派任务：</b>下架过期商品、每天抽查盘点，系统自动发给员工。',
           '<b>手机收到通知</b>，人不在店里也知道。',
         ],
       },
@@ -428,6 +506,24 @@ const T = {
           '<b>销售记录和交班记录。</b>',
         ],
       },
+      {
+        label: '日常',
+        icon: '📅',
+        title: '超市的一天',
+        sub: '用 Super Chino，普通的一天是这样的。',
+        mock: mock.timeline([
+          ['07:58', '🕗', '<b>Sofía 在收银台打卡上班</b>，放好备用金开班。'],
+          ['09:30', '🚚', '<b>供应商送货：</b>给发票拍张照，商品和到期日自动入库。'],
+          ['09:45', '💸', '<b>用钱箱里的钱付货款：</b>系统记为付供应商。'],
+          ['10:00', '💬', '<b>你用中文发任务</b>，Sofía 看到的是西班牙语，做完拍照回复。'],
+          ['13:17', '⚠️', '<b>Martín 迟到 17 分钟：</b>你的手机马上收到提醒。'],
+          ['15:00', '🔎', '<b>抽查盘点：</b>员工清点 5 样商品，看不到系统数量。'],
+          ['17:00', '🏷️', '<b>明天到期的商品打折</b>，打印促销海报。'],
+          ['20:30', '🧾', '<b>交班对账：</b>已经扣掉付给供应商的钱，分毫不差。'],
+          ['21:00', '📊', '<b>今日汇总发到你手机：</b>销售额、利润和提醒。'],
+        ]),
+        points: [],
+      },
     ],
     last: {
       label: '开始',
@@ -483,18 +579,18 @@ b, strong { font-weight: 700; }
 .brand { font-size: 124px; font-weight: 900; line-height: .92; letter-spacing: -.04em; margin-top: 18px; }
 .brand span { color: var(--gold); }
 .lead { font-size: 27px; line-height: 1.42; margin: 34px 0 0; color: #ffe9ec; font-weight: 500; }
-.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: auto; }
-.tile { background: rgba(255, 255, 255, .12); border: 1px solid rgba(255, 255, 255, .25); border-radius: 18px; padding: 26px 22px; font-size: 22px; font-weight: 700; line-height: 1.3; }
-.tile i { display: block; font-style: normal; font-size: 44px; margin-bottom: 12px; }
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: auto; }
+.tile { background: rgba(255, 255, 255, .12); border: 1px solid rgba(255, 255, 255, .25); border-radius: 18px; padding: 18px 20px; font-size: 20px; font-weight: 700; line-height: 1.3; }
+.tile i { display: block; font-style: normal; font-size: 34px; margin-bottom: 8px; }
 .cfoot { margin-top: 30px; font-size: 17px; line-height: 1.5; color: #ffdfe3; border-top: 1px solid rgba(255, 255, 255, .25); padding-top: 16px; }
 .cfoot b { color: #fff; font-size: 20px; }
 
 /* Resumen */
-.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.card { background: var(--cream); border: 1px solid var(--line); border-radius: 16px; padding: 16px 16px 18px; }
-.card i { font-style: normal; font-size: 30px; }
-.card b { display: block; font-size: 20px; margin: 6px 0 4px; }
-.card span { font-size: 17px; line-height: 1.42; color: #4a423c; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.card { background: var(--cream); border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px 14px; }
+.card i { font-style: normal; font-size: 26px; }
+.card b { display: block; font-size: 19px; margin: 4px 0 2px; }
+.card span { font-size: 16px; line-height: 1.42; color: #4a423c; }
 .band { background: var(--green); color: #fff; border-radius: 16px; padding: 16px 20px; font-size: 20px; font-weight: 700; line-height: 1.4; }
 .band.red { background: var(--red); }
 
@@ -509,6 +605,14 @@ b, strong { font-weight: 700; }
 .chips span { background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; font-size: 15.5px; }
 .lot { display: flex; justify-content: space-between; background: #fff; border: 1px solid var(--line); border-radius: 11px; padding: 9px 13px; }
 .lot.warn { background: #fff4d6; border-color: #f3cf74; font-weight: 600; }
+.lot.bad { background: #fde7ea; border-color: #f1a9b4; color: #9e0c24; font-weight: 600; }
+.btn.xl { background: #1e7b45; color: #fff; border-radius: 999px; padding: 6px 12px; font-weight: 700; white-space: nowrap; }
+.timeline { display: flex; flex-direction: column; }
+.tl-row { display: grid; grid-template-columns: 62px 40px 1fr; align-items: start; gap: 8px; padding: 9px 0; border-bottom: 1px dashed var(--line); }
+.tl-time { font-weight: 800; color: var(--red); font-size: 18px; padding-top: 6px; font-variant-numeric: tabular-nums; }
+.tl-dot { width: 38px; height: 38px; border-radius: 50%; background: #fde7ea; display: grid; place-items: center; font-size: 19px; }
+.tl-text { font-size: 18.5px; line-height: 1.42; }
+:lang(zh) .tl-text { line-height: 1.6; }
 .tag { background: var(--gold); color: #3a2a00; border-radius: 999px; padding: 3px 11px; font-weight: 800; font-size: 16px; }
 .prices { font-size: 34px; font-weight: 800; color: var(--red); }
 .prices s { font-size: 21px; font-weight: 500; color: var(--muted); margin-right: 12px; }
@@ -583,7 +687,7 @@ function render(c) {
       i + 3,
       p.label,
       `<div class="ic">${p.icon}</div><h1>${p.title}</h1><p class="sub">${p.sub}</p>${p.mock}
-      <ul class="pts">${p.points.map((x) => `<li>${x}</li>`).join('')}</ul>`,
+      ${p.points.length ? `<ul class="pts">${p.points.map((x) => `<li>${x}</li>`).join('')}</ul>` : ''}`,
     ),
   );
   const last = shell(

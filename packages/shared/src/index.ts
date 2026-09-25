@@ -10,6 +10,33 @@ export type Perm = (typeof PERMS)[number];
 export const PAYMENT_METHODS = ['CASH', 'DEBIT', 'CREDIT', 'QR', 'TRANSFER'] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
+/** Plata que sale o entra de la caja fuera de las ventas: pago a proveedor, gasto, retiro del dueño, ingreso de cambio. */
+export const CASH_MOVE_KINDS = ['SUPPLIER', 'EXPENSE', 'WITHDRAWAL', 'DEPOSIT'] as const;
+export type CashMoveKind = (typeof CASH_MOVE_KINDS)[number];
+/** +1 si la plata entra a la caja, -1 si sale. */
+export const cashMoveSign = (kind: CashMoveKind) => (kind === 'DEPOSIT' ? 1 : -1);
+
+// ---------- Horario de cada empleado ----------
+
+const HHMM = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
+/** "08:30" -> 510 */
+export const hhmmToMin = (s: string) => Number(s.slice(0, 2)) * 60 + Number(s.slice(3, 5));
+/** Semana de 7 días (0 = domingo); null = franco. Un tramo por día. */
+export const WeekScheduleSchema = z
+  .array(
+    z
+      .object({ start: HHMM, end: HHMM })
+      .refine((d) => hhmmToMin(d.end) > hhmmToMin(d.start), 'end_before_start')
+      .nullable(),
+  )
+  .length(7);
+export type WeekSchedule = z.infer<typeof WeekScheduleSchema>;
+/** Horario guardado -> semana válida, o null si no tiene. */
+export const parseSchedule = (raw: unknown): WeekSchedule | null => {
+  const r = WeekScheduleSchema.safeParse(raw);
+  return r.success ? r.data : null;
+};
+
 export const StoreSettingsSchema = z.object({
   /** Días antes del vencimiento para avisar. */
   expiryAlertDays: z.number().int().min(1).max(90).default(7),
@@ -38,6 +65,10 @@ export const StoreSettingsSchema = z.object({
   countDiffThreshold: z.number().min(0).default(1),
   /** Fotos por día que se pueden leer con IA. */
   aiDailyScanLimit: z.number().int().min(0).max(500).default(30),
+  /** Minutos de tolerancia antes de avisar que alguien llegó tarde. */
+  lateToleranceMin: z.number().int().min(0).max(120).default(10),
+  /** Minutos después de la hora de entrada para avisar que alguien no vino. */
+  absentAfterMin: z.number().int().min(10).max(240).default(30),
 });
 export type StoreSettings = z.infer<typeof StoreSettingsSchema>;
 export const parseSettings = (raw: unknown): StoreSettings =>
@@ -83,6 +114,17 @@ export const PosEventSchema = z.discriminatedUnion('type', [
     cashSessionId: z.string().min(1),
     countedAmount: Money.min(0),
     notes: z.string().max(500).optional(),
+  }),
+  /** Fichaje de entrada o salida en la PC de la caja. */
+  z.object({ ...base, type: z.literal('CLOCK'), action: z.enum(['in', 'out']) }),
+  z.object({
+    ...base,
+    type: z.literal('CASH_MOVE'),
+    cashSessionId: z.string().min(1),
+    kind: z.enum(CASH_MOVE_KINDS),
+    amount: Money.positive(),
+    reason: z.string().trim().max(200).optional(),
+    supplierId: z.string().nullish(),
   }),
 ]);
 export type PosEvent = z.infer<typeof PosEventSchema>;

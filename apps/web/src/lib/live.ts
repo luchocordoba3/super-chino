@@ -11,6 +11,7 @@ export function useLiveEvents() {
     on('messages', [['messages'], ['unread']]);
     on('alerts', [['alerts'], ['dashboard']]);
     on('sales', [['dashboard'], ['sales'], ['products']]);
+    on('attendance', [['attendance'], ['dashboard']]);
     on('stock', [['products'], ['lots'], ['product']]);
     on('catalog', [['products'], ['product']]);
     on('offers', [['offers'], ['dashboard']]);

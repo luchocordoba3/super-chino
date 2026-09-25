@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { PaymentMethod } from '@super-chino/shared';
 import { api } from '../api';
 import { ErrorBox, Loading } from '../components/ui';
-import { dayFmt, money, qtyFmt } from '../lib/format';
+import { dayFmt, money, qtyFmt, timeFmt } from '../lib/format';
 
 interface Dash {
   today: { total: number; count: number; avgTicket: number; profit: number; byMethod: Partial<Record<PaymentMethod, number>>; byCashier: { name: string; total: number; count: number }[] };
@@ -16,6 +16,11 @@ interface Dash {
   wasteThisMonth: number;
   voidsToday: Partial<Record<'ITEM_REMOVED' | 'SALE_VOIDED', number>>;
   week: { date: string; total: number }[];
+  staff: {
+    working: { userId: string; name: string; since: string; lateMin: number | null }[];
+    late: { userId: string; name: string; minutes: number }[];
+    absent: { userId: string; name: string; start: string }[];
+  };
 }
 
 export function Dashboard() {
@@ -54,6 +59,18 @@ export function Dashboard() {
         {stat(t('dashboard.wasteThisMonth'), money(d.wasteThisMonth))}
       </div>
       <div className="grid2">
+        <Link className="card" to="/attendance" style={{ color: 'inherit' }}>
+          <h3>🕘 {t('dashboard.workingNow')}</h3>
+          {d.staff.working.length === 0 && <p className="muted">{t('dashboard.nobodyWorking')}</p>}
+          {d.staff.working.map((w) => (
+            <div className="row between" key={w.userId}>
+              <span>{w.name}</span>
+              <span className="muted small">{t('attendance.since', { time: timeFmt(w.since) })}</span>
+            </div>
+          ))}
+          {d.staff.late.length > 0 && <p className="small">⚠️ {t('dashboard.lateNow', { names: d.staff.late.map((l) => `${l.name} (${l.minutes}')`).join(', ') })}</p>}
+          {d.staff.absent.length > 0 && <p className="small error">⛔ {t('dashboard.absentNow', { names: d.staff.absent.map((a) => a.name).join(', ') })}</p>}
+        </Link>
         <div className="card">
           <h3>{t('dashboard.byMethod')}</h3>
           {Object.entries(d.today.byMethod).map(([m, v]) => (

@@ -1,5 +1,5 @@
 import type { PosEvent, SyncResult } from '@super-chino/shared';
-import { type CatalogProduct, db, kvDel, kvGet, kvSet, normalize, type OfferRow, type PosUser, type StoreInfo } from './db';
+import { type CatalogProduct, db, kvDel, kvGet, kvSet, normalize, type OfferRow, type PosUser, type StoreInfo, type SupplierRow } from './db';
 
 export class UnlinkedError extends Error {}
 
@@ -31,6 +31,7 @@ interface Bootstrap {
   users: PosUser[];
   products: Omit<CatalogProduct, 'search'>[];
   offers: OfferRow[];
+  suppliers?: SupplierRow[];
 }
 
 /** Baja catálogo, precios, ofertas y cajeros. Incremental: solo lo que cambió desde la última vez. */
@@ -45,6 +46,7 @@ export async function refreshCatalog(full = false) {
     await db.offers.clear();
     await db.offers.bulkPut(data.offers);
     await kvSet('store', data.store);
+    await kvSet('suppliers', data.suppliers ?? []);
     await kvSet('catalogSince', data.serverTime);
   });
   changed();

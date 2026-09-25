@@ -7,6 +7,7 @@ import { ownerIds, pushTo } from './notify';
 import { fefoCompare } from '../domain/fefo';
 import { suggestOffer } from '../domain/offers';
 import { type NewAlert, notifyAlerts, raiseAlert, resolveAlert } from './alerts';
+import { absentCheck } from './attendance';
 import { afterCreate, createMessage } from './messages';
 import { publish } from './notify';
 import { checkLowStock } from './sales';
@@ -202,9 +203,20 @@ export async function runAllStores(log?: FastifyBaseLogger) {
   }
 }
 
-/** Corre la revisión al arrancar y después cada hora. */
+/** Avisa quién no vino a trabajar (se revisa seguido para que el aviso llegue a tiempo). */
+export async function runAbsentChecks(log?: FastifyBaseLogger) {
+  const stores = await prisma.store.findMany({ select: { id: true } });
+  for (const s of stores) {
+    await absentCheck(s.id)
+      .then((alerts) => notifyAlerts(s.id, alerts))
+      .catch((e) => log?.error({ err: e, storeId: s.id }, 'absent check'));
+  }
+}
+
+/** Corre la revisión al arrancar y después cada hora; las ausencias, cada 10 minutos. */
 export function startJobs(log: FastifyBaseLogger) {
   const run = () => void runAllStores(log);
   setTimeout(run, 10_000);
   setInterval(run, 60 * 60 * 1000);
+  setInterval(() => void runAbsentChecks(log), 10 * 60 * 1000);
 }

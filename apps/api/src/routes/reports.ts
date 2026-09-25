@@ -7,6 +7,7 @@ import { reorderQty, whatsappLink } from '../domain/reorder';
 import { can, guard } from '../lib/auth';
 import { badRequest, HttpError, notFound } from '../lib/http';
 import { type NewAlert, notifyAlerts, raiseAlert } from '../services/alerts';
+import { todayBoard } from '../services/attendance';
 import { createStockCount } from '../services/counts';
 import { publish } from '../services/notify';
 import { adjustStock, lotsByProduct, stockOf } from '../services/stock';
@@ -138,6 +139,7 @@ export async function reportRoutes(app: FastifyInstance) {
       prisma.posEvent.groupBy({ by: ['type'], where: { storeId, type: { in: ['ITEM_REMOVED', 'SALE_VOIDED'] }, occurredAt: { gte: from } }, _count: { _all: true } }),
       prisma.sale.findMany({ where: { storeId, status: 'COMPLETED', occurredAt: { gte: weekFrom } }, select: { total: true, occurredAt: true } }),
     ]);
+    const staff = await todayBoard(storeId);
     const total = round2(sales.reduce((s, x) => s + num(x.total), 0));
     const cost = round2(sales.reduce((s, x) => s + num(x.costTotal), 0));
     const byMethod: Record<string, number> = {};
@@ -165,6 +167,7 @@ export async function reportRoutes(app: FastifyInstance) {
       wasteThisMonth: round2(waste.reduce((s, w) => s + Math.abs(num(w.qty)) * num(w.unitCost), 0)),
       voidsToday: Object.fromEntries(voids.map((v) => [v.type, v._count._all])),
       week: days.map((d) => ({ date: d, total: perDay.get(d) ?? 0 })),
+      staff: { working: staff.working, late: staff.late, absent: staff.absent },
     };
   });
 }

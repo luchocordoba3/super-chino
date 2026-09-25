@@ -95,7 +95,7 @@ export interface Msg {
   recipients: { userId: string; name: string; readAt: string | null }[];
 }
 
-export type AlertType = 'EXPIRING' | 'EXPIRED' | 'LOW_STOCK' | 'NEGATIVE_STOCK' | 'VOID_SPIKE' | 'CASH_DIFF' | 'COUNT_DIFF' | 'OFFER_SUGGESTED';
+export type AlertType = 'EXPIRING' | 'EXPIRED' | 'LOW_STOCK' | 'NEGATIVE_STOCK' | 'VOID_SPIKE' | 'CASH_DIFF' | 'COUNT_DIFF' | 'OFFER_SUGGESTED' | 'LATE' | 'ABSENT';
 export interface AlertRow {
   id: string;
   type: AlertType;

@@ -29,6 +29,8 @@ export const env = {
   JOBS_ENABLED: !isTest && process.env.JOBS_ENABLED !== 'false',
   /** Servidor de demostración: el login muestra los botones "Probar la demo". */
   SEED_DEMO: process.env.SEED_DEMO === 'true',
+  /** Intentos de login por minuto y por IP. */
+  AUTH_RATE_LIMIT: Number(process.env.AUTH_RATE_LIMIT) || 10,
 };
 
 if (env.NODE_ENV === 'production' && env.JWT_SECRET === 'dev-secret-cambiar') {

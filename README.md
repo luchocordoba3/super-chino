@@ -14,12 +14,20 @@ Es una app web instalable (PWA): la misma app corre en la PC de la caja (con lec
   - lector USB, cantidad con `3*`, productos por kilo;
   - efectivo, débito, crédito, QR y transferencia, con pago mixto y vuelto;
   - ticket interno;
-  - apertura y cierre de caja con arqueo.
+  - apertura y cierre de caja con arqueo;
+  - pagos a proveedores, gastos, retiros del dueño e ingresos de cambio desde la caja: quedan anotados y el cierre los descuenta.
 - **Sin internet:** la caja guarda catálogo, precios, ofertas y cajeros en la PC. Las ventas quedan en una cola y se sincronizan solas cuando vuelve la conexión (sin duplicar nada).
 - **Precios:**
   - edición individual con historial de quién cambió qué;
   - suba o baja masiva por %, con vista previa y redondeo;
   - sugerencia de nuevo precio cuando sube el costo (protección de margen).
+- **Empleados:**
+  - ficha de cada uno (DNI, teléfono, fecha de ingreso y sueldo), que solo ve el dueño;
+  - horario semanal;
+  - fichaje de entrada y salida en la caja con PIN (anda sin internet) o desde el celular;
+  - horas por día, semana o mes con tardanzas, faltas y fichajes incompletos, para bajar a Excel y pagar sueldos;
+  - aviso al celular del dueño si alguien llega tarde o no viene;
+  - el dueño corrige o carga fichajes a mano.
 - **Indicaciones del dueño:** mensajes y tareas para todo el equipo o para una persona, con confirmación de lectura, foto de prueba y notificaciones push.
 
 **Ideas nuevas**
@@ -129,5 +137,4 @@ packages/shared  Esquemas compartidos (eventos de la caja, configuración del lo
 - Varias sucursales en una sola cuenta, con traspaso de mercadería
 - Balanzas con etiqueta de código de barras (fiambrería y verdulería)
 - Pedidos del barrio por WhatsApp con catálogo y stock real
-- Fichaje de empleados con un QR en el local
-- Fiado / cuenta corriente, predicción de ventas según clima y feriados, etiquetas de góndola
+- Fiado / cuenta corriente, predicción de ventas según clima y feriados

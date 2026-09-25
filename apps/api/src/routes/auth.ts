@@ -1,14 +1,16 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { LANGS, PERMS, parseSettings, StoreSettingsSchema } from '@super-chino/shared';
+import type { Prisma, User } from '@prisma/client';
+import { LANGS, PERMS, parseSchedule, parseSettings, StoreSettingsSchema, WeekScheduleSchema } from '@super-chino/shared';
 import { prisma } from '../db';
+import { dateOnly } from '../domain/dates';
 import { env } from '../env';
 import { guard, publicUser, SESSION_COOKIE, setSession } from '../lib/auth';
 import { hashPassword, hashPin, randomCode, verifyPassword, verifyPin } from '../lib/crypto';
 import { HttpError, notFound } from '../lib/http';
 import { aiService } from '../ai';
 
-const limited = { config: { rateLimit: { max: env.isTest ? 10_000 : 10, timeWindow: '1 minute' } } };
+const limited = { config: { rateLimit: { max: env.isTest ? 10_000 : env.AUTH_RATE_LIMIT, timeWindow: '1 minute' } } };
 const pinSchema = z.string().regex(/^\d{4,8}$/, 'El PIN debe tener de 4 a 8 números');
 
 async function uniqueStoreCode() {
@@ -16,6 +18,19 @@ async function uniqueStoreCode() {
     const code = randomCode(6);
     if (!(await prisma.store.findUnique({ where: { code } }))) return code;
   }
+}
+
+/** Ficha completa del empleado (solo para el dueño). */
+function employeeRecord(u: User) {
+  return {
+    ...publicUser(u),
+    dni: u.dni,
+    phone: u.phone,
+    hiredAt: u.hiredAt ? u.hiredAt.toISOString().slice(0, 10) : null,
+    salary: u.salary == null ? null : Number(u.salary),
+    notes: u.notes,
+    schedule: parseSchedule(u.schedule),
+  };
 }
 
 function publicStore(s: { id: string; name: string; code: string; currency: string; timezone: string; settings: unknown }) {
@@ -101,7 +116,7 @@ export async function authRoutes(app: FastifyInstance) {
 
   app.get('/users', guard('owner'), async (req) => {
     const users = await prisma.user.findMany({ where: { storeId: req.auth.sid }, orderBy: { createdAt: 'asc' } });
-    return users.map(publicUser);
+    return users.map(employeeRecord);
   });
 
   /** Lista corta para elegir destinatarios y mostrar nombres. */
@@ -140,6 +155,13 @@ export async function authRoutes(app: FastifyInstance) {
         perms: z.array(z.enum(PERMS)).optional(),
         lang: z.enum(LANGS).optional(),
         active: z.boolean().optional(),
+        // Ficha y horario
+        dni: z.string().trim().max(20).nullish(),
+        phone: z.string().trim().max(30).nullish(),
+        hiredAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullish(),
+        salary: z.number().min(0).max(1e10).nullish(),
+        notes: z.string().trim().max(500).nullish(),
+        schedule: WeekScheduleSchema.nullish(),
       })
       .parse(req.body);
     const u = await prisma.user.findFirst({ where: { id, storeId: req.auth.sid } });
@@ -153,9 +175,15 @@ export async function authRoutes(app: FastifyInstance) {
         lang: b.lang,
         active: b.active,
         pinHash: b.pin ? hashPin(b.pin) : undefined,
+        dni: b.dni === undefined ? undefined : b.dni || null,
+        phone: b.phone === undefined ? undefined : b.phone || null,
+        hiredAt: b.hiredAt === undefined ? undefined : b.hiredAt ? dateOnly(b.hiredAt) : null,
+        salary: b.salary === undefined ? undefined : b.salary,
+        notes: b.notes === undefined ? undefined : b.notes || null,
+        schedule: b.schedule === undefined ? undefined : ((b.schedule ?? []) as Prisma.InputJsonValue),
       },
     });
-    return publicUser(updated);
+    return employeeRecord(updated);
   });
 
   // ---------- Local ----------

@@ -36,22 +36,31 @@ export async function posRoutes(app: FastifyInstance) {
     const { since } = z.object({ since: z.iso.datetime().optional() }).parse(req.query);
     const storeId = req.device.storeId;
     const serverTime = new Date().toISOString();
-    const [store, users, products, offers] = await Promise.all([
+    const [store, users, products, offers, suppliers] = await Promise.all([
       prisma.store.findUniqueOrThrow({ where: { id: storeId } }),
-      prisma.user.findMany({ where: { storeId, active: true, pinHash: { not: null } } }),
+      prisma.user.findMany({ where: { storeId, active: true, pinHash: { not: null } }, orderBy: { name: 'asc' } }),
       prisma.product.findMany({
         where: { storeId, ...(since ? { updatedAt: { gt: new Date(since) } } : { active: true }) },
         select: { id: true, barcode: true, name: true, price: true, unit: true, active: true, updatedAt: true },
       }),
       prisma.offer.findMany({ where: { storeId, status: 'ACTIVE' }, include: { lot: { select: { qtyRemaining: true } } } }),
+      prisma.supplier.findMany({ where: { storeId }, select: { id: true, name: true }, orderBy: { name: 'asc' } }),
     ]);
     return {
       serverTime,
       full: !since,
       store: { name: store.name, code: store.code, currency: store.currency, timezone: store.timezone, settings: parseSettings(store.settings) },
-      users: users
-        .filter((u) => u.role === 'OWNER' || u.perms.includes('sell'))
-        .map((u) => ({ id: u.id, name: u.name, lang: u.lang, role: u.role, perms: u.role === 'OWNER' ? [...PERMS] : u.perms, pin: u.pinHash })),
+      // Todos los que tienen PIN pueden fichar; cobran solo el dueño y los que tienen permiso de vender.
+      users: users.map((u) => ({
+        id: u.id,
+        name: u.name,
+        lang: u.lang,
+        role: u.role,
+        perms: u.role === 'OWNER' ? [...PERMS] : u.perms,
+        canSell: u.role === 'OWNER' || u.perms.includes('sell'),
+        pin: u.pinHash,
+      })),
+      suppliers,
       products: products.map((p) => ({ ...p, price: num(p.price) })),
       offers: offers.map((o) => ({ id: o.id, productId: o.productId, offerPrice: num(o.offerPrice), discountPct: o.discountPct, maxQty: num(o.lot.qtyRemaining) })),
     };

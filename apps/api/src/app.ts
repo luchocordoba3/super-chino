@@ -11,6 +11,7 @@ import { env } from './env';
 import { SESSION_COOKIE } from './lib/auth';
 import { HttpError } from './lib/http';
 import { aiRoutes } from './routes/ai';
+import { attendanceRoutes } from './routes/attendance';
 import { authRoutes } from './routes/auth';
 import { importRoutes } from './routes/import';
 import { messageRoutes } from './routes/messages';
@@ -56,6 +57,7 @@ export async function buildApp(opts: FastifyServerOptions = {}) {
   await app.register(
     async (api) => {
       await authRoutes(api);
+      await attendanceRoutes(api);
       await productRoutes(api);
       await importRoutes(api);
       await stockRoutes(api);

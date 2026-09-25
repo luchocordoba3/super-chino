@@ -38,3 +38,24 @@ export const startOfLocalMonth = (tz: string, d = new Date()) => startOfLocalDay
 
 export const localHour = (tz: string, d = new Date()) =>
   Number(new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', hourCycle: 'h23' }).format(d));
+
+/** Día de la semana local (0 = domingo). */
+export const localWeekday = (tz: string, d = new Date()) => new Date(`${localYMD(tz, d)}T12:00:00Z`).getUTCDay();
+
+/** Minutos desde la medianoche local. */
+export function localMinutes(tz: string, d = new Date()) {
+  const p = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', minute: 'numeric', hourCycle: 'h23' }).formatToParts(d);
+  const g = (t: string) => Number(p.find((x) => x.type === t)?.value);
+  return g('hour') * 60 + g('minute');
+}
+
+/** Instante de la hora local "HH:MM" del día local AAAA-MM-DD. */
+export function localDateTime(tz: string, ymd: string, hhmm: string) {
+  const guess = new Date(`${ymd.slice(0, 10)}T${hhmm}:00.000Z`);
+  const first = new Date(guess.getTime() - tzOffsetMs(tz, guess));
+  return new Date(guess.getTime() - tzOffsetMs(tz, first));
+}
+
+/** Hora local "HH:MM". */
+export const localHM = (tz: string, d: Date) =>
+  new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(d);

@@ -25,6 +25,7 @@ import { Settings } from './pages/Settings';
 import { Suppliers } from './pages/Suppliers';
 import { Stock } from './pages/Stock';
 import { Team } from './pages/Team';
+import { Attendance } from './pages/Attendance';
 
 export function App() {
   const location = useLocation();
@@ -73,6 +74,7 @@ export function App() {
           <Route path="reorder" element={<Reorder />} />
           <Route path="sales" element={<Sales />} />
           <Route path="team" element={<Team />} />
+          <Route path="attendance" element={<Attendance />} />
           <Route path="settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

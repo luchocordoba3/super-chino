@@ -158,3 +158,10 @@ td.num, th.num { text-align: right; white-space: nowrap; }
   @page { size: A4; margin: 8mm; }
   .labels-sheet { grid-template-columns: repeat(3, 64mm); }
 }
+
+/* Horarios y fichajes */
+.schedule th { text-align: left; padding-right: 8px; font-weight: 600; }
+.schedule td { padding: 2px 4px; }
+.schedule input[type='time'] { width: auto; }
+.attendance-row { flex-wrap: wrap; border-bottom: 1px solid var(--line); padding: 6px 0; gap: 6px; }
+tr.selected td { background: rgba(200, 16, 46, 0.08); }

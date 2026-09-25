@@ -49,8 +49,13 @@ describe('caja', () => {
     const res = await pos.get('/pos/bootstrap');
     expect(res.status).toBe(200);
     expect(res.body.products).toHaveLength(1);
-    expect(res.body.users.map((u: { name: string }) => u.name)).toEqual(['Sofía']);
-    expect(res.body.users[0].pin).toMatch(/^pbkdf2\$/);
+    // Todos los que tienen PIN pueden fichar; cobran solo los que tienen permiso de vender.
+    expect(res.body.users.map((u: { name: string; canSell: boolean }) => [u.name, u.canSell])).toEqual([
+      ['Repositor', false],
+      ['Sofía', true],
+    ]);
+    expect(res.body.users[1].pin).toMatch(/^pbkdf2\$/);
+    expect(res.body.suppliers).toEqual([]);
   });
 
   it('una venta descuenta primero el lote que vence antes y calcula la ganancia real', async () => {
@@ -115,6 +120,47 @@ describe('caja', () => {
     expect(Number(s.difference)).toBe(-1000);
     const types = (await prisma.alert.findMany()).map((a) => a.type).sort();
     expect(types).toEqual(['CASH_DIFF', 'VOID_SPIKE']);
+  });
+
+  it('pagos y retiros de caja: el esperado los tiene en cuenta y el cierre da justo', async () => {
+    const id = await productWithLots([{ qty: 50 }]);
+    const emp = await createEmployee(app, owner, { perms: ['sell'] });
+    const sup = (await owner.api.post('/suppliers', { name: 'Distribuidora Norte' })).body;
+    const sessionId = randomUUID();
+    const move = (kind: string, amount: number, extra: Record<string, unknown> = {}) => ({
+      id: randomUUID(),
+      type: 'CASH_MOVE',
+      userId: emp.id,
+      occurredAt: now(),
+      cashSessionId: sessionId,
+      kind,
+      amount,
+      ...extra,
+    });
+    const events = [
+      { id: randomUUID(), type: 'CASH_OPEN', userId: emp.id, occurredAt: now(), cashSessionId: sessionId, openingAmount: 5000 },
+      sale(emp.id, [{ productId: id, qty: 4, price: 1000 }], { cashSessionId: sessionId }),
+      move('SUPPLIER', 3000, { supplierId: sup.id, reason: 'Factura 123' }),
+      move('DEPOSIT', 1000, { reason: 'Cambio' }),
+      { id: randomUUID(), type: 'CASH_CLOSE', userId: emp.id, occurredAt: now(), cashSessionId: sessionId, countedAmount: 7000 },
+    ];
+    const res = await pos.post('/pos/sync', { events });
+    expect(res.body.results.map((r: { status: string }) => r.status)).toEqual(['ok', 'ok', 'ok', 'ok', 'ok']);
+    const s = await prisma.cashSession.findUniqueOrThrow({ where: { id: sessionId } });
+    expect(Number(s.expectedAmount)).toBe(7000); // 5000 + 4000 de ventas − 3000 al proveedor + 1000 de cambio
+    expect(Number(s.difference)).toBe(0);
+    expect(await prisma.alert.count({ where: { type: 'CASH_DIFF' } })).toBe(0);
+
+    const row = (await owner.api.get('/cash-sessions')).body[0];
+    expect(row.movementsNet).toBe(-2000);
+    const moves = row.movements.map((m: { kind: string; amount: number; supplier: string | null }) => [m.kind, m.amount, m.supplier]).sort();
+    expect(moves).toEqual([
+      ['DEPOSIT', 1000, null],
+      ['SUPPLIER', 3000, 'Distribuidora Norte'],
+    ]);
+    // La caja ya cerró: un movimiento tardío se rechaza.
+    const late = await pos.post('/pos/sync', { events: [move('WITHDRAWAL', 500)] });
+    expect(late.body.results[0]).toMatchObject({ status: 'rejected', error: 'cash_session_not_found' });
   });
 
   it('eventos inválidos o de otro local se rechazan sin frenar al resto', async () => {

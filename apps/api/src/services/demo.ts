@@ -5,8 +5,9 @@
 import { randomUUID } from 'node:crypto';
 import { parseSettings } from '@super-chino/shared';
 import { prisma } from '../db';
-import { addDays, localYMD, startOfLocalDay } from '../domain/dates';
+import { addDays, dateOnly, localDateTime, localYMD, startOfLocalDay } from '../domain/dates';
 import { hashPassword, hashPin, randomToken, sha256 } from '../lib/crypto';
+import { clock } from './attendance';
 import { processPosEvents } from './sales';
 import { createStockEntry } from './stock';
 
@@ -25,7 +26,9 @@ async function wipeStoreData(storeId: string) {
     prisma.saleItem.deleteMany({ where: { sale: { storeId } } }),
     prisma.sale.deleteMany({ where: { storeId } }),
     prisma.posEvent.deleteMany({ where: { storeId } }),
+    prisma.cashMovement.deleteMany({ where: { storeId } }),
     prisma.cashSession.deleteMany({ where: { storeId } }),
+    prisma.attendance.deleteMany({ where: { storeId } }),
     prisma.stockCountItem.deleteMany({ where: { count: { storeId } } }),
     prisma.stockCount.deleteMany({ where: { storeId } }),
     prisma.messageRecipient.deleteMany({ where: { message: { storeId } } }),
@@ -128,10 +131,17 @@ export async function seedDemo() {
   // 2) Ventas de los últimos 14 días y de hoy, en horario de comercio (hora del local).
   const device = await prisma.device.create({ data: { storeId, name: 'Caja demo', tokenHash: sha256(randomToken()) } });
   const now = Date.now();
-  const events = [];
+  const events: Record<string, unknown>[] = [];
+  // La caja de hoy la abrió Sofía; en el medio se le pagó a un proveedor con plata de la caja.
+  const sessionId = randomUUID();
+  const todayStart = startOfLocalDay(store.timezone).getTime();
+  const openAt = Math.min(todayStart + 8 * 3_600_000, now - 3 * 3_600_000);
   for (let d = 14; d >= 0; d--) {
     const dayStart = startOfLocalDay(store.timezone, addDays(new Date(), -d)).getTime();
     const perDay = d === 0 ? 6 : 7;
+    if (d === 0) {
+      events.push({ id: randomUUID(), type: 'CASH_OPEN', userId: sofia.id, occurredAt: new Date(openAt).toISOString(), cashSessionId: sessionId, openingAmount: 30000 });
+    }
     for (let s = 0; s < perDay; s++) {
       let when = dayStart + (9 + rand() * 11) * 3_600_000;
       if (when > now) when = now - 60_000 * (s + 1);
@@ -148,9 +158,21 @@ export async function seedDemo() {
         items,
         payments: [{ method: pick(['CASH', 'CASH', 'DEBIT', 'QR']), amount: total }],
         total,
+        cashSessionId: d === 0 ? sessionId : undefined,
       });
     }
   }
+  events.push({
+    id: randomUUID(),
+    type: 'CASH_MOVE',
+    userId: sofia.id,
+    occurredAt: new Date(Math.max(openAt + 60_000, Math.min(todayStart + 10.5 * 3_600_000, now - 120_000))).toISOString(),
+    cashSessionId: sessionId,
+    kind: 'SUPPLIER',
+    amount: 18500,
+    reason: 'Factura de mercadería',
+    supplierId: norte,
+  });
   await processPosEvents(storeId, device.id, events);
 
   // 3) Mercadería nueva con vencimientos (para ver avisos y ofertas).
@@ -174,7 +196,47 @@ export async function seedDemo() {
     }),
   );
 
-  // 4) Mensajes del dueño (en chino, con traducción).
+  // 4) Ficha, horario y fichajes de las últimas dos semanas (Martín llegó tarde dos veces y faltó una).
+  const tz = store.timezone;
+  const week = (start: string, end: string) => [null, ...Array.from({ length: 6 }, () => ({ start, end }))];
+  const weekday = (ymd: string) => new Date(`${ymd}T12:00:00Z`).getUTCDay();
+  await prisma.user.update({
+    where: { id: sofia.id },
+    data: { dni: '38.456.123', phone: '11 5555-1234', hiredAt: dateOnly(inDays(-400)), salary: 850000, schedule: week('08:00', '16:00') },
+  });
+  await prisma.user.update({
+    where: { id: martin.id },
+    data: { dni: '41.987.654', phone: '11 5555-5678', hiredAt: dateOnly(inDays(-120)), salary: 780000, schedule: week('13:00', '21:00') },
+  });
+  const shifts = [
+    { user: sofia, start: '08:00', end: '16:00', late: {} as Record<number, number>, absent: [] as number[] },
+    { user: martin, start: '13:00', end: '21:00', late: { 3: 17, 8: 25 } as Record<number, number>, absent: [5] },
+  ];
+  const attendance = [];
+  for (const s of shifts) {
+    for (let d = 14; d >= 1; d--) {
+      if (weekday(inDays(-d)) === 0 || s.absent.includes(d)) continue;
+      const delay = s.late[d] ?? Math.round(rand() * 8) - 6;
+      const inAt = new Date(localDateTime(tz, inDays(-d), s.start).getTime() + delay * 60_000);
+      const outAt = new Date(localDateTime(tz, inDays(-d), s.end).getTime() + Math.round(rand() * 10) * 60_000);
+      attendance.push({ id: randomUUID(), storeId, userId: s.user.id, inAt, outAt, inSource: 'pos', outSource: 'pos', deviceId: device.id, lateMin: delay > 0 ? delay : null });
+    }
+  }
+  await prisma.attendance.createMany({ data: attendance });
+  if (weekday(today) !== 0) {
+    // Hoy: Sofía llegó a horario y Martín 17 minutos tarde (le llega el aviso al dueño).
+    const clockAt = async (userId: string, hhmm: string, action: 'in' | 'out', source: 'pos' | 'phone') => {
+      const at = localDateTime(tz, today, hhmm);
+      if (at.getTime() >= now) return;
+      await prisma.$transaction((tx) => clock(tx, { id: randomUUID(), storeId, userId, action, at, source, deviceId: source === 'pos' ? device.id : null }));
+    };
+    await clockAt(sofia.id, '07:58', 'in', 'pos');
+    await clockAt(sofia.id, '16:03', 'out', 'pos');
+    await clockAt(martin.id, '13:17', 'in', 'phone');
+    await clockAt(martin.id, '21:02', 'out', 'pos');
+  }
+
+  // 5) Mensajes del dueño (en chino, con traducción).
   const msg = await prisma.message.create({
     data: {
       storeId,
@@ -201,5 +263,5 @@ export async function seedDemo() {
   });
   await prisma.messageRecipient.create({ data: { messageId: task.id, userId: sofia.id } });
 
-  return { storeId, sales: events.length };
+  return { storeId, sales: events.filter((e) => e.type === 'SALE').length };
 }

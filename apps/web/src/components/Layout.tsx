@@ -46,6 +46,7 @@ export function Layout() {
     { to: '/reorder', label: t('nav.reorder'), show: can(me, 'stock') },
     { to: '/sales', label: t('nav.sales'), show: can(me, 'reports') },
     { to: '/team', label: t('nav.team'), show: can(me, 'owner') },
+    { to: '/attendance', label: t('nav.attendance'), show: can(me, 'owner') },
     { to: '/settings', label: t('nav.settings'), show: true },
   ].filter((l) => l.show);
 

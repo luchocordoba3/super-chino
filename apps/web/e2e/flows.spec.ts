@@ -71,8 +71,16 @@ test('caja: anular una venta, imprimir ticket y cerrar caja con arqueo', async (
   await page.getByRole('button', { name: es.pos.voidSale }).first().click();
   await expect.poll(async () => (await (await page.request.get('/api/sales')).json())[0].status).toBe('VOIDED');
 
+  // Se le paga al proveedor con plata de la caja: el cierre lo descuenta.
+  await page.getByRole('button', { name: es.pos.cashMove }).click();
+  await page.getByLabel(es.pos.amount).fill('300');
+  await page.getByRole('dialog').locator('select').selectOption({ label: 'Distribuidora Norte' });
+  await page.getByLabel(es.common.reason).fill('Factura 123');
+  await page.getByRole('dialog').getByRole('button', { name: es.common.save }).click();
+
   await page.getByRole('button', { name: es.pos.closeCash }).click();
-  await page.getByLabel(es.pos.countedAmount).fill('1000');
+  await expect(page.getByRole('dialog')).toContainText('700');
+  await page.getByLabel(es.pos.countedAmount).fill('700');
   await page.getByRole('dialog').getByRole('button', { name: es.pos.closeCash }).click();
   await expect(page.getByText(es.pos.cashClosed)).toBeVisible();
   await expect

@@ -59,6 +59,8 @@ enum AlertType {
   CASH_DIFF
   COUNT_DIFF
   OFFER_SUGGESTED
+  LATE
+  ABSENT
 }
 
 model Store {
@@ -91,6 +93,8 @@ model Store {
   aiUsage      AiUsage[]
   pushSubs     PushSubscription[]
   jobRuns      JobRun[]
+  attendance   Attendance[]
+  cashMoves    CashMovement[]
 }
 
 model User {
@@ -108,6 +112,14 @@ model User {
   lang         Lang     @default(es)
   active       Boolean  @default(true)
   createdAt    DateTime @default(now())
+  // Ficha del empleado (solo la ve el dueño).
+  dni          String?
+  phone        String?
+  hiredAt      DateTime? @db.Date
+  salary       Decimal?  @db.Decimal(14, 2)
+  notes        String?
+  /// Horario semanal: 7 días (0 = domingo), cada uno null (franco) o {start, end} "HH:MM".
+  schedule     Json     @default("[]")
 
   @@unique([storeId, username])
 }
@@ -343,6 +355,48 @@ model CashSession {
   notes          String?
 
   @@index([storeId, openedAt])
+}
+
+/// Plata que entra o sale de la caja fuera de las ventas (pagos a proveedores, gastos, retiros, cambio).
+model CashMovement {
+  /// Id del evento de la caja.
+  id            String   @id
+  storeId       String
+  store         Store    @relation(fields: [storeId], references: [id])
+  cashSessionId String
+  deviceId      String
+  userId        String
+  /// SUPPLIER | EXPENSE | WITHDRAWAL | DEPOSIT
+  kind          String
+  amount        Decimal  @db.Decimal(14, 2)
+  reason        String?
+  supplierId    String?
+  occurredAt    DateTime
+
+  @@index([cashSessionId])
+  @@index([storeId, occurredAt])
+}
+
+/// Fichajes de entrada y salida (desde la caja, el celular o cargados por el dueño).
+model Attendance {
+  id        String    @id @default(uuid())
+  storeId   String
+  store     Store     @relation(fields: [storeId], references: [id])
+  userId    String
+  inAt      DateTime?
+  outAt     DateTime?
+  /// pos | phone | manual
+  inSource  String?
+  outSource String?
+  deviceId  String?
+  /// Minutos tarde respecto del horario (en la primera entrada del día).
+  lateMin   Int?
+  note      String?
+  editedAt  DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([storeId, inAt])
+  @@index([userId, inAt])
 }
 
 /// Indicaciones y tareas. Se guarda el texto original y la traducción a cada idioma.

@@ -24,6 +24,8 @@ export function useAlertText() {
       counted: qtyFmt(n('counted')),
       price: money(n('price')),
       pct: n('pct'),
+      minutes: n('minutes'),
+      start: String(d.start ?? ''),
     };
     return t(`alerts.types.${a.type}`, vars);
   };
@@ -32,6 +34,7 @@ export function useAlertText() {
 export function alertLink(a: AlertRow) {
   if (a.type === 'OFFER_SUGGESTED') return '/offers';
   if (a.type === 'CASH_DIFF' || a.type === 'VOID_SPIKE') return '/sales';
+  if (a.type === 'LATE' || a.type === 'ABSENT') return '/attendance';
   return a.data.productId ? `/products/${a.data.productId}` : null;
 }
 

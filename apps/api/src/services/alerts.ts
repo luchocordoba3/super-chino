@@ -28,11 +28,14 @@ export async function resolveAlert(db: Db, storeId: string, key: string) {
   await db.alert.updateMany({ where: { storeId, key, resolvedAt: null }, data: { resolvedAt: new Date() } });
 }
 
+/** Avisos que siempre llegan al celular del dueño, además de los graves. */
+const PUSH_TYPES = new Set<AlertType>(['LATE', 'ABSENT']);
+
 /** Después de confirmar la transacción: refresca pantallas y manda push al dueño si es grave. */
 export async function notifyAlerts(storeId: string, alerts: NewAlert[]) {
   if (alerts.length === 0) return;
   publish(storeId, 'alerts');
-  const danger = alerts.filter((a) => a.severity === 'danger');
+  const danger = alerts.filter((a) => a.severity === 'danger' || PUSH_TYPES.has(a.type));
   if (danger.length) {
     const owners = await ownerIds(storeId);
     const title = danger.length === 1 ? 'Super Chino: aviso importante' : `Super Chino: ${danger.length} avisos importantes`;

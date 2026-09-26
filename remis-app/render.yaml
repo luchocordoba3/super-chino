@@ -1,0 +1,17 @@
+# Receta ("Blueprint") de Render para cuando Mi Remis tenga su propio repositorio:
+# render.com -> New -> Blueprint -> elegir el repo. Sitio estático gratis, sin base de datos.
+services:
+  - type: web
+    name: mi-remis
+    runtime: static
+    buildCommand: npm i -g pnpm@10.33.0 && pnpm install --frozen-lockfile && pnpm build
+    staticPublishPath: ./dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      # Que el celular busque siempre la versión nueva de la app.
+      - path: /sw.js
+        name: Cache-Control
+        value: no-cache

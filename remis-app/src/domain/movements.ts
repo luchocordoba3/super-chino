@@ -1,12 +1,13 @@
-import type { Expense, FuelLoad, Income, MaintItem, ServiceLog, Shift } from '../db/types';
+import type { Expense, FuelLoad, Income, MaintItem, ServiceLog, Settlement, Shift } from '../db/types';
 import { dayKey, fromDayKey, inRange } from './dates';
 import { FUEL_LABEL, FUEL_UNIT } from './fuel';
 import { shiftKm } from './km';
 import { EXPENSE_LABEL, EXPENSE_ONE } from './money';
+import { rangeText, settle } from './settlement';
 
-export type MovementKind = 'shift' | 'fuel' | 'expense' | 'income' | 'service';
+export type MovementKind = 'shift' | 'fuel' | 'expense' | 'income' | 'service' | 'settlement';
 
-/** Una fila del historial: turnos, cargas, gastos, ingresos y services juntos. */
+/** Una fila del historial: turnos, cargas, gastos, ingresos, services y liquidaciones juntos. */
 export interface Movement {
   kind: MovementKind;
   id: string;
@@ -20,7 +21,21 @@ export interface Movement {
 
 const nf = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 2 });
 
-export function movements(d: { shifts: Shift[]; fuel: FuelLoad[]; expenses: Expense[]; incomes: Income[]; services: ServiceLog[]; items: MaintItem[] }): Movement[] {
+const noon = (key: string) => {
+  const d = fromDayKey(key);
+  d.setHours(12);
+  return d.toISOString();
+};
+
+export function movements(d: {
+  shifts: Shift[];
+  fuel: FuelLoad[];
+  expenses: Expense[];
+  incomes: Income[];
+  services: ServiceLog[];
+  items: MaintItem[];
+  settlements?: Settlement[];
+}): Movement[] {
   const out: Movement[] = [];
   for (const s of d.shifts)
     out.push({
@@ -47,23 +62,32 @@ export function movements(d: { shifts: Shift[]; fuel: FuelLoad[]; expenses: Expe
     out.push({ kind: 'income', id: i.id, at: i.at, title: 'Recaudación', detail: extra.filter(Boolean).join(' · ') || i.note, amount: i.gross + (i.tips ?? 0) - i.agencyFee });
   }
   const names = new Map(d.items.map((i) => [i.id, i.name]));
-  for (const s of d.services) {
-    const noon = fromDayKey(s.date);
-    noon.setHours(12);
+  for (const s of d.services)
     out.push({
       kind: 'service',
       id: s.id,
-      at: noon.toISOString(),
+      at: noon(s.date),
       title: 'Service',
       detail: [s.itemIds.map((id) => names.get(id)).filter(Boolean).join(', '), s.shop ?? ''].filter(Boolean).join(' · '),
       km: s.km,
       amount: s.cost ? -s.cost : undefined,
     });
+  for (const s of d.settlements ?? []) {
+    const r = settle(s);
+    out.push({
+      kind: 'settlement',
+      id: s.id,
+      at: noon(s.to),
+      title: `Liquidación ${rangeText(s.from, s.to)}`,
+      detail: `Facturó $ ${nf.format(s.gross)} · al chofer $ ${nf.format(r.choferTotal)}`,
+      km: s.km,
+      amount: r.owner,
+    });
   }
   return out.sort((a, b) => b.at.localeCompare(a.at));
 }
 
-const KIND_LABEL: Record<MovementKind, string> = { shift: 'Turno', fuel: 'Combustible', expense: 'Gasto', income: 'Ingreso', service: 'Service' };
+const KIND_LABEL: Record<MovementKind, string> = { shift: 'Turno', fuel: 'Combustible', expense: 'Gasto', income: 'Ingreso', service: 'Service', settlement: 'Liquidación' };
 
 /** CSV para Excel en español: separador punto y coma, coma decimal y BOM para los acentos. */
 export function toCsv(rows: (string | number | null | undefined)[][]): string {
@@ -84,7 +108,7 @@ export function movementsCsv(list: Movement[], from: string, to: string): string
     const d = new Date(m.at);
     rows.push([
       day.split('-').reverse().join('/'),
-      m.kind === 'service' ? '' : `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`,
+      m.kind === 'service' || m.kind === 'settlement' ? '' : `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`,
       KIND_LABEL[m.kind],
       [m.title, m.detail].filter(Boolean).join(' · '),
       m.km,

@@ -115,6 +115,69 @@ test('los datos de ejemplo muestran avisos y el gráfico', async ({ page }) => {
   await expect(page.getByRole('img', { name: 'Km por día' })).toBeVisible();
   await page.getByRole('button', { name: 'Ver como tabla' }).click();
   await expect(page.getByRole('columnheader', { name: 'Otro chofer' })).toBeVisible();
+  // El aviso del otro auto lleva a ese auto
+  await page.getByRole('link', { name: 'Hoy' }).click();
+  await page.getByRole('button', { name: /AC 456 EF: Falta cargar la quincena/ }).click();
+  await expect(page.getByText('Lo maneja Juan · 50% para el chofer')).toBeVisible();
+  await expect(page.locator('.topkm')).toContainText('AC 456 EF');
+});
+
+test('segundo auto con chofer: la liquidación de la quincena', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-05-12T10:00:00-03:00'));
+  // El menú de compartir del celular: guardamos el texto para revisarlo.
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'share', {
+      configurable: true,
+      value: async (data: ShareData) => {
+        (window as unknown as { shared?: string }).shared = data.text;
+      },
+    });
+  });
+  await page.goto('/');
+
+  // Tu auto: lo que paga la agencia ya viene descontado
+  await page.getByLabel('Marca y modelo').fill('Toyota Etios');
+  await page.getByLabel('Patente').fill('aa 111 bb');
+  await page.getByLabel('Km que marca hoy').fill('150000');
+  await expect(page.getByRole('radio', { name: 'Ya descontado' })).toHaveAttribute('aria-checked', 'true');
+  await page.getByRole('button', { name: 'Empezar', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Empezar turno' })).toBeVisible();
+
+  // Otro auto, para un chofer al 50%
+  await page.getByRole('button', { name: /Cambiar de auto/ }).click();
+  await page.getByRole('button', { name: 'Agregar otro auto' }).click();
+  await page.getByLabel('Marca y modelo').fill('Fiat Cronos');
+  await page.getByLabel('Patente').fill('ac 456 ef');
+  await page.getByLabel('Km que marca hoy').fill('64000');
+  await expect(page.getByRole('radio', { name: 'Un chofer' })).toHaveAttribute('aria-checked', 'true');
+  await page.getByLabel('Nombre del chofer').fill('Juan');
+  await expect(page.getByLabel('Parte del chofer (%)')).toHaveValue('50');
+  await page.getByRole('button', { name: 'Agregar auto' }).click();
+
+  // La quincena: se facturó $ 1.000.000 con $ 200.000 de peajes con pasajero
+  await expect(page.getByText('Lo maneja Juan · 50% para el chofer')).toBeVisible();
+  await page.getByRole('button', { name: 'Cargar la quincena del 1 al 15/05' }).click();
+  await page.getByLabel('Lo que facturó').fill('1000000');
+  await page.getByRole('textbox', { name: /^Peajes con pasajero/ }).fill('200000');
+  await page.getByLabel('Km del odómetro al cierre').fill('66500');
+  await expect(page.getByTestId('chofer-total')).toHaveText('$ 600.000');
+  await expect(page.getByTestId('owner-total')).toHaveText('$ 400.000');
+  await page.getByRole('button', { name: 'Mandarle la cuenta a Juan' }).click();
+  await expect.poll(() => page.evaluate(() => (window as unknown as { shared?: string }).shared ?? '')).toMatch(/Te corresponden: \$\s600\.000/);
+  await page.getByRole('button', { name: 'Guardar' }).click();
+  await expect(page.getByText('Liquidación guardada: te quedan $ 400.000')).toBeVisible();
+  await expect(page.locator('.topkm strong')).toHaveText('66.500 km');
+
+  // Resumen de la semana: la quincena cierra el viernes 15
+  await page.getByRole('link', { name: 'Resumen' }).click();
+  await expect(page.locator('.hero')).toHaveText('$ 400.000');
+  await expect(page.getByTestId('fleet-total')).toHaveText('$ 400.000');
+
+  // Volver a tu auto desde arriba
+  await page.getByRole('button', { name: /Cambiar de auto/ }).click();
+  await page.getByRole('button', { name: /AA 111 BB/ }).click();
+  await page.getByRole('link', { name: 'Hoy' }).click();
+  await expect(page.getByRole('button', { name: 'Empezar turno' })).toBeVisible();
 });
 
 test('abre sin internet después de la primera vez', async ({ page, context }) => {

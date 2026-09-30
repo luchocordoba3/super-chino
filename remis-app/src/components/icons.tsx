@@ -26,6 +26,8 @@ const PATHS = {
   upload: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12',
   pin: 'M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0zM12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
   swap: 'M16 3l4 4-4 4M20 7H8M8 21l-4-4 4-4M4 17h12',
+  user: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
+  down: 'M6 9l6 6 6-6',
 } as const;
 
 export type IconName = keyof typeof PATHS;

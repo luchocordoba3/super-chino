@@ -1,4 +1,4 @@
-import type { FuelLoad, Incident, ServiceLog, Shift, Vehicle } from '../db/types';
+import type { FuelLoad, Incident, ServiceLog, Settlement, Shift, Vehicle } from '../db/types';
 import { dayKey, fromDayKey, hoursBetween, inRange } from './dates';
 
 export interface Reading {
@@ -7,18 +7,21 @@ export interface Reading {
 }
 
 /** Todas las lecturas del odómetro, de la más vieja a la más nueva. */
-export function readings(d: { shifts: Shift[]; fuel: FuelLoad[]; services?: ServiceLog[]; incidents?: Incident[] }): Reading[] {
+export function readings(d: { shifts: Shift[]; fuel: FuelLoad[]; services?: ServiceLog[]; incidents?: Incident[]; settlements?: Settlement[] }): Reading[] {
   const r: Reading[] = [];
   for (const s of d.shifts) {
     r.push({ at: s.startAt, km: s.startKm });
     if (s.endAt && s.endKm != null) r.push({ at: s.endAt, km: s.endKm });
   }
   for (const f of d.fuel) if (f.km != null) r.push({ at: f.at, km: f.km });
-  for (const s of d.services ?? []) {
-    const noon = fromDayKey(s.date);
-    noon.setHours(12);
-    r.push({ at: noon.toISOString(), km: s.km });
-  }
+  const noon = (key: string) => {
+    const d = fromDayKey(key);
+    d.setHours(12);
+    return d.toISOString();
+  };
+  for (const s of d.services ?? []) r.push({ at: noon(s.date), km: s.km });
+  // Auto con chofer: el km del cierre de cada liquidación.
+  for (const s of d.settlements ?? []) if (s.km != null) r.push({ at: noon(s.to), km: s.km });
   for (const i of d.incidents ?? []) if (i.km != null) r.push({ at: i.at, km: i.km });
   return r.sort((a, b) => a.at.localeCompare(b.at));
 }

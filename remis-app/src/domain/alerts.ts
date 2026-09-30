@@ -1,10 +1,11 @@
-import type { CheckItem, CheckRun, DocumentRec, FuelLoad, FuelType, Incident, MaintItem, ServiceLog, Shift } from '../db/types';
+import type { CheckItem, CheckRun, DocumentRec, FuelLoad, FuelType, Incident, MaintItem, ServiceLog, SettlePeriod, Shift } from '../db/types';
 import { pendingProblems } from './checks';
 import { diffDays, dayKey } from './dates';
 import { docStatus } from './documents';
 import { FUEL_LABEL, FUEL_UNIT, consumptionDrop, segments } from './fuel';
 import { gapsBetweenShifts } from './km';
 import { maintStatus } from './maintenance';
+import { periodPhrase } from './settlement';
 
 export interface Alert {
   id: string;
@@ -12,6 +13,8 @@ export interface Alert {
   title: string;
   detail?: string;
   to?: string;
+  /** Si es de otro auto: tocarlo cambia a ese auto. */
+  vehicleId?: string;
 }
 
 export interface AlertData {
@@ -29,6 +32,9 @@ export interface AlertData {
   kmRate: number | null;
   lastBackupAt?: string;
   hasData: boolean;
+  /** Auto con chofer: el período cerrado que falta cargar. */
+  pending?: { kind: SettlePeriod; from: string; to: string } | null;
+  choferName?: string;
 }
 
 const nf = new Intl.NumberFormat('es-AR');
@@ -99,6 +105,16 @@ export function buildAlerts(d: AlertData, now = new Date()): Alert[] {
       });
   }
 
+  if (d.pending) {
+    out.push({
+      id: 'settle',
+      level: 'warn',
+      title: `Falta cargar ${periodPhrase(d.pending.kind, d.pending.from, d.pending.to)}`,
+      detail: d.choferName?.trim() ? `Lo que facturó ${d.choferName.trim()} y cómo se reparte` : 'Lo que facturó el chofer y cómo se reparte',
+      to: '/',
+    });
+  }
+
   const open = d.shifts.find((s) => !s.endAt);
   if (open && now.getTime() - new Date(open.startAt).getTime() > 16 * 3_600_000)
     out.push({ id: 'shift-open', level: 'info', title: '¿Te olvidaste de terminar el turno?', detail: 'Está abierto hace más de 16 horas.', to: '/' });
@@ -115,6 +131,8 @@ export function buildAlerts(d: AlertData, now = new Date()): Alert[] {
       });
   }
 
-  const rank = { danger: 0, warn: 1, info: 2 };
-  return out.sort((a, b) => rank[a.level] - rank[b.level]);
+  return sortAlerts(out);
 }
+
+const RANK = { danger: 0, warn: 1, info: 2 };
+export const sortAlerts = (list: Alert[]) => list.sort((a, b) => RANK[a.level] - RANK[b.level]);

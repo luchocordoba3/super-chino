@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { Toaster } from './components/ui';
 import { DataGate } from './lib/data';
+import { AddCar } from './pages/AddCar';
 import { Car } from './pages/Car';
 import { History } from './pages/History';
 import { Home } from './pages/Home';
@@ -20,6 +21,7 @@ export function App() {
             <Route path="auto/:tab" element={<Car />} />
             <Route path="resumen" element={<Summary />} />
             <Route path="ajustes" element={<SettingsPage />} />
+            <Route path="autos/nuevo" element={<AddCar />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

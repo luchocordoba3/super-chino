@@ -7,6 +7,7 @@ import { FUEL_LABEL, FUEL_UNIT, avgKmPerUnit, segments } from '../domain/fuel';
 import { gapsBetweenShifts, kmByDay } from '../domain/km';
 import { movements, movementsCsv } from '../domain/movements';
 import { COST_LABEL, type CostKey, periodRange, splitByKm, summarize } from '../domain/money';
+import { isChofer, settlementKm } from '../domain/settlement';
 import { useData } from '../lib/data';
 import { dayFmt, hoursFmt, kmFmt, money, money2, numFmt } from '../lib/format';
 import { download } from '../lib/share';
@@ -31,7 +32,16 @@ export function Summary() {
       ? `${MONTHS[Number(range.from.slice(5, 7)) - 1]} ${range.from.slice(0, 4)}`
       : `Del ${dayFmt(range.from)} al ${dayFmt(range.to)}`;
   const move = (dir: -1 | 1) => setAnchor(dir < 0 ? addDays(range.from, -1) : addDays(range.to, 1));
-  const split = d.vehicle.shared ? splitByKm(s.costs.by.mantenimiento ?? 0, s.km) : null;
+  const chofer = isChofer(d.vehicle);
+  const choferName = d.vehicle.chofer?.name.trim();
+  const carKm = chofer ? settlementKm(d.settlements, d.vehicle.initialKm, range.from, range.to) : 0;
+  const split = !chofer && d.vehicle.shared ? splitByKm(s.costs.by.mantenimiento ?? 0, s.km) : null;
+  // Con más de un auto: la ganancia de cada uno y el total.
+  const fleet = useMemo(() => {
+    if (d.vehicles.length < 2) return null;
+    const rows = new Map([d, ...d.others].map((r) => [r.vehicle.id, r]));
+    return d.vehicles.map((v) => ({ v, profit: summarize(rows.get(v.id)!, range.from, range.to, d.now).profit }));
+  }, [d, range.from, range.to]);
   const costRows = (Object.entries(s.costs.by) as [CostKey, number][]).map(([k, v]) => ({ label: COST_LABEL[k], value: v }));
 
   const exportCsv = () => {
@@ -76,25 +86,60 @@ export function Summary() {
       <section className="card">
         <div className="label">Ganancia</div>
         <div className={`hero ${s.profit < 0 ? 'bad' : ''}`}>{money(s.profit)}</div>
-        <p className="muted small">
-          Recaudaste {money(s.income.gross + s.income.tips)}
-          {s.income.agency ? `, la agencia se llevó ${money(s.income.agency)}` : ''} y gastaste {money(s.costs.total)}.
-        </p>
+        {chofer ? (
+          <p className="muted small">
+            {s.split.count
+              ? `El auto facturó ${money(s.split.gross)}. ${choferName ? `A ${choferName}` : 'Al chofer'} le tocaron ${money(s.split.chofer + s.split.returned)} (con ${money(s.split.returned)} de peajes que se le devolvieron) y a vos ${money(s.split.owner)}. Gastaste ${money(s.costs.total)}.`
+              : `No hay liquidaciones que cierren en este período. Gastaste ${money(s.costs.total)}.`}
+          </p>
+        ) : (
+          <p className="muted small">
+            Recaudaste {money(s.income.gross + s.income.tips)}
+            {s.income.agency ? `, la agencia se llevó ${money(s.income.agency)}` : ''} y gastaste {money(s.costs.total)}.
+          </p>
+        )}
       </section>
 
-      <div className="stats" style={{ marginTop: 0 }}>
-        <Stat label="Km tuyos" value={kmFmt(s.km.mine)} sub={d.vehicle.shared && s.km.other ? `+ ${kmFmt(s.km.other)} del otro chofer` : !d.vehicle.shared && s.km.other ? `+ ${kmFmt(s.km.other)} fuera de turno` : undefined} />
-        <Stat label="Horas" value={hoursFmt(s.hours)} sub={`${s.shifts} turnos en ${s.days} días`} />
-        <Stat label="Ganancia por km" value={s.perKm.profit != null ? money2(s.perKm.profit) : '—'} />
-        <Stat label="Ganancia por hora" value={s.perHour != null ? money(s.perHour) : '—'} />
-        <Stat label="Costo por km" value={s.perKm.cost != null ? money2(s.perKm.cost) : '—'} sub="Todo lo que gastaste / tus km" />
-        <Stat label="Viajes" value={numFmt(s.income.trips, 0)} sub={s.income.trips ? `${money((s.income.gross) / s.income.trips)} por viaje` : undefined} />
-      </div>
+      {fleet && (
+        <section className="card stack-s">
+          <h2>Todos tus autos</h2>
+          {fleet.map(({ v, profit }) => (
+            <div key={v.id} className="row between">
+              <span>{[v.plate, v.name].filter(Boolean).join(' · ')}</span>
+              <span className={profit < 0 ? 'bad' : undefined}>{money(profit)}</span>
+            </div>
+          ))}
+          <div className="row between" style={{ borderTop: '1px solid var(--line)', paddingTop: 8 }}>
+            <strong>Total</strong>
+            <strong data-testid="fleet-total">{money(fleet.reduce((a, f) => a + f.profit, 0))}</strong>
+          </div>
+        </section>
+      )}
 
-      <section className="card">
-        <h2 style={{ marginBottom: 8 }}>Km por día</h2>
-        <KmChart days={days} mine={byDay.mine} other={d.vehicle.shared ? byDay.other : undefined} />
-      </section>
+      {chofer ? (
+        <div className="stats" style={{ marginTop: 0 }}>
+          <Stat label="Km del auto" value={kmFmt(carKm)} sub="Según el km de cada liquidación" />
+          <Stat label="Ganancia por km" value={carKm > 0 ? money2(s.profit / carKm) : '—'} />
+          <Stat label="Facturado" value={money(s.split.gross)} />
+          <Stat label="Liquidaciones" value={numFmt(s.split.count, 0)} />
+        </div>
+      ) : (
+        <div className="stats" style={{ marginTop: 0 }}>
+          <Stat label="Km tuyos" value={kmFmt(s.km.mine)} sub={d.vehicle.shared && s.km.other ? `+ ${kmFmt(s.km.other)} del otro chofer` : !d.vehicle.shared && s.km.other ? `+ ${kmFmt(s.km.other)} fuera de turno` : undefined} />
+          <Stat label="Horas" value={hoursFmt(s.hours)} sub={`${s.shifts} turnos en ${s.days} días`} />
+          <Stat label="Ganancia por km" value={s.perKm.profit != null ? money2(s.perKm.profit) : '—'} />
+          <Stat label="Ganancia por hora" value={s.perHour != null ? money(s.perHour) : '—'} />
+          <Stat label="Costo por km" value={s.perKm.cost != null ? money2(s.perKm.cost) : '—'} sub="Todo lo que gastaste / tus km" />
+          <Stat label="Viajes" value={numFmt(s.income.trips, 0)} sub={s.income.trips ? `${money((s.income.gross) / s.income.trips)} por viaje` : undefined} />
+        </div>
+      )}
+
+      {!chofer && (
+        <section className="card">
+          <h2 style={{ marginBottom: 8 }}>Km por día</h2>
+          <KmChart days={days} mine={byDay.mine} other={d.vehicle.shared ? byDay.other : undefined} />
+        </section>
+      )}
 
       <section className="card">
         <h2 style={{ marginBottom: 8 }}>En qué se fue la plata</h2>
@@ -106,30 +151,32 @@ export function Summary() {
         )}
       </section>
 
-      <section className="card stack-s">
-        <h2 style={{ marginBottom: 4 }}>Combustible</h2>
-        {d.vehicle.fuels.map((f) => {
-          const qty = s.fuel.qty[f] ?? 0;
-          const spent = d.fuel.filter((x) => x.fuel === f && inRange(dayKey(x.at), range.from, range.to)).reduce((a, x) => a + x.total, 0);
-          const segs = segments(d.fuel, f, breaks).filter((g) => inRange(dayKey(g.at), range.from, range.to));
-          const avg = avgKmPerUnit(segs);
-          return (
-            <div key={f} className="row between" style={{ padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
-              <div>
-                <div style={{ fontWeight: 650 }}>{FUEL_LABEL[f]}</div>
-                <div className="muted small">
-                  {qty ? `${numFmt(qty)} ${FUEL_UNIT[f]} · ${money2(spent / qty)} por ${FUEL_UNIT[f]}` : 'Sin cargas en este período'}
+      {!chofer && (
+        <section className="card stack-s">
+          <h2 style={{ marginBottom: 4 }}>Combustible</h2>
+          {d.vehicle.fuels.map((f) => {
+            const qty = s.fuel.qty[f] ?? 0;
+            const spent = d.fuel.filter((x) => x.fuel === f && inRange(dayKey(x.at), range.from, range.to)).reduce((a, x) => a + x.total, 0);
+            const segs = segments(d.fuel, f, breaks).filter((g) => inRange(dayKey(g.at), range.from, range.to));
+            const avg = avgKmPerUnit(segs);
+            return (
+              <div key={f} className="row between" style={{ padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
+                <div>
+                  <div style={{ fontWeight: 650 }}>{FUEL_LABEL[f]}</div>
+                  <div className="muted small">
+                    {qty ? `${numFmt(qty)} ${FUEL_UNIT[f]} · ${money2(spent / qty)} por ${FUEL_UNIT[f]}` : 'Sin cargas en este período'}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  {qty > 0 && <div style={{ fontWeight: 700 }}>{money(spent)}</div>}
+                  <div className="muted small">{avg ? `Rinde ${numFmt(avg)} km/${FUEL_UNIT[f]}` : ''}</div>
                 </div>
               </div>
-              <div style={{ textAlign: 'right' }}>
-                {qty > 0 && <div style={{ fontWeight: 700 }}>{money(spent)}</div>}
-                <div className="muted small">{avg ? `Rinde ${numFmt(avg)} km/${FUEL_UNIT[f]}` : ''}</div>
-              </div>
-            </div>
-          );
-        })}
-        <p className="hint">El rendimiento sale de dos cargas seguidas con tanque lleno y el km anotado.</p>
-      </section>
+            );
+          })}
+          <p className="hint">El rendimiento sale de dos cargas seguidas con tanque lleno y el km anotado.</p>
+        </section>
+      )}
 
       <button type="button" onClick={exportCsv}>
         <Icon name="download" /> Bajar en Excel (CSV)

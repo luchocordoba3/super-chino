@@ -16,6 +16,38 @@ export interface Vehicle {
   /** Lo manejan dos choferes (día y noche). */
   shared: boolean;
   createdAt: string;
+  /** Quién lo maneja. Sin dato: vos. */
+  driver?: Driver;
+  /** Trato con el chofer, cuando lo maneja otro. */
+  chofer?: ChoferDeal;
+}
+
+export type Driver = 'me' | 'chofer';
+export type SettlePeriod = 'quincena' | 'week' | 'month';
+
+export interface ChoferDeal {
+  name: string;
+  /** Parte del chofer (%) de lo que queda después de devolverle los peajes. */
+  percent: number;
+  /** Cada cuánto se liquida. */
+  period: SettlePeriod;
+}
+
+/** Liquidación con el chofer: lo que facturó el auto en el período y cómo se reparte. */
+export interface Settlement {
+  id: string;
+  vehicleId: string;
+  from: string;
+  to: string;
+  /** Lo facturado, con los peajes con pasajero incluidos (vienen sumados a la tarifa). */
+  gross: number;
+  /** Peajes con pasajero que pagó el chofer: se le devuelven antes de dividir. */
+  tolls: number;
+  /** Km del odómetro al cierre. */
+  km?: number;
+  /** Parte del chofer (%), copiada del trato al guardar. */
+  percent: number;
+  note?: string;
 }
 
 export interface Shift {

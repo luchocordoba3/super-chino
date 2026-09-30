@@ -1,6 +1,7 @@
-import type { AgencyConfig, Expense, ExpenseCategory, FuelLoad, FuelType, Income, ServiceLog, Shift } from '../db/types';
+import type { AgencyConfig, Expense, ExpenseCategory, FuelLoad, FuelType, Income, ServiceLog, Settlement, Shift } from '../db/types';
 import { addDays, dayKey, endOfMonth, inRange, startOfMonth, startOfWeek } from './dates';
 import { gapsBetweenShifts, shiftHours, shiftKm } from './km';
+import { settle } from './settlement';
 
 export const EXPENSE_LABEL: Record<ExpenseCategory, string> = {
   peaje: 'Peajes',
@@ -35,6 +36,7 @@ export interface MoneyData {
   expenses: Expense[];
   incomes: Income[];
   services: ServiceLog[];
+  settlements?: Settlement[];
 }
 
 export interface Summary {
@@ -46,8 +48,10 @@ export interface Summary {
   /** Días con al menos un turno. */
   days: number;
   income: { gross: number; tips: number; agency: number; trips: number; cash: number; net: number };
+  /** Auto con chofer: liquidaciones que cierran en el período. */
+  split: { count: number; gross: number; returned: number; chofer: number; owner: number };
   costs: { total: number; by: Partial<Record<CostKey, number>> };
-  /** Lo que te queda: recaudado + propinas − agencia − todos los gastos. */
+  /** Lo que te queda: recaudado + propinas − agencia + tu parte de las liquidaciones − todos los gastos. */
   profit: number;
   perKm: { cost: number | null; profit: number | null };
   perHour: number | null;
@@ -71,7 +75,16 @@ export function summarize(d: MoneyData, from: string, to: string, now = new Date
     income.trips += i.trips ?? 0;
     income.cash += i.cash ?? 0;
   }
-  income.net = income.gross + income.tips - income.agency;
+  const split = { count: 0, gross: 0, returned: 0, chofer: 0, owner: 0 };
+  for (const x of (d.settlements ?? []).filter((s) => inRange(s.to, from, to))) {
+    const r = settle(x);
+    split.count++;
+    split.gross += x.gross;
+    split.returned += r.returned;
+    split.chofer += r.chofer;
+    split.owner += r.owner;
+  }
+  income.net = income.gross + income.tips - income.agency + split.owner;
 
   const by: Partial<Record<CostKey, number>> = {};
   const add = (k: CostKey, n: number) => (by[k] = (by[k] ?? 0) + n);
@@ -94,6 +107,7 @@ export function summarize(d: MoneyData, from: string, to: string, now = new Date
     shifts: shifts.length,
     days: new Set(shifts.map((s) => dayKey(s.startAt))).size,
     income,
+    split,
     costs: { total, by },
     profit,
     perKm: { cost: mine > 0 ? total / mine : null, profit: mine > 0 ? profit / mine : null },

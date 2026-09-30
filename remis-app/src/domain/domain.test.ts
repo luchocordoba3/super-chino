@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { DocumentRec, Expense, FuelLoad, Income, MaintItem, ServiceLog, Shift } from '../db/types';
+import type { DocumentRec, Expense, FuelLoad, Income, MaintItem, ServiceLog, Settlement, Shift, Vehicle } from '../db/types';
 import { parseNum, parseKm } from '../lib/format';
 import { buildAlerts } from './alerts';
 import { pendingProblems } from './checks';
@@ -10,6 +10,7 @@ import { currentKm, gapsBetweenShifts, kmByDay, kmPerDay, kmWarning, readings } 
 import { defaultItems, maintStatus } from './maintenance';
 import { movements, movementsCsv, toCsv } from './movements';
 import { agencyDue, agencyFeeFor, splitByKm, summarize } from './money';
+import { pendingPeriod, settle, settlePeriod, settlementKm, settlementText } from './settlement';
 
 const V = 'v1';
 const iso = (y: number, m: number, d: number, h = 12, min = 0) => new Date(y, m - 1, d, h, min).toISOString();
@@ -248,5 +249,59 @@ describe('historial y Excel', () => {
     const csv = movementsCsv(list, '2026-05-01', '2026-05-31');
     expect(csv).toContain('04/05/2026;06:00;Turno;Turno · 200 km · 1.000 → 1.200 km;200;;');
     expect(csv).toContain('04/05/2026;10:00;Gasto;Peaje · Autopista;;;1500');
+  });
+});
+
+describe('liquidación con el chofer', () => {
+  const car: Vehicle = {
+    id: V,
+    name: 'Fiat Cronos',
+    plate: 'AC 456 EF',
+    fuels: ['nafta'],
+    initialKm: 60_000,
+    shared: false,
+    createdAt: iso(2026, 9, 1),
+    driver: 'chofer',
+    chofer: { name: 'Juan', percent: 50, period: 'quincena' },
+  };
+  const liq = (from: string, to: string, gross: number, tolls: number, km?: number): Settlement => ({ id: id(), vehicleId: V, from, to, gross, tolls, km, percent: 50 });
+
+  it('le devuelve los peajes y divide el resto', () => {
+    expect(settle({ gross: 1_000_000, tolls: 200_000, percent: 50 })).toEqual({ returned: 200_000, toSplit: 800_000, chofer: 400_000, owner: 400_000, choferTotal: 600_000 });
+    expect(settle({ gross: 1_000_000, tolls: 0, percent: 40 })).toMatchObject({ chofer: 400_000, owner: 600_000 });
+  });
+
+  it('arma las quincenas: del 1 al 15 y del 16 a fin de mes', () => {
+    expect(settlePeriod('quincena', '2026-10-07')).toEqual({ from: '2026-10-01', to: '2026-10-15' });
+    expect(settlePeriod('quincena', '2026-10-16')).toEqual({ from: '2026-10-16', to: '2026-10-31' });
+    expect(settlePeriod('quincena', '2026-11-30')).toEqual({ from: '2026-11-16', to: '2026-11-30' });
+    expect(settlePeriod('quincena', '2026-02-20')).toEqual({ from: '2026-02-16', to: '2026-02-28' });
+    expect(settlePeriod('quincena', '2028-02-16')).toEqual({ from: '2028-02-16', to: '2028-02-29' });
+    expect(settlePeriod('week', '2026-10-01')).toEqual({ from: '2026-09-28', to: '2026-10-04' });
+  });
+
+  it('avisa la quincena que falta cargar', () => {
+    expect(pendingPeriod(car, [], '2026-10-20')).toEqual({ kind: 'quincena', from: '2026-10-01', to: '2026-10-15' });
+    expect(pendingPeriod(car, [liq('2026-10-01', '2026-10-15', 900_000, 50_000)], '2026-10-20')).toBeNull();
+    expect(pendingPeriod({ ...car, createdAt: iso(2026, 10, 18) }, [], '2026-10-20')).toBeNull();
+    expect(pendingPeriod({ ...car, driver: 'me' }, [], '2026-10-20')).toBeNull();
+    const alerts = buildAlerts(
+      { fuels: ['nafta'], shared: false, shifts: [], fuel: [], items: [], services: [], docs: [], checkItems: [], checks: [], incidents: [], currentKm: 60_000, kmRate: null, hasData: false, pending: pendingPeriod(car, [], '2026-10-20'), choferName: 'Juan' },
+      new Date(2026, 9, 20, 12),
+    );
+    expect(alerts.map((a) => a.title)).toEqual(['Falta cargar la quincena del 1 al 15/10']);
+  });
+
+  it('suma tu parte a la ganancia y descuenta lo que pagás vos', () => {
+    const settlements = [liq('2026-10-01', '2026-10-15', 1_000_000, 200_000, 62_500), liq('2026-09-16', '2026-09-30', 900_000, 100_000, 60_000)];
+    const expenses: Expense[] = [{ id: id(), vehicleId: V, at: iso(2026, 10, 5), category: 'seguro', amount: 70_000 }];
+    const s = summarize({ shifts: [], fuel: [], expenses, incomes: [], services: [], settlements }, '2026-10-01', '2026-10-31');
+    expect(s.split).toEqual({ count: 1, gross: 1_000_000, returned: 200_000, chofer: 400_000, owner: 400_000 });
+    expect(s.profit).toBe(330_000);
+    expect(settlementKm(settlements, 58_000, '2026-10-01', '2026-10-31')).toBe(2500);
+    expect(currentKm(car, readings({ shifts: [], fuel: [], settlements }))).toBe(62_500);
+    expect(settlementText(car, settlements[0])).toContain('Te corresponden: $\u00a0600.000');
+    const list = movements({ shifts: [], fuel: [], expenses: [], incomes: [], services: [], items: [], settlements });
+    expect(list[0]).toMatchObject({ kind: 'settlement', title: 'Liquidación del 1 al 15/10', amount: 400_000, km: 62_500 });
   });
 });

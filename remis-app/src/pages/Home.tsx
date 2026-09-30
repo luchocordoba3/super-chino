@@ -1,15 +1,19 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { CheckRunSheet } from '../components/forms/car';
+import { Link, useNavigate } from 'react-router-dom';
+import { CheckRunSheet, ServiceSheet } from '../components/forms/car';
 import { ExpenseSheet, FuelSheet, IncomeSheet, TollSheet } from '../components/forms/money';
+import { SettlementSheet } from '../components/forms/settlement';
 import { ShiftEndSheet, ShiftStartSheet } from '../components/forms/shift';
 import { Icon, type IconName } from '../components/icons';
 import { Empty, Stat, toast } from '../components/ui';
 import { db, newId } from '../db/db';
+import { saveSettings } from '../db/repo';
+import type { Settlement } from '../db/types';
 import type { Alert } from '../domain/alerts';
 import { dayKey } from '../domain/dates';
 import { shiftHours } from '../domain/km';
 import { agencyDue, summarize } from '../domain/money';
+import { isChofer, pendingPeriod, periodPhrase, rangeText, settle, settlePeriod } from '../domain/settlement';
 import { useData } from '../lib/data';
 import { dayFmt, hoursFmt, kmFmt, money, timeFmt } from '../lib/format';
 
@@ -19,6 +23,8 @@ const SYM = { danger: '!', warn: '!', info: 'i' } as const;
 const PERIOD_NAME = { day: 'del día', week: 'de la semana', month: 'del mes' } as const;
 
 function AlertRow({ a }: { a: Alert }) {
+  const d = useData();
+  const nav = useNavigate();
   const body = (
     <>
       <span className="sym" aria-hidden="true">
@@ -30,12 +36,104 @@ function AlertRow({ a }: { a: Alert }) {
       </div>
     </>
   );
+  // Aviso de otro auto: primero cambia a ese auto.
+  if (a.vehicleId && a.vehicleId !== d.vehicle.id)
+    return (
+      <button type="button" className={`alert ${a.level}`} onClick={() => void saveSettings({ vehicleId: a.vehicleId }).then(() => nav(a.to ?? '/'))}>
+        {body}
+      </button>
+    );
   return a.to ? (
     <Link to={a.to} className={`alert ${a.level}`}>
       {body}
     </Link>
   ) : (
     <div className={`alert ${a.level}`}>{body}</div>
+  );
+}
+
+function Alerts() {
+  const d = useData();
+  return (
+    <>
+      <div className="section-title">
+        <h2>Avisos</h2>
+        {d.alerts.length > 0 && <span className="muted small">{d.alerts.length}</span>}
+      </div>
+      <div className="list">{d.alerts.length ? d.alerts.map((a) => <AlertRow key={a.id} a={a} />) : <Empty text="Todo en orden. Buen viaje." />}</div>
+    </>
+  );
+}
+
+const cap = (t: string) => t[0].toUpperCase() + t.slice(1);
+
+/** Hoy, para el auto que maneja un chofer: la liquidación, los gastos del dueño y los avisos. */
+function ChoferHome() {
+  const d = useData();
+  const [sheet, setSheet] = useState<'settle' | 'expense' | 'service' | null>(null);
+  const [edit, setEdit] = useState<Settlement | null>(null);
+  const close = () => setSheet(null);
+  const today = dayKey(d.now);
+  const deal = d.vehicle.chofer ?? { name: '', percent: 50, period: 'quincena' as const };
+  const target = pendingPeriod(d.vehicle, d.settlements, today) ?? { kind: deal.period, ...settlePeriod(deal.period, today) };
+  const list = [...d.settlements].sort((a, b) => b.to.localeCompare(a.to));
+  const last = list[0];
+  const name = deal.name.trim();
+
+  return (
+    <div className="stack" style={{ gap: 0 }}>
+      <section className="card shift-card">
+        <div className="label">
+          {name ? `Lo maneja ${name}` : 'Lo maneja un chofer'} · {deal.percent}% para el chofer
+        </div>
+        <div className="hero km">{kmFmt(d.km)}</div>
+        <p className="muted small">
+          {last ? `Última liquidación, ${rangeText(last.from, last.to)}: te quedaron ${money(settle(last).owner)}` : 'Todavía no cargaste ninguna liquidación.'}
+        </p>
+        <button type="button" className="primary big" onClick={() => setSheet('settle')}>
+          <Icon name="cash" /> Cargar {periodPhrase(target.kind, target.from, target.to)}
+        </button>
+      </section>
+
+      <div className="actions two">
+        <Action icon="receipt" label="Gasto" onClick={() => setSheet('expense')} />
+        <Action icon="wrench" label="Service" onClick={() => setSheet('service')} />
+      </div>
+
+      <div className="section-title">
+        <h2>Liquidaciones</h2>
+      </div>
+      <div className="list">
+        {list.length ? (
+          list.slice(0, 6).map((s) => {
+            const r = settle(s);
+            return (
+              <button key={s.id} type="button" className="item" onClick={() => setEdit(s)}>
+                <span className="ic">
+                  <Icon name="user" />
+                </span>
+                <span className="grow">
+                  <div className="t">{cap(rangeText(s.from, s.to))}</div>
+                  <div className="d">
+                    Facturó {money(s.gross)} · {name ? `a ${name}` : 'al chofer'} {money(r.choferTotal)}
+                  </div>
+                </span>
+                <span className="amt good">+{money(r.owner)}</span>
+              </button>
+            );
+          })
+        ) : (
+          <Empty text="Cuando cargues la primera, aparece acá." />
+        )}
+      </div>
+
+      <Alerts />
+
+      {sheet === 'settle' && <SettlementSheet period={target} onClose={close} />}
+      {edit && <SettlementSheet settlement={edit} onClose={() => setEdit(null)} />}
+      {sheet === 'expense' && <ExpenseSheet onClose={close} />}
+      {sheet === 'service' && <ServiceSheet onClose={close} />}
+    </div>
   );
 }
 
@@ -49,6 +147,12 @@ function Action({ icon, label, onClick }: { icon: IconName; label: string; onCli
 }
 
 export function Home() {
+  const d = useData();
+  return isChofer(d.vehicle) ? <ChoferHome key={d.vehicle.id} /> : <DriverHome key={d.vehicle.id} />;
+}
+
+/** Hoy, para el auto que manejás vos: el turno, lo del día y los avisos. */
+function DriverHome() {
   const d = useData();
   const [sheet, setSheet] = useState<SheetKind | null>(null);
   const close = () => setSheet(null);
@@ -133,11 +237,7 @@ export function Home() {
         <Action icon="cash" label="Ingreso" onClick={() => setSheet('income')} />
       </div>
 
-      <div className="section-title">
-        <h2>Avisos</h2>
-        {d.alerts.length > 0 && <span className="muted small">{d.alerts.length}</span>}
-      </div>
-      <div className="list">{d.alerts.length ? d.alerts.map((a) => <AlertRow key={a.id} a={a} />) : <Empty text="Todo en orden. Buen viaje." />}</div>
+      <Alerts />
 
       {sheet === 'start' && <ShiftStartSheet onClose={close} />}
       {sheet === 'end' && open && <ShiftEndSheet shift={open} onClose={close} />}

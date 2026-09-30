@@ -2,10 +2,11 @@ import { defaultCheckItems } from '../domain/checks';
 import { addDays, addMonths, dayKey, startOfWeek } from '../domain/dates';
 import { DOC_TYPES, defaultDocTypes } from '../domain/documents';
 import { defaultItems } from '../domain/maintenance';
+import { settlePeriod } from '../domain/settlement';
 import { db, newId } from './db';
-import type { CheckRun, DocumentRec, Expense, FuelLevel, FuelLoad, Income, Incident, ServiceLog, Settings, Shift, Vehicle } from './types';
+import type { CheckRun, DocumentRec, Expense, FuelLevel, FuelLoad, Income, Incident, ServiceLog, Settings, Settlement, Shift, Vehicle } from './types';
 
-/** Datos de ejemplo (6 semanas de un remis compartido) para ver la app funcionando. Reemplaza todo. */
+/** Datos de ejemplo (6 semanas de un remis compartido y un segundo auto con chofer) para ver la app funcionando. Reemplaza todo. */
 export async function loadDemo(now = new Date()) {
   let seed = 7;
   const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
@@ -154,18 +155,68 @@ export async function loadDemo(now = new Date()) {
     },
   ];
 
+  // Segundo auto: lo maneja Juan al 50% y se liquida por quincena. La última quincena cerrada queda sin cargar (la app avisa).
+  const car2: Vehicle = {
+    id: newId(),
+    name: 'Fiat Cronos',
+    plate: 'AC 456 EF',
+    year: 2021,
+    fuels: ['nafta', 'gnc'],
+    initialKm: 61_800,
+    shared: false,
+    createdAt: at(DAYS, 9),
+    driver: 'chofer',
+    chofer: { name: 'Juan', percent: 50, period: 'quincena' },
+  };
+  const pending = settlePeriod('quincena', addDays(settlePeriod('quincena', today).from, -1));
+  const older = settlePeriod('quincena', addDays(pending.from, -1));
+  const oldest = settlePeriod('quincena', addDays(older.from, -1));
+  let km2 = car2.initialKm;
+  const settlements: Settlement[] = [oldest, older].map((q) => {
+    km2 += int(2400, 2900);
+    return { id: newId(), vehicleId: car2.id, ...q, gross: int(10_500, 12_500) * 100, tolls: int(55, 85) * 1000, km: km2, percent: 50 };
+  });
+  const items2 = defaultItems(car2.id, car2.fuels, newId);
+  const services2: ServiceLog[] = [
+    {
+      id: newId(),
+      vehicleId: car2.id,
+      date: addDays(oldest.to, -3),
+      km: settlements[0].km! - 400,
+      itemIds: [items2.find((i) => i.name.startsWith('Aceite'))!.id, items2.find((i) => i.name.startsWith('Filtro de aire'))!.id],
+      cost: 88_000,
+      shop: 'Lubricentro El Rápido',
+    },
+  ];
+  const offsets2: Partial<Record<string, number>> = { vtv: 200, seguro: 9, oblea_gnc: 150, ph_gnc: 900, licencia: 500, habilitacion: 300, matafuego: 120, patente: 60 };
+  const docs2: DocumentRec[] = defaultDocTypes(car2.fuels).map((type) => ({
+    id: newId(),
+    vehicleId: car2.id,
+    type,
+    name: DOC_TYPES[type].label,
+    expires: offsets2[type] != null ? addDays(today, offsets2[type]!) : undefined,
+    warnDays: 30,
+  }));
+  // Lo que paga el dueño: seguro y patente.
+  const expenses2: Expense[] = [
+    { id: newId(), vehicleId: car2.id, at: at(38, 10), category: 'seguro', amount: 68_000 },
+    { id: newId(), vehicleId: car2.id, at: at(8, 10), category: 'seguro', amount: 68_000 },
+    { id: newId(), vehicleId: car2.id, at: at(24, 11), category: 'patente', amount: 52_000 },
+  ];
+
   const settings: Settings = { id: 'main', vehicleId, agency: { mode: 'fixed', amount: 80_000, period: 'week' }, tolls, theme: 'auto', lastBackupAt: at(3, 21) };
 
   await db.transaction('rw', db.tables, async () => {
     for (const t of db.tables) await t.clear();
-    await db.vehicles.add(vehicle);
+    await db.vehicles.bulkAdd([vehicle, car2]);
     await db.shifts.bulkAdd(shifts);
     await db.fuel.bulkAdd(fuel);
-    await db.expenses.bulkAdd(expenses);
+    await db.expenses.bulkAdd([...expenses, ...expenses2]);
     await db.incomes.bulkAdd(incomes);
-    await db.items.bulkAdd(items);
-    await db.services.bulkAdd(services);
-    await db.docs.bulkAdd(docs);
+    await db.items.bulkAdd([...items, ...items2]);
+    await db.services.bulkAdd([...services, ...services2]);
+    await db.docs.bulkAdd([...docs, ...docs2]);
+    await db.settlements.bulkAdd(settlements);
     await db.checkItems.bulkAdd(checkItems);
     await db.checks.bulkAdd(checks);
     await db.incidents.bulkAdd(incidents);

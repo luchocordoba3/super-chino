@@ -4,7 +4,8 @@ import type { Photo } from './types';
 // Copia de seguridad: un archivo JSON con todo (y las fotos en base64).
 
 const APP = 'mi-remis';
-const VERSION = 1;
+/** 2: suma las liquidaciones del chofer. Las copias de la versión 1 se restauran igual. */
+const VERSION = 2;
 
 function bufToB64(buf: ArrayBuffer): string {
   const bytes = new Uint8Array(buf);

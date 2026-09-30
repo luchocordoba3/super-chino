@@ -15,12 +15,13 @@ import type {
   MaintItem,
   ServiceLog,
   Settings,
+  Settlement,
   Shift,
   Vehicle,
 } from './types';
 
-export interface Loaded {
-  settings: Settings;
+/** Todo lo de un auto. */
+export interface VehicleRows {
   vehicle: Vehicle;
   shifts: Shift[];
   fuel: FuelLoad[];
@@ -29,31 +30,52 @@ export interface Loaded {
   items: MaintItem[];
   services: ServiceLog[];
   docs: DocumentRec[];
-  checkItems: CheckItem[];
   checks: CheckRun[];
   incidents: Incident[];
+  settlements: Settlement[];
 }
 
-/** Todo lo del auto activo, para las pantallas. Null si todavía no se cargó el auto. */
+/** Lo del auto activo (para las pantallas), más la lista de autos y los datos de los otros (para los avisos y los totales). */
+export interface Loaded extends VehicleRows {
+  settings: Settings;
+  checkItems: CheckItem[];
+  vehicles: Vehicle[];
+  others: VehicleRows[];
+}
+
+/** Tablas con registros de cada auto. */
+const VEHICLE_TABLES = ['shifts', 'fuel', 'expenses', 'incomes', 'items', 'services', 'docs', 'checks', 'incidents', 'settlements'] as const;
+
+const byCreated = (a: Vehicle, b: Vehicle) => a.createdAt.localeCompare(b.createdAt);
+
+async function loadVehicle(vehicle: Vehicle): Promise<VehicleRows> {
+  const id = vehicle.id;
+  const [shifts, fuel, expenses, incomes, items, services, docs, checks, incidents, settlements] = await Promise.all([
+    db.shifts.where('vehicleId').equals(id).toArray(),
+    db.fuel.where('vehicleId').equals(id).toArray(),
+    db.expenses.where('vehicleId').equals(id).toArray(),
+    db.incomes.where('vehicleId').equals(id).toArray(),
+    db.items.where('vehicleId').equals(id).toArray(),
+    db.services.where('vehicleId').equals(id).toArray(),
+    db.docs.where('vehicleId').equals(id).toArray(),
+    db.checks.where('vehicleId').equals(id).toArray(),
+    db.incidents.where('vehicleId').equals(id).toArray(),
+    db.settlements.where('vehicleId').equals(id).toArray(),
+  ]);
+  return { vehicle, shifts, fuel, expenses, incomes, items, services, docs, checks, incidents, settlements };
+}
+
+/** Todo lo del celular, con el auto activo al frente. Null si todavía no se cargó ningún auto. */
 export async function loadAll(): Promise<Loaded | null> {
   const settings = await db.settings.get('main');
   if (!settings) return null;
-  const vid = settings.vehicleId;
-  const [vehicle, shifts, fuel, expenses, incomes, items, services, docs, checkItems, checks, incidents] = await Promise.all([
-    db.vehicles.get(vid),
-    db.shifts.where('vehicleId').equals(vid).toArray(),
-    db.fuel.where('vehicleId').equals(vid).toArray(),
-    db.expenses.where('vehicleId').equals(vid).toArray(),
-    db.incomes.where('vehicleId').equals(vid).toArray(),
-    db.items.where('vehicleId').equals(vid).toArray(),
-    db.services.where('vehicleId').equals(vid).toArray(),
-    db.docs.where('vehicleId').equals(vid).toArray(),
-    db.checkItems.toArray(),
-    db.checks.where('vehicleId').equals(vid).toArray(),
-    db.incidents.where('vehicleId').equals(vid).toArray(),
-  ]);
-  if (!vehicle) return null;
-  return { settings, vehicle, shifts, fuel, expenses, incomes, items, services, docs, checkItems, checks, incidents };
+  const [vehicles, checkItems] = await Promise.all([db.vehicles.toArray(), db.checkItems.toArray()]);
+  vehicles.sort(byCreated);
+  const active = vehicles.find((v) => v.id === settings.vehicleId) ?? vehicles[0];
+  if (!active) return null;
+  const rows = await Promise.all(vehicles.map(loadVehicle));
+  const main = rows.find((r) => r.vehicle.id === active.id)!;
+  return { ...main, settings, checkItems, vehicles, others: rows.filter((r) => r !== main) };
 }
 
 export const saveSettings = (patch: Partial<Settings>) => db.settings.update('main', patch);
@@ -86,15 +108,18 @@ export async function dropPhotos(before: string[], after: string[]) {
   if (gone.length) await db.photos.bulkDelete(gone);
 }
 
-export interface SetupInput {
+export interface VehicleInput {
   vehicle: Omit<Vehicle, 'id' | 'createdAt'>;
   oil?: { km?: number; date?: string };
-  agency: AgencyConfig;
   docs: Partial<Record<DocType, string>>;
 }
 
-/** Primera vez: crea el auto, el plan de mantenimiento, los papeles y el checklist. */
-export async function setup(input: SetupInput): Promise<string> {
+export interface SetupInput extends VehicleInput {
+  agency: AgencyConfig;
+}
+
+/** Suma un auto con su plan de mantenimiento, sus papeles y el checklist (si no había), y lo deja como auto activo. */
+export async function addVehicle(input: VehicleInput, agency?: AgencyConfig): Promise<string> {
   const vehicle: Vehicle = { ...input.vehicle, id: newId(), createdAt: new Date().toISOString() };
   const items = defaultItems(vehicle.id, vehicle.fuels, newId);
   if (input.oil && (input.oil.km != null || input.oil.date)) {
@@ -114,9 +139,37 @@ export async function setup(input: SetupInput): Promise<string> {
     await db.docs.bulkAdd(docs);
     if ((await db.checkItems.count()) === 0) await db.checkItems.bulkAdd(defaultCheckItems(newId));
     const prev = await db.settings.get('main');
-    await db.settings.put({ id: 'main', vehicleId: vehicle.id, agency: input.agency, tolls: prev?.tolls ?? [], theme: prev?.theme ?? 'auto', lastBackupAt: prev?.lastBackupAt });
+    await db.settings.put({
+      id: 'main',
+      vehicleId: vehicle.id,
+      agency: agency ?? prev?.agency ?? { mode: 'none' },
+      tolls: prev?.tolls ?? [],
+      theme: prev?.theme ?? 'auto',
+      lastBackupAt: prev?.lastBackupAt,
+    });
   });
   return vehicle.id;
+}
+
+/** Primera vez: el auto, el plan de mantenimiento, los papeles, el checklist y cómo le pagás a la agencia. */
+export const setup = (input: SetupInput) => addVehicle(input, input.agency);
+
+/** Borra un auto con todo lo suyo (fotos incluidas). Si era el activo, pasa al siguiente. */
+export async function removeVehicle(id: string) {
+  const tables = VEHICLE_TABLES.map((t) => db.table(t));
+  await db.transaction('rw', [...tables, db.vehicles, db.photos, db.settings], async () => {
+    const photos: string[] = [];
+    for (const t of tables) {
+      const rows = t.where('vehicleId').equals(id);
+      for (const r of await rows.toArray()) photos.push(...photoIds(r));
+      await rows.delete();
+    }
+    await db.photos.bulkDelete(photos);
+    await db.vehicles.delete(id);
+    const settings = await db.settings.get('main');
+    const next = (await db.vehicles.toArray()).sort(byCreated)[0];
+    if (settings?.vehicleId === id && next) await db.settings.update('main', { vehicleId: next.id });
+  });
 }
 
 /** Borra todos los datos del celular. */

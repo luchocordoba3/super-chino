@@ -11,6 +11,7 @@ import type {
   Photo,
   ServiceLog,
   Settings,
+  Settlement,
   Shift,
   Vehicle,
 } from './types';
@@ -29,6 +30,7 @@ export class RemisDB extends Dexie {
   checkItems!: EntityTable<CheckItem, 'id'>;
   checks!: EntityTable<CheckRun, 'id'>;
   incidents!: EntityTable<Incident, 'id'>;
+  settlements!: EntityTable<Settlement, 'id'>;
   photos!: EntityTable<Photo, 'id'>;
 
   constructor(name = 'mi-remis') {
@@ -48,6 +50,7 @@ export class RemisDB extends Dexie {
       incidents: 'id, vehicleId, at',
       photos: 'id',
     });
+    this.version(2).stores({ settlements: 'id, vehicleId, to' });
   }
 }
 
@@ -66,6 +69,7 @@ export const TABLES = [
   'checkItems',
   'checks',
   'incidents',
+  'settlements',
   'photos',
 ] as const;
 export type TableName = (typeof TABLES)[number];

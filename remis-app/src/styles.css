@@ -192,6 +192,8 @@ label.check { display: flex; align-items: center; gap: 10px; min-height: 44px; f
 .actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
 .actions button { flex-direction: column; gap: 6px; min-height: 84px; padding: 10px 4px; background: var(--card); box-shadow: var(--shadow); border-radius: 14px; font-size: 0.8rem; font-weight: 600; }
 .actions .icon { width: 26px; height: 26px; }
+.actions.two { grid-template-columns: 1fr 1fr; }
+.actions.two button { flex-direction: row; min-height: 56px; font-size: 0.9rem; }
 
 /* Listas */
 .list { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
@@ -208,6 +210,7 @@ label.check { display: flex; align-items: center; gap: 10px; min-height: 44px; f
 
 /* Avisos: el ícono y el texto dicen el nivel, no solo el color. */
 .alert { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; text-decoration: none; border-bottom: 1px solid var(--line); }
+button.alert { width: 100%; justify-content: flex-start; text-align: left; background: transparent; color: var(--text); border-radius: 0; min-height: 0; font-size: inherit; }
 .list > .alert:last-child { border-bottom: 0; }
 .alert .sym { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; flex: none; font-weight: 800; font-size: 0.8rem; color: #fff; }
 .alert.danger .sym { background: var(--critical); }
@@ -289,7 +292,7 @@ th { font-size: 0.78rem; color: var(--text-2); font-weight: 600; }
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 .toast {
-  position: fixed; left: 50%; bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 14px); transform: translateX(-50%); z-index: 100;
+  position: fixed; left: 50%; bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 14px); transform: translateX(-50%); z-index: 100; pointer-events: none;
   background: var(--text); color: var(--card); padding: 12px 18px; border-radius: 12px; font-weight: 600; font-size: 0.92rem; max-width: calc(100vw - 32px); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
 }
 .splash { min-height: 100vh; display: grid; place-items: center; font-weight: 800; font-size: 1.3rem; }
@@ -301,3 +304,14 @@ details > summary { cursor: pointer; font-weight: 650; min-height: 32px; display
 .toll-btn { flex-direction: column; gap: 2px; min-height: 76px; background: var(--card); box-shadow: var(--shadow); border-radius: 14px; }
 .toll-btn span { font-size: 0.85rem; color: var(--text-2); }
 .toll-btn strong { font-size: 1.15rem; }
+
+/* Liquidación del chofer */
+.calc { background: var(--card-2); border-radius: 12px; padding: 10px 14px; display: flex; flex-direction: column; gap: 6px; font-size: 0.9rem; }
+.calc .total { border-top: 1px solid var(--line); padding-top: 6px; font-size: 1rem; }
+.calc .total + .total { border-top: 0; padding-top: 0; }
+
+/* Autos */
+.topkm { background: transparent; min-height: 40px; padding: 4px 6px 4px 10px; flex-direction: row; gap: 4px; font-size: 0.85rem; line-height: 1.2; }
+.topkm > span { display: flex; flex-direction: column; align-items: flex-end; min-width: 0; }
+.topkm .icon { width: 18px; height: 18px; color: var(--text-2); }
+.car-row .badge { font-size: 0.75rem; font-weight: 700; color: var(--good-text); }

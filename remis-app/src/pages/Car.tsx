@@ -9,6 +9,7 @@ import { pendingProblems } from '../domain/checks';
 import { dayKey } from '../domain/dates';
 import { type DocState, docStatus } from '../domain/documents';
 import { type MaintState, type MaintStatus, byUrgency, maintStatus } from '../domain/maintenance';
+import { isChofer } from '../domain/settlement';
 import { useData } from '../lib/data';
 import { dateTimeFmt, dayFmt, daysText, kmFmt, money } from '../lib/format';
 
@@ -21,13 +22,16 @@ const TABS = [
 type Tab = (typeof TABS)[number]['id'];
 
 export function Car() {
+  const d = useData();
   const { tab = 'mantenimiento' } = useParams();
   const nav = useNavigate();
-  const current = (TABS.some((t) => t.id === tab) ? tab : 'mantenimiento') as Tab;
+  // El checklist diario es de quien maneja: el auto con chofer no lo tiene.
+  const tabs = isChofer(d.vehicle) ? TABS.filter((t) => t.id !== 'checklist') : TABS;
+  const current = (tabs.some((t) => t.id === tab) ? tab : 'mantenimiento') as Tab;
   return (
     <div className="stack">
       <h1>Auto</h1>
-      <Seg label="Secciones del auto" options={TABS.map((t) => ({ id: t.id, label: t.label }))} value={current} onChange={(t) => nav(`/auto/${t}`, { replace: true })} />
+      <Seg label="Secciones del auto" options={tabs.map((t) => ({ id: t.id, label: t.label }))} value={current} onChange={(t) => nav(`/auto/${t}`, { replace: true })} />
       {current === 'mantenimiento' && <Maintenance />}
       {current === 'papeles' && <Documents />}
       {current === 'checklist' && <Checklist />}

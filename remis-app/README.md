@@ -23,7 +23,7 @@ Es una app web que se instala en el celular (PWA). Funciona **sin internet** y l
   - gastos por rubro (lavado, taller, seguro, patente, multas, comida, celular…) con foto del comprobante.
 - **Ingresos y ganancia real:**
   - lo recaudado, los viajes, las propinas y lo que es efectivo;
-  - la agencia puede ser base fija (con el botón "Pagué la base") o porcentaje;
+  - la agencia puede venir **ya descontada** (lo que te pasan ya es tuyo), ser un porcentaje o una base fija (con el botón "Pagué la base");
   - muestra la ganancia por día, semana y mes, por km y por hora, y el costo por km.
 - **Vencimientos de papeles:**
   - VTV/RTO, seguro, oblea y prueba hidráulica de GNC, licencia profesional, habilitación del remis, matafuego y patente;
@@ -35,11 +35,19 @@ Es una app web que se instala en el celular (PWA). Funciona **sin internet** y l
   - un formulario con fotos, ubicación, datos del otro auto, testigos y número de denuncia;
   - un aviso si no hiciste la denuncia al seguro (hay 3 días);
   - un botón para mandar todo por WhatsApp al seguro o a la agencia.
+- **Varios autos y auto con chofer:**
+  - tocando la patente de arriba cambiás de auto o agregás otro;
+  - si un auto lo maneja un chofer, cada quincena (o semana o mes) cargás lo que facturó, los peajes con pasajero y el km;
+  - la cuenta sale sola: primero se le devuelven los peajes con pasajero (vienen sumados a la tarifa) y lo que queda se divide (50/50 o el porcentaje que arreglen);
+  - el combustible, el lavado y los peajes sin pasajero los paga el chofer; el seguro, el service y los papeles los anotás vos como gastos de ese auto;
+  - con un botón le mandás la cuenta por WhatsApp;
+  - la app avisa si falta cargar una quincena, y los avisos de service y papeles de todos los autos salen juntos;
+  - el resumen muestra lo que te dejó cada auto y el total.
 - **Resumen:** gráfico de km por día, gastos por rubro, rendimiento de combustible y exportación a Excel (CSV).
 - **Copia de seguridad:** un archivo con todo (fotos incluidas) que podés mandar a tu WhatsApp o a Drive, y restaurar en otro celular.
 - **Modo oscuro** para la noche, botones grandes y teclado numérico.
 
-> Para probarla sin cargar nada: en la pantalla de bienvenida tocá **"Primero quiero verla con datos de ejemplo"**. Trae 6 semanas de un remis compartido. Después la borrás en Ajustes → Borrar todo.
+> Para probarla sin cargar nada: en la pantalla de bienvenida tocá **"Primero quiero verla con datos de ejemplo"**. Trae 6 semanas de un remis compartido y un segundo auto con chofer. Después la borrás en Ajustes → Borrar todo.
 
 ## Instalarla en el celular
 
@@ -83,6 +91,7 @@ Si más adelante la pasás a su propio repositorio, el `render.yaml` de esta car
 
 ## Ideas para más adelante
 
+- **Para choferes de aplicaciones (Uber, DiDi, Cabify):** ingresos por plataforma con su comisión, y el alquiler del auto por día o por semana. Para venderla hacen falta cuentas de usuario y cobro (con un servidor).
 - **Km automáticos por GPS:** necesita una app nativa (Capacitor), porque una web no puede seguirte con la pantalla apagada.
 - **Varios choferes o la agencia entera,** con usuarios y los datos en un servidor, como Super Chino.
 - **Leer el ticket de la carga con una foto (IA),** para no tipear litros y montos.

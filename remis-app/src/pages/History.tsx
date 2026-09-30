@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ServiceSheet } from '../components/forms/car';
 import { ExpenseSheet, FuelSheet, IncomeSheet } from '../components/forms/money';
+import { SettlementSheet } from '../components/forms/settlement';
 import { ShiftEditSheet } from '../components/forms/shift';
 import { Icon, type IconName } from '../components/icons';
 import { Empty } from '../components/ui';
@@ -16,9 +17,10 @@ const FILTERS: { id: 'all' | MovementKind; label: string }[] = [
   { id: 'expense', label: 'Gastos' },
   { id: 'income', label: 'Ingresos' },
   { id: 'service', label: 'Services' },
+  { id: 'settlement', label: 'Liquidaciones' },
 ];
 
-const ICON: Record<MovementKind, IconName> = { shift: 'car', fuel: 'fuel', expense: 'receipt', income: 'cash', service: 'wrench' };
+const ICON: Record<MovementKind, IconName> = { shift: 'car', fuel: 'fuel', expense: 'receipt', income: 'cash', service: 'wrench', settlement: 'user' };
 
 export function History() {
   const d = useData();
@@ -27,6 +29,8 @@ export function History() {
   const [edit, setEdit] = useState<Movement | null>(null);
   const list = useMemo(() => movements(d), [d]);
   const shown = list.filter((m) => filter === 'all' || m.kind === filter);
+  // Solo los filtros que tienen algo (el auto con chofer no tiene turnos ni cargas).
+  const filters = FILTERS.filter((f) => f.id === 'all' || f.id === filter || list.some((m) => m.kind === f.id));
   const today = dayKey(d.now);
   const yesterday = addDays(today, -1);
 
@@ -44,12 +48,13 @@ export function History() {
   const expenseRec = pick('expense', d.expenses);
   const incomeRec = pick('income', d.incomes);
   const serviceRec = pick('service', d.services);
+  const settlementRec = pick('settlement', d.settlements);
 
   return (
     <div className="stack">
       <h1>Movimientos</h1>
       <div className="chips">
-        {FILTERS.map((f) => (
+        {filters.map((f) => (
           <button key={f.id} type="button" className={filter === f.id ? 'on' : ''} aria-pressed={filter === f.id} onClick={() => setFilter(f.id)}>
             {f.label}
           </button>
@@ -72,7 +77,7 @@ export function History() {
                   </span>
                   <span className="grow">
                     <div className="t">{m.title}</div>
-                    <div className="d">{[m.kind !== 'service' ? timeFmt(m.at) : '', m.detail].filter(Boolean).join(' · ')}</div>
+                    <div className="d">{[m.kind !== 'service' && m.kind !== 'settlement' ? timeFmt(m.at) : '', m.detail].filter(Boolean).join(' · ')}</div>
                   </span>
                   {m.amount != null ? (
                     <span className={`amt ${m.amount > 0 ? 'good' : ''}`}>
@@ -99,6 +104,7 @@ export function History() {
       {expenseRec && <ExpenseSheet expense={expenseRec} onClose={close} />}
       {incomeRec && <IncomeSheet income={incomeRec} onClose={close} />}
       {serviceRec && <ServiceSheet service={serviceRec} onClose={close} />}
+      {settlementRec && <SettlementSheet settlement={settlementRec} onClose={close} />}
     </div>
   );
 }

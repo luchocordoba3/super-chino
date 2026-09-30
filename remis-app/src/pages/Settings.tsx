@@ -1,23 +1,24 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { DriverFields, type DriverForm, FUELS, FuelChips, driverFrom } from '../components/forms/vehicle';
 import { Icon } from '../components/icons';
 import { Field, KmField, MoneyField, Seg, toast } from '../components/ui';
 import { backupFileName, exportBackup, importBackup } from '../db/backup';
 import { db, newId } from '../db/db';
 import { loadDemo } from '../db/demo';
-import { ensureFuelDefaults, saveSettings, wipeAll } from '../db/repo';
+import { ensureFuelDefaults, removeVehicle, saveSettings, wipeAll } from '../db/repo';
 import type { AgencyMode, AgencyPeriod, FuelType, Settings } from '../db/types';
-import { FUEL_LABEL } from '../domain/fuel';
 import { useData } from '../lib/data';
 import { dateTimeFmt, money, numFmt, numInput, parseKm, parseNum } from '../lib/format';
 import { canShareFiles, download, shareFiles } from '../lib/share';
 import { AgencyFields, agencyFrom } from './Onboarding';
 import { moneyInput } from '../components/forms/money';
 
-const FUELS: FuelType[] = ['nafta', 'gnc', 'gasoil'];
 const intFmt = new Intl.NumberFormat('es-AR');
 
 function VehicleCard() {
   const d = useData();
+  const nav = useNavigate();
   const v = d.vehicle;
   const [name, setName] = useState(v.name);
   const [plate, setPlate] = useState(v.plate);
@@ -25,18 +26,41 @@ function VehicleCard() {
   const [fuels, setFuels] = useState<FuelType[]>(v.fuels);
   const [shared, setShared] = useState(v.shared);
   const [initialKm, setInitialKm] = useState(intFmt.format(v.initialKm));
+  const [who, setWho] = useState<DriverForm>({
+    driver: v.driver ?? 'me',
+    choferName: v.chofer?.name ?? '',
+    percent: numInput(v.chofer?.percent ?? 50),
+    period: v.chofer?.period ?? 'quincena',
+  });
+  const many = d.vehicles.length > 1;
   const save = async () => {
     const k = parseKm(initialKm);
     if (!fuels.length) return toast('Elegí al menos un combustible');
     if (k == null) return toast('Poné el km inicial');
-    const next = { ...v, name: name.trim() || 'Mi auto', plate: plate.trim().toUpperCase(), year: Number(year) || undefined, fuels: FUELS.filter((f) => fuels.includes(f)), shared, initialKm: k };
+    const driver = driverFrom(who);
+    if (typeof driver === 'string') return toast(driver);
+    const next = {
+      ...v,
+      name: name.trim() || 'Mi auto',
+      plate: plate.trim().toUpperCase(),
+      year: Number(year) || undefined,
+      fuels: FUELS.filter((f) => fuels.includes(f)),
+      shared: driver.driver === 'me' && shared,
+      initialKm: k,
+      ...driver,
+    };
     await db.vehicles.put(next);
     await ensureFuelDefaults(next);
     toast('Auto guardado');
   };
+  const remove = async () => {
+    if (!confirm(`¿Borrar ${v.plate || v.name} con todo lo que tiene anotado?`) || !confirm('¿Seguro? No se puede deshacer.')) return;
+    await removeVehicle(v.id);
+    toast('Auto borrado');
+  };
   return (
     <section className="card stack">
-      <h2>Tu auto</h2>
+      <h2>{many ? 'Este auto' : 'Tu auto'}</h2>
       <Field label="Marca y modelo">
         <input value={name} onChange={(e) => setName(e.target.value)} />
       </Field>
@@ -48,23 +72,26 @@ function VehicleCard() {
           <input inputMode="numeric" value={year} onChange={(e) => setYear(e.target.value.replace(/\D/g, '').slice(0, 4))} />
         </Field>
       </div>
-      <Field label="Combustible">
-        <div className="chips">
-          {FUELS.map((f) => (
-            <button key={f} type="button" aria-pressed={fuels.includes(f)} className={fuels.includes(f) ? 'on' : ''} onClick={() => setFuels((x) => (x.includes(f) ? x.filter((y) => y !== f) : [...x, f]))}>
-              {FUEL_LABEL[f]}
-            </button>
-          ))}
-        </div>
-      </Field>
-      <label className="check">
-        <input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} />
-        Lo comparto con otro chofer
-      </label>
+      <FuelChips value={fuels} onChange={setFuels} />
+      <DriverFields form={who} set={(patch) => setWho((w) => ({ ...w, ...patch }))} />
+      {who.driver === 'me' && (
+        <label className="check">
+          <input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} />
+          Lo comparto con otro chofer
+        </label>
+      )}
       <KmField label="Km cuando empezaste a usar la app" value={initialKm} onChange={setInitialKm} hint="El km actual sale solo de lo que vas anotando." />
       <button type="button" className="primary" onClick={() => void save()}>
         Guardar auto
       </button>
+      <button type="button" onClick={() => nav('/autos/nuevo')}>
+        <Icon name="plus" /> Agregar otro auto
+      </button>
+      {many && (
+        <button type="button" className="danger" onClick={() => void remove()}>
+          Borrar este auto
+        </button>
+      )}
     </section>
   );
 }

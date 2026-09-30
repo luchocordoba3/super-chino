@@ -1,15 +1,11 @@
 import { useRef, useState } from 'react';
-import { KmField, MoneyField, QtyField, Seg, Field, toast } from '../components/ui';
+import { CarSections, carInput, emptyCar, type CarForm } from '../components/forms/vehicle';
+import { Field, MoneyField, QtyField, Seg, toast } from '../components/ui';
 import { importBackup } from '../db/backup';
 import { loadDemo } from '../db/demo';
 import { setup } from '../db/repo';
-import type { AgencyConfig, AgencyMode, AgencyPeriod, DocType, FuelType } from '../db/types';
-import { DOC_TYPES, defaultDocTypes } from '../domain/documents';
-import { FUEL_LABEL } from '../domain/fuel';
-import { parseKm, parseNum } from '../lib/format';
-
-const FUELS: FuelType[] = ['nafta', 'gnc', 'gasoil'];
-const MAIN_DOCS: DocType[] = ['vtv', 'seguro', 'licencia', 'habilitacion', 'oblea_gnc'];
+import type { AgencyConfig, AgencyMode, AgencyPeriod } from '../db/types';
+import { parseNum } from '../lib/format';
 
 export function agencyFrom(mode: AgencyMode, amount: string, period: AgencyPeriod, percent: string): AgencyConfig | string {
   if (mode === 'fixed') {
@@ -38,13 +34,14 @@ export function AgencyFields(p: {
       <Seg
         label="Cómo le pagás a la agencia"
         options={[
-          { id: 'fixed', label: 'Base fija' },
+          { id: 'none', label: 'Ya descontado' },
           { id: 'percent', label: 'Porcentaje' },
-          { id: 'none', label: 'No pago' },
+          { id: 'fixed', label: 'Base fija' },
         ]}
         value={p.mode}
         onChange={p.setMode}
       />
+      {p.mode === 'none' && <p className="hint">La agencia se queda su parte antes. Lo que te pasan ya es tuyo.</p>}
       {p.mode === 'fixed' && (
         <div className="grid2">
           <MoneyField label="Monto de la base" value={p.amount} onChange={p.setAmount} />
@@ -63,39 +60,22 @@ export function AgencyFields(p: {
 }
 
 export function Onboarding() {
-  const [name, setName] = useState('');
-  const [plate, setPlate] = useState('');
-  const [year, setYear] = useState('');
-  const [fuels, setFuels] = useState<FuelType[]>(['nafta', 'gnc']);
-  const [km, setKm] = useState('');
-  const [shared, setShared] = useState(false);
-  const [oilKm, setOilKm] = useState('');
-  const [oilDate, setOilDate] = useState('');
-  const [mode, setMode] = useState<AgencyMode>('fixed');
+  const [car, setCar] = useState<CarForm>(emptyCar);
+  const [mode, setMode] = useState<AgencyMode>('none');
   const [amount, setAmount] = useState('');
   const [period, setPeriod] = useState<AgencyPeriod>('week');
   const [percent, setPercent] = useState('');
-  const [docs, setDocs] = useState<Partial<Record<DocType, string>>>({});
   const [busy, setBusy] = useState(false);
   const file = useRef<HTMLInputElement>(null);
 
-  const toggleFuel = (f: FuelType) => setFuels((x) => (x.includes(f) ? x.filter((y) => y !== f) : [...x, f]));
-  const docTypes = defaultDocTypes(fuels).filter((t) => MAIN_DOCS.includes(t));
-
   const start = async () => {
-    const k = parseKm(km);
-    if (k == null) return toast('Poné los km que marca el odómetro');
-    if (!fuels.length) return toast('Elegí al menos un combustible');
+    const input = carInput(car);
+    if (typeof input === 'string') return toast(input);
     const agency = agencyFrom(mode, amount, period, percent);
     if (typeof agency === 'string') return toast(agency);
     setBusy(true);
     try {
-      await setup({
-        vehicle: { name: name.trim() || 'Mi auto', plate: plate.trim().toUpperCase(), year: Number(year) || undefined, fuels: FUELS.filter((f) => fuels.includes(f)), initialKm: k, shared },
-        oil: { km: parseKm(oilKm) ?? undefined, date: oilDate || undefined },
-        agency,
-        docs: Object.fromEntries(Object.entries(docs).filter(([t]) => docTypes.includes(t as DocType))),
-      });
+      await setup({ ...input, agency });
       void navigator.storage?.persist?.();
       toast('¡Listo! Ya podés empezar tu primer turno');
     } finally {
@@ -129,59 +109,11 @@ export function Onboarding() {
       </div>
       <p className="muted small">Todo queda guardado en este celular y anda sin internet. Cargá tu auto y arrancá.</p>
 
-      <section className="card stack">
-        <h2>Tu auto</h2>
-        <Field label="Marca y modelo">
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej.: Chevrolet Prisma" />
-        </Field>
-        <div className="grid2">
-          <Field label="Patente">
-            <input value={plate} onChange={(e) => setPlate(e.target.value)} placeholder="AB 123 CD" autoCapitalize="characters" />
-          </Field>
-          <Field label="Año">
-            <input inputMode="numeric" value={year} onChange={(e) => setYear(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="2019" />
-          </Field>
-        </div>
-        <Field label="Combustible">
-          <div className="chips">
-            {FUELS.map((f) => (
-              <button key={f} type="button" aria-pressed={fuels.includes(f)} className={fuels.includes(f) ? 'on' : ''} onClick={() => toggleFuel(f)}>
-                {FUEL_LABEL[f]}
-              </button>
-            ))}
-          </div>
-        </Field>
-        <KmField label="Km que marca hoy el odómetro" value={km} onChange={setKm} big />
-        <label className="check">
-          <input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} />
-          Lo comparto con otro chofer (día y noche)
-        </label>
-      </section>
-
-      <section className="card stack">
-        <h2>Último cambio de aceite</h2>
-        <p className="muted small">Para avisarte cuándo toca el próximo. Si no te acordás, dejalo vacío y lo cargás después.</p>
-        <div className="grid2">
-          <KmField label="A los km" value={oilKm} onChange={setOilKm} />
-          <Field label="Fecha">
-            <input type="date" value={oilDate} onChange={(e) => setOilDate(e.target.value)} />
-          </Field>
-        </div>
-      </section>
+      <CarSections form={car} set={(patch) => setCar((c) => ({ ...c, ...patch }))} />
 
       <section className="card stack">
         <h2>La agencia</h2>
         <AgencyFields mode={mode} setMode={setMode} amount={amount} setAmount={setAmount} period={period} setPeriod={setPeriod} percent={percent} setPercent={setPercent} />
-      </section>
-
-      <section className="card stack">
-        <h2>Vencimientos</h2>
-        <p className="muted small">Opcional. Te avisamos 30 días antes.</p>
-        {docTypes.map((t) => (
-          <Field key={t} label={DOC_TYPES[t].label}>
-            <input type="date" value={docs[t] ?? ''} onChange={(e) => setDocs((x) => ({ ...x, [t]: e.target.value }))} />
-          </Field>
-        ))}
       </section>
 
       <button type="button" className="primary big" onClick={() => void start()} disabled={busy}>

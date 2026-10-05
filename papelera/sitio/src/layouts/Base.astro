@@ -1,0 +1,117 @@
+---
+import "@fontsource-variable/archivo/wdth.css";
+import "@fontsource/jetbrains-mono/400.css";
+import "@fontsource/jetbrains-mono/600.css";
+import "../styles/global.css";
+import Logo from "../components/Logo.astro";
+import Remito from "../components/Remito.astro";
+import { NEGOCIO, DATOS_PEDIDO, ruta } from "../lib/catalogo";
+
+interface Props {
+  titulo?: string;
+  descripcion?: string;
+  camino?: string;
+  jsonld?: object | object[];
+  seccion?: "lista" | "rubros" | "rapido" | "cuenta" | "inicio";
+}
+const { titulo, descripcion = `Distribuidora de artículos de limpieza, bolsas, descartables y embalaje. Precio por mayor publicado y reparto propio en ${NEGOCIO.zona}.`, camino = "", jsonld, seccion } = Astro.props;
+const tituloCompleto = titulo ? `${titulo} · ${NEGOCIO.nombre}` : `${NEGOCIO.nombre} · ${NEGOCIO.bajada}`;
+const canonica = new URL(camino ? `/${camino.replace(/^\/|\/$/g, "")}/` : "/", NEGOCIO.sitio).href;
+const negocioLd = {
+  "@context": "https://schema.org",
+  "@type": "Store",
+  name: NEGOCIO.nombre,
+  description: descripcion,
+  url: NEGOCIO.sitio,
+  areaServed: NEGOCIO.zona,
+  priceRange: "$$",
+  ...(NEGOCIO.whatsapp ? { telephone: `+${NEGOCIO.whatsapp}` } : {}),
+};
+const ld = [negocioLd, ...(jsonld ? (Array.isArray(jsonld) ? jsonld : [jsonld]) : [])];
+const nav = [
+  { id: "lista", texto: "Lista de precios", href: ruta("lista") },
+  { id: "rubros", texto: "Para tu negocio", href: ruta("consorcios") },
+  { id: "rapido", texto: "Pedido rápido", href: ruta("pedido-rapido") },
+  { id: "cuenta", texto: "Cuenta mayorista", href: ruta("cuenta-mayorista") },
+];
+const ano = new Date().getFullYear();
+---
+<!doctype html>
+<html lang="es-AR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>{tituloCompleto}</title>
+  <meta name="description" content={descripcion} />
+  <link rel="canonical" href={canonica} />
+  <meta name="theme-color" content="#17288e" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="es_AR" />
+  <meta property="og:site_name" content={NEGOCIO.nombre} />
+  <meta property="og:title" content={tituloCompleto} />
+  <meta property="og:description" content={descripcion} />
+  <meta property="og:url" content={canonica} />
+  <meta property="og:image" content={new URL("/compartir.png", NEGOCIO.sitio).href} />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  {ld.map((d) => <script type="application/ld+json" set:html={JSON.stringify(d)} />)}
+</head>
+<body>
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+  <header class="barra">
+    <div class="barra__in">
+      <Logo />
+      <nav class="nav" aria-label="Secciones">
+        {nav.map((n) => <a href={n.href} aria-current={seccion === n.id ? "page" : undefined}>{n.texto}</a>)}
+      </nav>
+      <button class="btn-pedido" type="button" data-abrir-pedido aria-controls="pedido">
+        Pedido <span class="btn-pedido__n" data-pedido="unidades">0</span>
+      </button>
+    </div>
+  </header>
+
+  <main id="contenido">
+    <slot />
+  </main>
+
+  <footer class="pie">
+    <div class="envoltura">
+      <div class="pie__in">
+        <div>
+          <Logo pliegue="var(--carbon)" />
+          <p style="opacity:.75;margin-top:.8rem;max-width:22rem">Distribuidora de insumos de limpieza, bolsas, descartables y embalaje. Precio por mayor publicado y reparto propio en {NEGOCIO.zona}.</p>
+        </div>
+        <div>
+          <p class="pie__titulo">Comprar</p>
+          <a href={ruta("lista")}>Lista de precios</a>
+          <a href={ruta("pedido-rapido")}>Pedido rápido por código</a>
+          <a href={ruta("cuenta-mayorista")}>Abrir cuenta mayorista</a>
+        </div>
+        <div>
+          <p class="pie__titulo">Para tu negocio</p>
+          <a href={ruta("gastronomia")}>Gastronomía</a>
+          <a href={ruta("consorcios")}>Consorcios y administraciones</a>
+          <a href={ruta("oficinas")}>Oficinas y locales</a>
+        </div>
+        <div>
+          <p class="pie__titulo">Atención</p>
+          <p>{NEGOCIO.horario}</p>
+          {NEGOCIO.whatsapp && <a href={`https://wa.me/${NEGOCIO.whatsapp}`} target="_blank" rel="noopener">WhatsApp +{NEGOCIO.whatsapp}</a>}
+          {NEGOCIO.instagram && <a href={`https://instagram.com/${NEGOCIO.instagram}`} target="_blank" rel="noopener">Instagram @{NEGOCIO.instagram}</a>}
+          {NEGOCIO.email && <a href={`mailto:${NEGOCIO.email}`}>{NEGOCIO.email}</a>}
+          <p>Reparto en {NEGOCIO.zona}</p>
+        </div>
+      </div>
+      <div class="pie__legal">
+        <span>© {ano} {NEGOCIO.nombre}. Precios finales con IVA incluido. Emitimos factura C.</span>
+        <span>Precios sujetos a cambio sin previo aviso; se confirman al aceptar el pedido.</span>
+      </div>
+    </div>
+  </footer>
+
+  <Remito />
+  <script type="application/json" id="datos-pedido" set:html={JSON.stringify(DATOS_PEDIDO)} />
+  <script>
+    import "../scripts/pedido.ts";
+  </script>
+</body>
+</html>

@@ -1,5 +1,4 @@
-// Generado por scripts/generar-catalogo.py. No editar a mano.
-window.PRODUCTOS = [
+[
  {
   "codigo": "LA0037",
   "nombre": "ALCOHOL FAJINADOR APROBADO X 5 LTS.",
@@ -1736,4 +1735,4 @@ window.PRODUCTOS = [
   "mayorista": 20250,
   "minorista": 23360
  }
-];
+]

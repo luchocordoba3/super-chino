@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Genera web/productos.js a partir de la lista de precios en PDF.
+"""Genera sitio/src/datos/productos.json a partir de la lista de precios en PDF.
 
 Uso:  python3 papelera/scripts/generar-catalogo.py [ruta/al.pdf]
 Necesita `pdftotext` (paquete poppler-utils).
@@ -15,7 +15,7 @@ from pathlib import Path
 
 BASE = Path(__file__).resolve().parent.parent
 PDF = Path(sys.argv[1]) if len(sys.argv) > 1 else BASE / "datos" / "lista-de-precios.pdf"
-SALIDA = BASE / "web" / "productos.js"
+SALIDA = BASE / "sitio" / "src" / "datos" / "productos.json"
 
 RUBROS = [
     "QUÍMICOS Y LIMPIEZA",
@@ -63,8 +63,7 @@ def main():
         elif CODIGO.match(linea):
             raros.append(linea.strip())
 
-    datos = json.dumps(productos, ensure_ascii=False, indent=1)
-    SALIDA.write_text(f"// Generado por scripts/generar-catalogo.py. No editar a mano.\nwindow.PRODUCTOS = {datos};\n", encoding="utf-8")
+    SALIDA.write_text(json.dumps(productos, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     print(f"{len(productos)} productos en {len({p['rubro'] for p in productos})} rubros -> {SALIDA}")
     for linea in raros:
         print("  sin leer:", linea)

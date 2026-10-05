@@ -1,0 +1,96 @@
+---
+import Base from "../../layouts/Base.astro";
+import Pictograma from "../../components/Pictograma.astro";
+import Cantidad from "../../components/Cantidad.astro";
+import TarjetaProducto from "../../components/TarjetaProducto.astro";
+import { NEGOCIO, PRODUCTOS, pesos, ruta, rubroDe, type Ficha } from "../../lib/catalogo";
+
+export function getStaticPaths() {
+  return PRODUCTOS.map((p) => ({ params: { codigo: p.codigo.toLowerCase() }, props: { p } }));
+}
+const { p } = Astro.props as { p: Ficha };
+const rubro = rubroDe(p);
+const mismoIcono = PRODUCTOS.filter((x) => x.codigo !== p.codigo && x.icono === p.icono);
+const mismoRubro = PRODUCTOS.filter((x) => x.codigo !== p.codigo && x.rubroId === p.rubroId && x.icono !== p.icono);
+const relacionados = [...mismoIcono, ...mismoRubro].slice(0, 4);
+const descripcion = `${p.titulo} (${p.codigo}) por mayor a ${pesos(p.mayorista)} y suelto a ${pesos(p.minorista)}. ${rubro.corto} con reparto propio en ${NEGOCIO.zona}.`;
+const productoLd = {
+  "@context": "https://schema.org",
+  "@type": "Product",
+  name: p.titulo,
+  sku: p.codigo,
+  category: rubro.corto,
+  description: descripcion,
+  offers: {
+    "@type": "AggregateOffer",
+    priceCurrency: "ARS",
+    lowPrice: p.mayorista,
+    highPrice: p.minorista,
+    offerCount: 2,
+    availability: "https://schema.org/InStock",
+    seller: { "@type": "Organization", name: NEGOCIO.nombre },
+  },
+};
+const ahorro = Math.round((1 - p.mayorista / p.minorista) * 100);
+---
+<Base titulo={`${p.titulo} por mayor`} camino={`producto/${p.codigo.toLowerCase()}`} seccion="lista" descripcion={descripcion} jsonld={productoLd}>
+  <div class="envoltura">
+    <nav class="miga" aria-label="Ubicación">
+      <a href={ruta()}>Inicio</a><span aria-hidden="true">/</span>
+      <a href={ruta("lista")}>Lista de precios</a><span aria-hidden="true">/</span>
+      <a href={`${ruta("lista")}#${rubro.id}`}>{rubro.corto}</a>
+    </nav>
+
+    <article class="ficha" data-producto={p.codigo}>
+      <div class="ficha__visual" data-rubro-tono={p.rubroId}>
+        <span class="ficha__cod">{p.codigo}</span>
+        <Pictograma nombre={p.icono} />
+        {p.medida && <span class="ficha__medida">{p.medida}{p.unidades && <small>{p.unidades} unidades</small>}</span>}
+      </div>
+
+      <div class="ficha__info">
+        <div style="display:grid;gap:.8rem">
+          <p class="sobretitulo">{rubro.corto} · Código {p.codigo}</p>
+          <h1 class="ficha__titulo">{p.titulo}</h1>
+        </div>
+
+        <div class="ficha__precios">
+          <div><span class="precio-etq">Por mayor</span><span class="sticker">{pesos(p.mayorista)}</span><span class="ficha__nota">{ahorro}% menos que suelto</span></div>
+          <div><span class="precio-etq">Suelto</span><span class="suelto">{pesos(p.minorista)}</span><span class="ficha__nota">Pedidos menores a {pesos(NEGOCIO.minimoMayorista)}</span></div>
+        </div>
+
+        <div class="ficha__comprar">
+          <Cantidad codigo={p.codigo} grande id="cantidad-ficha" />
+          <button class="btn btn--tinta" type="button" data-agregar={p.codigo}>Agregar al pedido</button>
+        </div>
+        <div class="umbral" data-pedido="umbral" hidden>
+          <p class="umbral__texto" data-pedido="umbral-texto"></p>
+          <div class="umbral__barra"><span data-pedido="umbral-barra"></span></div>
+        </div>
+
+        <table class="datos-tabla">
+          <tbody>
+            <tr><th scope="row">Código</th><td>{p.codigo}</td></tr>
+            {p.medida && <tr><th scope="row">Medida</th><td>{p.medida}</td></tr>}
+            {p.unidades && <tr><th scope="row">Unidades por paquete</th><td>{p.unidades.replace("×", "")}</td></tr>}
+            <tr><th scope="row">Rubro</th><td>{rubro.corto}</td></tr>
+            <tr><th scope="row">Entrega</th><td>Reparto propio en {NEGOCIO.zona}</td></tr>
+            <tr><th scope="row">Factura</th><td>Factura C · precio final con IVA</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    {relacionados.length > 0 && (
+      <section class="seccion" style="padding-top:0" aria-labelledby="rel-titulo">
+        <header class="seccion__cabeza seccion__cabeza--fila">
+          <div><p class="sobretitulo">También en {rubro.corto}</p><h2 id="rel-titulo" class="titular titular--chico">Se suele pedir junto</h2></div>
+          <a class="flecha" href={`${ruta("lista")}#${rubro.id}`}>Ver todo {rubro.corto} →</a>
+        </header>
+        <div class="grilla-productos">
+          {relacionados.map((r) => <TarjetaProducto p={r} />)}
+        </div>
+      </section>
+    )}
+  </div>
+</Base>

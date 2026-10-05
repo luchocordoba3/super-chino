@@ -1,0 +1,30 @@
+---
+import { porCodigo, pesos, totalKit, NEGOCIO } from "../lib/catalogo";
+import Pictograma from "./Pictograma.astro";
+interface Props { id: string }
+const kit = NEGOCIO.kits.find((k) => k.id === Astro.props.id)!;
+const t = totalKit(kit.items);
+---
+<article class="kit">
+  <header class="kit__cabeza">
+    <p class="sobretitulo">Kit mensual</p>
+    <h3 class="kit__rubro">{kit.rubro}</h3>
+    <p class="kit__para">{kit.para}</p>
+  </header>
+  <ul class="kit__items">
+    {t.lista.map(([cod, n]) => {
+      const p = porCodigo.get(cod)!;
+      return (
+        <li>
+          <span class="kit__icono"><Pictograma nombre={p.icono} /></span>
+          <span class="kit__cant">{n}×</span>
+          <span>{p.titulo}</span>
+        </li>
+      );
+    })}
+  </ul>
+  <footer class="kit__pie">
+    <p class="kit__precio"><small>{t.lista.length} artículos · {t.esMayor ? "precio por mayor" : "precio suelto"}</small><strong>{pesos(t.total)}</strong></p>
+    <button class="btn btn--tinta" type="button" data-kit={kit.id}>Agregar kit</button>
+  </footer>
+</article>

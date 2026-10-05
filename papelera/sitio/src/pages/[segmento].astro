@@ -1,0 +1,94 @@
+---
+import Base from "../layouts/Base.astro";
+import Pictograma from "../components/Pictograma.astro";
+import Kit from "../components/Kit.astro";
+import TarjetaProducto from "../components/TarjetaProducto.astro";
+import { NEGOCIO, porCodigo, pesos, ruta } from "../lib/catalogo";
+
+export function getStaticPaths() {
+  return NEGOCIO.segmentos.map((s) => ({ params: { segmento: s.id }, props: { s } }));
+}
+type Segmento = (typeof NEGOCIO.segmentos)[number];
+const { s } = Astro.props as { s: Segmento };
+const claves = s.claves.map((c) => porCodigo.get(c)!).filter(Boolean);
+const iconos = [...new Set(claves.map((p) => p.icono))].slice(0, 6);
+const cinta = Array.from({ length: 8 }, () => `${s.sobretitulo} · Reposición mensual · ${NEGOCIO.zona}`);
+const otros = NEGOCIO.segmentos.filter((x) => x.id !== s.id);
+---
+<Base titulo={s.sobretitulo} camino={s.id} seccion="rubros" descripcion={`${s.titulo}. ${s.bajada}`}>
+  <section class="rubro-portada" aria-labelledby="titulo">
+    <div class="envoltura rubro-portada__in">
+      <div>
+        <p class="sobretitulo">{s.sobretitulo}</p>
+        <h1 id="titulo">{s.titulo}</h1>
+        <p class="bajada">{s.bajada}</p>
+        <div class="portada__acciones" style="margin-top:1.6rem">
+          <button class="btn btn--cinta" type="button" data-kit={s.id}>Agregar el kit al pedido</button>
+          <a class="btn btn--linea-clara" href={ruta("cuenta-mayorista")}>Abrir cuenta mayorista</a>
+        </div>
+      </div>
+      <div class="rubro-portada__iconos" aria-hidden="true">
+        {iconos.map((i) => <div><Pictograma nombre={i} /></div>)}
+      </div>
+    </div>
+    <div class="cinta-embalar" aria-hidden="true">{cinta.map((t) => <span>{t}</span>)}</div>
+  </section>
+
+  <section class="seccion" aria-labelledby="dolores-titulo">
+    <div class="envoltura">
+      <header class="seccion__cabeza">
+        <p class="sobretitulo">Lo que resolvemos</p>
+        <h2 id="dolores-titulo" class="titular">Menos tiempo comprando, más tiempo atendiendo</h2>
+      </header>
+      <ul class="dolores">
+        {s.dolores.map(([d, r]) => <li><strong>{d}</strong><span>{r}</span></li>)}
+      </ul>
+    </div>
+  </section>
+
+  <section class="seccion seccion--blanca" aria-labelledby="kit-titulo">
+    <div class="envoltura reparto" style="align-items:start">
+      <div>
+        <header class="seccion__cabeza">
+          <p class="sobretitulo">Kit mensual sugerido</p>
+          <h2 id="kit-titulo" class="titular">Un punto de partida para tu reposición</h2>
+          <p class="bajada">Calculado para un mes de uso típico. Lo agregás con un toque y después ajustás cantidades, o nos escribís y lo armamos a medida de tu consumo.</p>
+        </header>
+        <ul class="beneficios">
+          <li data-rubro-tono="papel"><Pictograma nombre="caja" /><div><strong>Precio por mayor desde {pesos(NEGOCIO.minimoMayorista)}</strong><span>El kit ya llega al mínimo: todo el pedido va a precio por mayor.</span></div></li>
+          <li data-rubro-tono="bolsas"><Pictograma nombre="bidon" /><div><strong>Reposición programada</strong><span>Marcá "Repetir cada mes" al enviar y te escribimos antes de cada entrega.</span></div></li>
+          <li data-rubro-tono="embalaje"><Pictograma nombre="papel" /><div><strong>Factura en cada entrega</strong><span>Con el detalle de cada artículo para tu contabilidad.</span></div></li>
+        </ul>
+      </div>
+      <Kit id={s.id} />
+    </div>
+  </section>
+
+  <section class="seccion" aria-labelledby="claves-titulo">
+    <div class="envoltura">
+      <header class="seccion__cabeza seccion__cabeza--fila">
+        <div>
+          <p class="sobretitulo">Los más pedidos</p>
+          <h2 id="claves-titulo" class="titular">Lo que más compran negocios como el tuyo</h2>
+        </div>
+        <a class="flecha" href={ruta("lista")}>Ver la lista completa →</a>
+      </header>
+      <div class="grilla-productos">
+        {claves.map((p) => <TarjetaProducto p={p} />)}
+      </div>
+    </div>
+  </section>
+
+  <section class="llamado" aria-labelledby="llamado-titulo">
+    <div class="envoltura llamado__in">
+      <div>
+        <h2 id="llamado-titulo" class="titular">Armemos tu pedido base</h2>
+        <p>Contanos qué usás por mes y te pasamos una propuesta con precio por mayor y día fijo de entrega.</p>
+      </div>
+      <div class="llamado__acciones">
+        <a class="btn btn--tinta" href={ruta("cuenta-mayorista")}>Abrir cuenta mayorista</a>
+        {otros.map((o) => <a class="btn btn--linea" href={ruta(o.id)}>{o.sobretitulo.replace("Para ", "")}</a>)}
+      </div>
+    </div>
+  </section>
+</Base>

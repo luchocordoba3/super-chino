@@ -1,0 +1,19 @@
+---
+import type { Ficha } from "../lib/catalogo";
+import { pesos, rutaProducto } from "../lib/catalogo";
+import Pictograma from "./Pictograma.astro";
+import Cantidad from "./Cantidad.astro";
+interface Props { p: Ficha }
+const { p } = Astro.props;
+---
+<div class="renglon" data-producto={p.codigo} data-rubro={p.rubroId} data-buscar={`${p.codigo} ${p.nombre} ${p.medida}`}>
+  <span class="renglon__icono" data-rubro-tono={p.rubroId}><Pictograma nombre={p.icono} /></span>
+  <span class="renglon__cod">{p.codigo}</span>
+  <a class="renglon__nombre" href={rutaProducto(p.codigo)}>{p.titulo}</a>
+  <span class="renglon__medida">{[p.medida, p.unidades && `${p.unidades} u.`].filter(Boolean).join(" · ")}</span>
+  <span class="renglon__precios">
+    <span class="renglon__mayor"><span class="sticker">{pesos(p.mayorista)}</span></span>
+    <span class="renglon__suelto num">{pesos(p.minorista)}</span>
+  </span>
+  <Cantidad codigo={p.codigo} />
+</div>

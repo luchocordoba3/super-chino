@@ -1,0 +1,233 @@
+---
+import Base from "../layouts/Base.astro";
+import { NEGOCIO, pesos } from "../lib/catalogo";
+---
+<Base titulo="Pedido rápido por código" camino="pedido-rapido" seccion="rapido" descripcion="Cargá tu pedido por código y cantidad, o pegá tu lista desde Excel o WhatsApp. Ideal para reponer todos los meses.">
+  <div class="envoltura">
+    <header class="seccion__cabeza" style="padding-top:clamp(2rem,5vw,3.5rem)">
+      <p class="sobretitulo">Para clientes que reponen</p>
+      <h1 class="titular">Pedido rápido por código</h1>
+      <p class="bajada">Escribí el código (o parte del nombre) y la cantidad, renglón por renglón, como en una planilla. Si ya tenés la lista armada, pegala a la derecha y se carga sola.</p>
+    </header>
+
+    <div class="rapido" style="padding-bottom:5rem">
+      <div>
+        <div class="planilla" id="planilla">
+          <div class="planilla__cabeza" aria-hidden="true"><span>#</span><span>Código</span><span>Artículo</span><span class="num">Cant.</span><span class="num">x mayor</span><span></span></div>
+          <div id="renglones-planilla"></div>
+          <div class="planilla__acciones">
+            <button class="btn-texto" type="button" id="mas-renglones">+ Agregar renglones</button>
+            <p class="precio-etq" id="planilla-total"></p>
+          </div>
+        </div>
+        <div class="umbral" id="planilla-umbral" style="margin-top:1rem" hidden>
+          <p class="umbral__texto" id="planilla-umbral-texto"></p>
+          <div class="umbral__barra"><span id="planilla-umbral-barra"></span></div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:.7rem;margin-top:1.2rem">
+          <button class="btn btn--tinta" type="button" id="cargar-pedido">Cargar al pedido</button>
+          <button class="btn btn--linea" type="button" id="limpiar-planilla">Limpiar planilla</button>
+        </div>
+      </div>
+
+      <aside class="pegar" aria-labelledby="pegar-titulo">
+        <h2 id="pegar-titulo">Pegá tu lista</h2>
+        <p>Un artículo por renglón, con el código y la cantidad en cualquier orden. Sirve copiar desde Excel, una nota del celular o un mensaje de WhatsApp.</p>
+        <label class="visualmente-oculto" for="lista-pegada">Lista de artículos</label>
+        <textarea id="lista-pegada" placeholder={"LB0003 6\nLL0228  3\n8 x PS0004\nPV0007;2"}></textarea>
+        <button class="btn btn--cinta" type="button" id="leer-lista">Leer la lista</button>
+        <p id="lectura" role="status" aria-live="polite"></p>
+        <p style="border-top:1px solid var(--linea);padding-top:.8rem">El precio por mayor se aplica cuando el pedido llega a {pesos(NEGOCIO.minimoMayorista)}.</p>
+      </aside>
+    </div>
+  </div>
+</Base>
+
+<script>
+  import { productos, sumar, abrir, avisar, minimoMayorista } from "../scripts/pedido.ts";
+  import { svgPictograma } from "../lib/pictogramas";
+
+  const plata = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
+  const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+  const lista = Object.entries(productos).map(([codigo, [titulo, mayor, suelto, icono, medida]]) => ({ codigo, titulo, mayor, suelto, icono, medida, txt: norm(`${codigo} ${titulo}`) }));
+  const porCodigo = new Map(lista.map((p) => [p.codigo, p]));
+  const cuerpo = document.getElementById("renglones-planilla")!;
+  let filas: { codigo: string; cant: number }[] = [];
+  let sugerencia = -1;
+
+  function renglonHTML(i: number) {
+    return `<div class="planilla__fila" data-i="${i}">
+      <span class="planilla__n">${i + 1}</span>
+      <input data-campo="codigo" aria-label="Código del renglón ${i + 1}" autocomplete="off" spellcheck="false" id="r-cod-${i}">
+      <span class="planilla__desc" data-desc></span>
+      <input data-campo="cant" type="number" min="0" step="1" inputmode="numeric" aria-label="Cantidad del renglón ${i + 1}" id="r-cant-${i}">
+      <span class="planilla__importe" data-importe></span>
+      <button class="planilla__quitar" type="button" data-borrar aria-label="Borrar renglón ${i + 1}">×</button>
+    </div>`;
+  }
+
+  function asegurar(n: number) {
+    while (filas.length < n) {
+      filas.push({ codigo: "", cant: 0 });
+      cuerpo.insertAdjacentHTML("beforeend", renglonHTML(filas.length - 1));
+    }
+  }
+
+  function pintarFila(i: number) {
+    const el = cuerpo.querySelector<HTMLElement>(`[data-i="${i}"]`)!;
+    const f = filas[i];
+    const p = porCodigo.get(f.codigo);
+    const cod = el.querySelector<HTMLInputElement>('[data-campo="codigo"]')!;
+    const cant = el.querySelector<HTMLInputElement>('[data-campo="cant"]')!;
+    if (document.activeElement !== cod) cod.value = f.codigo;
+    if (document.activeElement !== cant) cant.value = f.cant ? String(f.cant) : "";
+    el.classList.toggle("error", Boolean(f.codigo) && !p);
+    el.querySelector("[data-desc]")!.innerHTML = p
+      ? `${svgPictograma(p.icono, "pictograma pictograma-mini")}<span>${esc(p.titulo)}</span>`
+      : f.codigo && !el.querySelector(".sugerencias") ? "<em>Código no encontrado</em>" : "";
+    el.querySelector("[data-importe]")!.textContent = p && f.cant ? plata.format(p.mayor * f.cant) : "";
+  }
+
+  function totales() {
+    const validas = filas.filter((f) => porCodigo.has(f.codigo) && f.cant > 0);
+    const mayor = validas.reduce((s, f) => s + porCodigo.get(f.codigo)!.mayor * f.cant, 0);
+    const suelto = validas.reduce((s, f) => s + porCodigo.get(f.codigo)!.suelto * f.cant, 0);
+    const esMayor = mayor >= minimoMayorista;
+    document.getElementById("planilla-total")!.textContent = validas.length ? `${validas.length} renglones · ${plata.format(esMayor ? mayor : suelto)} ${esMayor ? "por mayor" : "suelto"}` : "";
+    const u = document.getElementById("planilla-umbral")!;
+    u.hidden = !validas.length;
+    u.classList.toggle("listo", esMayor);
+    document.getElementById("planilla-umbral-texto")!.textContent = esMayor ? "La planilla llega al precio por mayor." : `Faltan ${plata.format(minimoMayorista - mayor)} para el precio por mayor.`;
+    (document.getElementById("planilla-umbral-barra") as HTMLElement).style.width = `${Math.min(100, Math.round((mayor / minimoMayorista) * 100))}%`;
+  }
+
+  function cerrarSugerencias() { cuerpo.querySelectorAll(".sugerencias").forEach((s) => s.remove()); sugerencia = -1; }
+
+  function sugerir(i: number, q: string) {
+    cerrarSugerencias();
+    const t = norm(q.trim()).split(/\s+/).filter(Boolean);
+    if (!t.length || porCodigo.has(q.trim().toUpperCase())) return;
+    const res = lista.filter((p) => t.every((x) => p.txt.includes(x))).slice(0, 8);
+    if (!res.length) return;
+    const fila = cuerpo.querySelector(`[data-i="${i}"]`)!;
+    fila.insertAdjacentHTML("beforeend", `<ul class="sugerencias" role="listbox">${res.map((p, k) => `<li role="option" data-elegir="${p.codigo}" aria-selected="${k === 0}">${svgPictograma(p.icono, "pictograma pictograma-mini")}<code>${p.codigo}</code><span>${esc(p.titulo)}</span><code>${plata.format(p.mayor)}</code></li>`).join("")}</ul>`);
+    sugerencia = 0;
+  }
+
+  function elegir(i: number, codigo: string) {
+    filas[i].codigo = codigo;
+    if (!filas[i].cant) filas[i].cant = 1;
+    cerrarSugerencias();
+    pintarFila(i);
+    totales();
+    const cant = cuerpo.querySelector<HTMLInputElement>(`#r-cant-${i}`)!;
+    cant.focus();
+    cant.select();
+  }
+
+  function leerLista(texto: string) {
+    const lineas = texto.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    let ok = 0;
+    const malas: string[] = [];
+    for (const l of lineas) {
+      const m = l.toUpperCase().match(/\b([A-Z]{2}\d{4})\b/);
+      if (!m || !porCodigo.has(m[1])) { malas.push(l); continue; }
+      const resto = l.toUpperCase().replace(m[1], " ");
+      const n = Number((resto.match(/\d+/) || ["1"])[0]) || 1;
+      let i = filas.findIndex((f) => f.codigo === m[1]);
+      if (i < 0) {
+        i = filas.findIndex((f) => !f.codigo);
+        if (i < 0) { asegurar(filas.length + 1); i = filas.length - 1; }
+        filas[i] = { codigo: m[1], cant: 0 };
+      }
+      filas[i].cant += n;
+      ok++;
+    }
+    asegurar(filas.filter((f) => f.codigo).length + 2);
+    filas.forEach((_, i) => pintarFila(i));
+    totales();
+    document.getElementById("lectura")!.textContent = `${ok} ${ok === 1 ? "artículo cargado" : "artículos cargados"}${malas.length ? `. No reconocimos: ${malas.slice(0, 4).join(" · ")}${malas.length > 4 ? "…" : ""}` : "."}`;
+  }
+
+  cuerpo.addEventListener("input", (e) => {
+    const inp = e.target as HTMLInputElement;
+    const i = Number(inp.closest<HTMLElement>("[data-i]")!.dataset.i);
+    if (inp.dataset.campo === "codigo") {
+      const v = inp.value.trim().toUpperCase();
+      filas[i].codigo = porCodigo.has(v) ? v : inp.value.trim();
+      sugerir(i, inp.value);
+      if (porCodigo.has(v) && !filas[i].cant) filas[i].cant = 1;
+    } else {
+      filas[i].cant = Math.max(0, Math.floor(Number(inp.value) || 0));
+    }
+    pintarFila(i);
+    totales();
+    if (i === filas.length - 1 && filas[i].codigo) asegurar(filas.length + 1);
+  });
+
+  cuerpo.addEventListener("keydown", (e) => {
+    const inp = e.target as HTMLInputElement;
+    const fila = inp.closest<HTMLElement>("[data-i]");
+    if (!fila) return;
+    const i = Number(fila.dataset.i);
+    const ops = [...fila.querySelectorAll<HTMLElement>(".sugerencias li")];
+    if (ops.length && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+      e.preventDefault();
+      sugerencia = (sugerencia + (e.key === "ArrowDown" ? 1 : -1) + ops.length) % ops.length;
+      ops.forEach((o, k) => o.setAttribute("aria-selected", String(k === sugerencia)));
+      return;
+    }
+    if (e.key === "Escape") { cerrarSugerencias(); return; }
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    if (inp.dataset.campo === "codigo") {
+      if (ops.length && sugerencia >= 0) elegir(i, ops[sugerencia].dataset.elegir!);
+      else if (porCodigo.has(inp.value.trim().toUpperCase())) elegir(i, inp.value.trim().toUpperCase());
+    } else {
+      asegurar(i + 2);
+      cuerpo.querySelector<HTMLInputElement>(`#r-cod-${i + 1}`)!.focus();
+    }
+  });
+
+  cuerpo.addEventListener("paste", (e) => {
+    const t = (e as ClipboardEvent).clipboardData?.getData("text") || "";
+    if (/\n/.test(t.trim())) { e.preventDefault(); leerLista(t); }
+  });
+
+  cuerpo.addEventListener("click", (e) => {
+    const t = e.target as HTMLElement;
+    const op = t.closest<HTMLElement>("[data-elegir]");
+    if (op) { elegir(Number(op.closest<HTMLElement>("[data-i]")!.dataset.i), op.dataset.elegir!); return; }
+    if (t.closest("[data-borrar]")) {
+      const i = Number(t.closest<HTMLElement>("[data-i]")!.dataset.i);
+      filas[i] = { codigo: "", cant: 0 };
+      pintarFila(i);
+      totales();
+    }
+  });
+  document.addEventListener("click", (e) => {
+    if ((e.target as HTMLElement).closest(".planilla__fila") || !cuerpo.querySelector(".sugerencias")) return;
+    cerrarSugerencias();
+    filas.forEach((_, i) => pintarFila(i));
+  });
+
+  document.getElementById("mas-renglones")!.addEventListener("click", () => asegurar(filas.length + 5));
+  document.getElementById("leer-lista")!.addEventListener("click", () => leerLista((document.getElementById("lista-pegada") as HTMLTextAreaElement).value));
+  document.getElementById("limpiar-planilla")!.addEventListener("click", () => {
+    filas = filas.map(() => ({ codigo: "", cant: 0 }));
+    filas.forEach((_, i) => pintarFila(i));
+    totales();
+  });
+  document.getElementById("cargar-pedido")!.addEventListener("click", () => {
+    const validas = filas.filter((f) => porCodigo.has(f.codigo) && f.cant > 0);
+    if (!validas.length) { avisar("Cargá al menos un código con cantidad.", false); return; }
+    validas.forEach((f) => sumar(f.codigo, f.cant));
+    filas = filas.map(() => ({ codigo: "", cant: 0 }));
+    filas.forEach((_, i) => pintarFila(i));
+    totales();
+    abrir();
+  });
+
+  asegurar(6);
+</script>

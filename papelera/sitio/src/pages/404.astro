@@ -1,0 +1,13 @@
+---
+import Base from "../layouts/Base.astro";
+import Pictograma from "../components/Pictograma.astro";
+import { ruta } from "../lib/catalogo";
+---
+<Base titulo="Página no encontrada">
+  <div class="envoltura vacio" style="padding-block:6rem">
+    <span style="width:7rem;height:7rem" data-rubro-tono="embalaje"><Pictograma nombre="caja" /></span>
+    <h1 class="titular">Este bulto no está en el depósito</h1>
+    <p>La página que buscás no existe o cambió de lugar.</p>
+    <a class="btn btn--tinta" href={ruta("lista")}>Ir a la lista de precios</a>
+  </div>
+</Base>

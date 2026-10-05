@@ -1,0 +1,101 @@
+---
+import Base from "../layouts/Base.astro";
+import Pictograma from "../components/Pictograma.astro";
+import { NEGOCIO, pesos } from "../lib/catalogo";
+---
+<Base titulo="Abrir cuenta mayorista" camino="cuenta-mayorista" seccion="cuenta" descripcion={`Abrí tu cuenta mayorista en ${NEGOCIO.nombre}: precio por mayor, reparto con día fijo y reposición mensual programada en ${NEGOCIO.zona}.`}>
+  <div class="envoltura alta" style="padding-block:clamp(2rem,5vw,4rem) 5rem">
+    <div>
+      <p class="sobretitulo">Para negocios, consorcios y empresas</p>
+      <h1 class="titular" style="margin-block:.8rem 1rem">Abrí tu cuenta mayorista</h1>
+      <p class="bajada">Completás tus datos una sola vez y te respondemos por WhatsApp con una propuesta de reposición a medida. Sin costo ni compromiso.</p>
+      <ul class="beneficios">
+        <li data-rubro-tono="papel"><Pictograma nombre="caja" /><div><strong>Precio por mayor</strong><span>En pedidos desde {pesos(NEGOCIO.minimoMayorista)}, sobre toda la lista.</span></div></li>
+        <li data-rubro-tono="bolsas"><Pictograma nombre="bolsa" /><div><strong>Día fijo de entrega</strong><span>Tu zona tiene recorrido dos veces por semana con reparto propio.</span></div></li>
+        <li data-rubro-tono="quimicos"><Pictograma nombre="bidon" /><div><strong>Reposición mensual</strong><span>Dejamos armado tu pedido base y te avisamos antes de cada entrega.</span></div></li>
+        <li data-rubro-tono="embalaje"><Pictograma nombre="papel" /><div><strong>Cuenta corriente</strong><span>Disponible para clientes con compras frecuentes.</span></div></li>
+      </ul>
+    </div>
+
+    <div class="alta__panel">
+      <form class="formulario" id="alta" novalidate>
+        <div class="formulario__fila">
+          <label for="a-razon">Razón social o nombre del negocio<input id="a-razon" name="razon" required autocomplete="organization" /></label>
+          <label for="a-cuit">CUIT <small>(opcional)</small><input id="a-cuit" name="cuit" inputmode="numeric" placeholder="20-12345678-9" /></label>
+        </div>
+        <div class="formulario__fila">
+          <label for="a-rubro">Rubro
+            <select id="a-rubro" name="rubro" required>
+              <option value="">Elegí una opción</option>
+              <option>Gastronomía</option>
+              <option>Administración de consorcios</option>
+              <option>Empresa de limpieza</option>
+              <option>Oficina o consultorio</option>
+              <option>Gimnasio, peluquería o estética</option>
+              <option>Almacén, autoservicio o kiosco</option>
+              <option>Colegio, jardín o club</option>
+              <option>Otro</option>
+            </select>
+          </label>
+          <label for="a-consumo">Compra mensual estimada
+            <select id="a-consumo" name="consumo">
+              <option>Hasta {pesos(NEGOCIO.minimoMayorista)}</option>
+              <option>{pesos(NEGOCIO.minimoMayorista)} a $ 400.000</option>
+              <option>$ 400.000 a $ 1.000.000</option>
+              <option>Más de $ 1.000.000</option>
+            </select>
+          </label>
+        </div>
+        <div class="formulario__fila">
+          <label for="a-contacto">Nombre de contacto<input id="a-contacto" name="contacto" required autocomplete="name" /></label>
+          <label for="a-tel">Teléfono o WhatsApp<input id="a-tel" name="telefono" required inputmode="tel" autocomplete="tel" /></label>
+        </div>
+        <div class="formulario__fila">
+          <label for="a-direccion">Dirección de entrega<input id="a-direccion" name="direccion" required autocomplete="street-address" /></label>
+          <label for="a-zona">Zona
+            <select id="a-zona" name="zona">
+              {NEGOCIO.reparto.map((r) => <option>{r.zona}</option>)}
+              <option>Otra</option>
+            </select>
+          </label>
+        </div>
+        <label for="a-uso">¿Qué usás más? <small>(opcional)</small><textarea id="a-uso" name="uso" rows="3" placeholder="Ej.: 10 paquetes de bolsas de consorcio, 4 bidones de lavandina y servilletas por mes"></textarea></label>
+        <label class="casilla" for="a-mensual"><input type="checkbox" id="a-mensual" name="mensual" checked /> <span>Me interesa la reposición mensual programada</span></label>
+        <p class="formulario__error" id="alta-error" hidden>Completá los campos marcados para poder enviar la solicitud.</p>
+        <a class="btn btn--whatsapp btn--ancho" id="alta-enviar" href="https://wa.me/" target="_blank" rel="noopener">Enviar solicitud por WhatsApp</a>
+        <p class="ficha__nota">Tus datos solo se usan para armar tu propuesta y coordinar entregas.</p>
+      </form>
+    </div>
+  </div>
+</Base>
+
+<script>
+  import { linkWhatsApp, validarCampos } from "../scripts/pedido.ts";
+  const form = document.getElementById("alta") as HTMLFormElement;
+  const enviar = document.getElementById("alta-enviar") as HTMLAnchorElement;
+  function texto() {
+    const f = new FormData(form);
+    return [
+      "Hola! Quiero abrir una cuenta mayorista.",
+      "",
+      `Negocio: ${f.get("razon")}`,
+      f.get("cuit") ? `CUIT: ${f.get("cuit")}` : null,
+      `Rubro: ${f.get("rubro")}`,
+      `Contacto: ${f.get("contacto")} · ${f.get("telefono")}`,
+      `Entrega: ${f.get("direccion")} (${f.get("zona")})`,
+      `Compra mensual estimada: ${f.get("consumo")}`,
+      f.get("uso") ? `Uso habitual: ${f.get("uso")}` : null,
+      f.get("mensual") ? "Me interesa la reposición mensual programada." : null,
+    ].filter((x) => x !== null).join("\n");
+  }
+  form.addEventListener("input", (e) => {
+    const el = e.target as HTMLInputElement;
+    if (el.getAttribute("aria-invalid") === "true" && el.value.trim()) el.setAttribute("aria-invalid", "false");
+    enviar.href = linkWhatsApp(texto());
+  });
+  form.addEventListener("submit", (e) => e.preventDefault());
+  enviar.addEventListener("click", (e) => {
+    if (!validarCampos(form, "alta-error")) { e.preventDefault(); return; }
+    enviar.href = linkWhatsApp(texto());
+  });
+</script>

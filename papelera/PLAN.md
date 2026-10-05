@@ -1,4 +1,4 @@
-# Papelera: plan para vender digital y conseguir clientes B2B
+# Doble Hoja: plan para vender digital y conseguir clientes B2B
 
 **Punto de partida:**
 - Cobrás $15M de deuda en mercadería de fábrica: limpieza, descartables, bolsas, papel y embalaje.
@@ -69,7 +69,7 @@ Los segmentos van ordenados por cuánto rinde cada esfuerzo de venta:
 
 Muchas papeleras de barrio compiten por precio y atienden por teléfono. Vos competís por **comodidad y confianza**:
 
-- **Precio por mayor publicado y transparente.** La mayoría no publica precios. Vos mostrás la lista entera con el umbral claro: por mayor desde $150.000 (se ajusta en `web/config.js`).
+- **Precio por mayor publicado y transparente.** La mayoría no publica precios. Vos mostrás la lista entera con el umbral claro: por mayor desde $150.000 (se ajusta en `sitio/src/datos/negocio.json`).
 - **Pedido en dos minutos desde el celular.** El cliente arma el pedido y te llega por WhatsApp con el detalle completo, sin errores de dictado.
 - **Reparto con día fijo por zona**, dos veces por semana. El cliente sabe cuándo llega.
 - **Kits por rubro y reposición mensual.** Le resolvés la compra a quien no quiere pensar en eso.
@@ -79,7 +79,7 @@ Muchas papeleras de barrio compiten por precio y atienden por teléfono. Vos com
 
 | Canal | Para qué | Qué hacer |
 |---|---|---|
-| **Web catálogo** (`papelera/web/`) | Lista de precios, kits y pedidos por WhatsApp | Completar `config.js` y publicarla (ver §10). Va en la bio de Instagram, en el perfil de Google y en cada mensaje. |
+| **Sitio web** (`papelera/sitio/`) | Lista de precios, fichas por producto (aparecen en Google), páginas por rubro, pedido rápido y alta de cuenta mayorista | Completar `src/datos/negocio.json` y publicarlo (ver más abajo). Va en la bio de Instagram, en el perfil de Google y en cada mensaje. A cada prospecto mandale la página de su rubro (`/consorcios`, `/gastronomia`, `/oficinas`). |
 | **WhatsApp Business** | Cerrar ventas y que vuelvan a comprar | Catálogo con los 30 más vendidos, respuestas rápidas (precios, zonas, formas de pago) y etiquetas: *prospecto, cotizado, cliente, recompra*. Una lista de difusión por rubro con una oferta por semana. |
 | **Perfil de Empresa de Google** | Aparecer en "papelera cerca de mí" y "artículos de limpieza por mayor" | Categoría de distribuidor o proveedor de artículos de limpieza, zona de reparto, horario, fotos **reales** de la camioneta y la mercadería, y link a la web. Pedirle reseña a cada cliente contento. |
 | **Instagram** | Mostrar que existís y que repartís todos los días | 3 publicaciones por semana: un producto con su precio por mayor, un kit por rubro y un video corto de reparto o de pedido armado. Historias con "salió hoy para…". Destacadas: *Lista, Kits, Reparto, Cómo comprar*. |
@@ -117,7 +117,7 @@ Muchas papeleras de barrio compiten por precio y atienden por teléfono. Vos com
 
 ## 8. Logística
 
-- **Zonas por día:** CABA lunes y jueves, GBA Norte y Oeste martes y viernes, GBA Sur miércoles y sábados. Se ajusta según dónde aparezcan los clientes (`web/config.js`).
+- **Zonas por día:** CABA lunes y jueves, GBA Norte y Oeste martes y viernes, GBA Sur miércoles y sábados. Se ajusta según dónde aparezcan los clientes (`sitio/src/datos/negocio.json`).
 - **Corte de pedidos:** hasta las 17 h para salir en el próximo recorrido.
 - **Envío sin cargo desde $80.000.** Debajo de eso, el envío se cobra o se espera al recorrido.
 - **Ruta:** armala la noche anterior con Google Maps (hasta 10 paradas) y anotá el gasoil por día para conocer el costo por entrega.
@@ -142,12 +142,21 @@ Muchas papeleras de barrio compiten por precio y atienden por teléfono. Vos com
 
 ---
 
-## Web catálogo: cómo usarla
+## Sitio web: cómo usarlo
 
-Archivos en `papelera/web/`:
-- `index.html`, `estilos.css` y `app.js`: la web.
-- `config.js`: **tus datos** (nombre, WhatsApp, zonas, montos mínimos y kits). Es lo único que hay que editar.
-- `productos.js`: la lista de precios. **No se edita a mano.** Se genera desde el PDF:
+El sitio está en `papelera/sitio/`. Está hecho con Astro y genera páginas estáticas: es rápido, se publica gratis y no necesita servidor.
+
+**Páginas**
+- **Inicio:** propuesta, rubros, kits, cómo comprar, mapa de reparto y preguntas frecuentes.
+- **`/lista`:** los 248 artículos, en grilla o en lista, con buscador y filtro por rubro.
+- **`/producto/<código>`:** una ficha por artículo, con datos para que Google la muestre.
+- **`/gastronomia`, `/consorcios` y `/oficinas`:** son las páginas para mandarle a cada prospecto.
+- **`/pedido-rapido`:** carga por código o pegando una lista copiada de Excel o WhatsApp.
+- **`/cuenta-mayorista`:** el alta de cliente, que llega por WhatsApp.
+
+**Lo que se edita**
+- `src/datos/negocio.json`: nombre, WhatsApp, Instagram, mínimos, zonas y días, kits, textos de cada rubro y preguntas frecuentes. Es lo que va a editar el panel administrativo.
+- `src/datos/productos.json`: la lista de precios. **No se edita a mano**: se genera desde el PDF.
 
   ```bash
   python3 papelera/scripts/generar-catalogo.py papelera/datos/lista-de-precios.pdf
@@ -155,14 +164,20 @@ Archivos en `papelera/web/`:
 
   Necesita `pdftotext` (paquete `poppler-utils`). Si alguna línea no se pudo leer, el script avisa.
 
-**Privacidad:** la web muestra solo tus precios de venta. La lista de costo de fábrica (el Excel) **no se sube a ningún lado**.
+**Probar y publicar**
 
-**Publicarla gratis:**
-- **Netlify Drop:** entrás a app.netlify.com/drop y arrastrás la carpeta `web`. En un minuto tenés un link.
-- **Cloudflare Pages** o **GitHub Pages:** tomás la carpeta `papelera/web` del repositorio.
-- **Dominio propio:** un `.com.ar` en NIC Argentina sale poco por año y da mucha más confianza que un link gratuito.
+```bash
+cd papelera/sitio
+npm install
+npm run dev      # para verlo mientras editás: http://localhost:4321
+npm run build    # deja el sitio listo en dist/
+```
 
-**Antes de publicar:**
-- completar `whatsapp`, `nombre` e `instagram` en `config.js`;
-- revisar los montos mínimos y las zonas;
-- sacar fotos reales de la camioneta y la mercadería para Instagram y Google (las fotos propias generan más confianza que cualquier imagen de banco).
+- **Netlify o Cloudflare Pages** (gratis): conectás el repositorio y configurás la carpeta base `papelera/sitio`, el comando `npm run build` y la carpeta de salida `dist`. Cada cambio que subas se publica solo.
+- **Dominio:** registrá `doblehoja.com` (disponible al momento de armar esto) o un `.com.ar` en NIC Argentina. Antes de usar el nombre, buscalo en INPI para confirmar que no esté registrado como marca en el rubro.
+- **Antes de publicar:**
+  - completar `whatsapp` e `instagram` en `negocio.json`;
+  - revisar mínimos, zonas y días;
+  - sacar fotos reales de la camioneta y la mercadería para Instagram y Google.
+
+**Privacidad:** el sitio muestra solo tus precios de venta. La lista de costo de fábrica (el Excel) **no se sube a ningún lado**.

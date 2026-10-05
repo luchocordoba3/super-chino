@@ -1,0 +1,26 @@
+---
+import type { Ficha } from "../lib/catalogo";
+import { pesos, rutaProducto } from "../lib/catalogo";
+import Pictograma from "./Pictograma.astro";
+import Cantidad from "./Cantidad.astro";
+interface Props { p: Ficha }
+const { p } = Astro.props;
+---
+<article class="tarjeta" data-producto={p.codigo} data-rubro={p.rubroId} data-buscar={`${p.codigo} ${p.nombre} ${p.medida}`}>
+  <a class="etiqueta" href={rutaProducto(p.codigo)} data-rubro-tono={p.rubroId} tabindex="-1" aria-hidden="true">
+    <span class="etiqueta__cod">{p.codigo}</span>
+    <Pictograma nombre={p.icono} clase="etiqueta__icono" />
+    <span class="etiqueta__medida">{p.medida || " "}{p.unidades && <small>{p.unidades} u.</small>}</span>
+  </a>
+  <div class="tarjeta__cuerpo">
+    <a class="tarjeta__nombre" href={rutaProducto(p.codigo)}>{p.titulo}</a>
+    <div class="tarjeta__pie">
+      <p class="precios">
+        <span class="precio-etq">Por mayor</span>
+        <span class="sticker">{pesos(p.mayorista)}</span>
+        <span class="precio-suelto">Suelto {pesos(p.minorista)}</span>
+      </p>
+      <Cantidad codigo={p.codigo} />
+    </div>
+  </div>
+</article>

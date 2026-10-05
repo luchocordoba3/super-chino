@@ -1,0 +1,17 @@
+---
+import { NEGOCIO, ruta } from "../lib/catalogo";
+interface Props { pliegue?: string; bajada?: boolean }
+const { pliegue = "var(--cobalto-hondo)", bajada = true } = Astro.props;
+---
+<a class="logo" href={ruta()} aria-label={`${NEGOCIO.nombre}, inicio`}>
+  <svg class="logo__iso" viewBox="0 0 36 36" aria-hidden="true">
+    <rect x="11" y="2.5" width="19" height="25" rx="1.5" fill="var(--cinta)" transform="rotate(9 20 15)" />
+    <path d="M5 8h14.5l6.5 6.5V33H5z" fill="currentColor" />
+    <path d="M19.5 8v6.5H26" fill="none" stroke={pliegue} stroke-width="2" stroke-linejoin="round" />
+    <path d="M9 20h12M9 24.5h12M9 29h7" stroke={pliegue} stroke-width="1.8" stroke-linecap="round" opacity=".55" />
+  </svg>
+  <span class="logo__texto">
+    <span class="logo__nombre">{NEGOCIO.nombre}</span>
+    {bajada && <span class="logo__bajada">{NEGOCIO.bajada}</span>}
+  </span>
+</a>

@@ -1,0 +1,26 @@
+---
+import { NEGOCIO } from "../lib/catalogo";
+const dias = Object.fromEntries(NEGOCIO.reparto.map((r) => [r.id, r.dias]));
+---
+<figure style="margin:0">
+  <svg class="mapa" viewBox="0 0 400 330" role="img" aria-labelledby="mapa-titulo">
+    <title id="mapa-titulo">Esquema de zonas de reparto: CABA al centro, GBA Norte y Oeste, y GBA Sur.</title>
+    <path class="zona zona--norte" d="M70 18 L250 4 L300 0 L300 40 C292 70 296 92 282 112 L262 118 L206 128 L160 102 L70 100 Z" />
+    <path class="zona zona--norte" d="M12 108 L70 100 L160 102 L206 128 L196 178 L222 214 L150 236 L12 222 Z" />
+    <path class="zona zona--caba" d="M206 128 L262 118 L282 112 L292 150 L283 206 L222 214 L196 178 Z" />
+    <path class="zona zona--sur" d="M12 222 L150 236 L222 214 L283 206 L296 214 C290 260 300 296 292 330 L12 330 Z" />
+    <path class="rio" d="M300 0 L400 0 L400 330 L292 330 C300 296 290 260 296 214 L283 206 L292 150 L282 112 C296 92 292 70 300 40 Z" />
+    <path class="rio-linea" d="M326 20 C318 90 330 160 320 230 C314 280 322 310 318 330" />
+    <text x="346" y="170" class="t-chica" transform="rotate(90 346 170)" text-anchor="middle">RÍO DE LA PLATA</text>
+    <text x="243" y="162" class="t-caba" text-anchor="middle">CABA</text>
+    <text x="243" y="178" class="t-caba t-dia" text-anchor="middle">{dias.caba.split(" y ")[0]}</text>
+    <text x="243" y="190" class="t-caba t-dia" text-anchor="middle">y {dias.caba.split(" y ")[1] ?? ""}</text>
+    <text x="180" y="54" text-anchor="middle">GBA Norte</text>
+    <text x="180" y="70" class="t-dia" text-anchor="middle">{dias.norte}</text>
+    <text x="96" y="160" text-anchor="middle">GBA Oeste</text>
+    <text x="96" y="176" class="t-dia" text-anchor="middle">{dias.norte}</text>
+    <text x="150" y="282" text-anchor="middle">GBA Sur</text>
+    <text x="150" y="298" class="t-dia" text-anchor="middle">{dias.sur}</text>
+  </svg>
+  <figcaption class="mapa-nota">Esquema de zonas, no a escala. Si tu dirección queda en el límite, te confirmamos el día por WhatsApp.</figcaption>
+</figure>

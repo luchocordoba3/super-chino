@@ -1,0 +1,166 @@
+---
+import Base from "../layouts/Base.astro";
+import Pictograma from "../components/Pictograma.astro";
+import Kit from "../components/Kit.astro";
+import Zonas from "../components/Zonas.astro";
+import { NEGOCIO, PRODUCTOS, RUBROS, porCodigo, pesos, ruta } from "../lib/catalogo";
+
+const bulto = ["LB0003", "LL0228", "PV0007", "LT0045", "PS0004", "LP0114", "LE0035", "PC0042", "PB0141"].map((c) => porCodigo.get(c)!);
+const cuenta = Object.fromEntries(RUBROS.map((r) => [r.id, PRODUCTOS.filter((p) => p.rubroId === r.id).length]));
+const ejemplo = [["LB0003", 6], ["LL0228", 3], ["PS0004", 8]] as const;
+const ejemploTotal = ejemplo.reduce((s, [c, n]) => s + porCodigo.get(c)!.mayorista * n, 0);
+const preguntas = NEGOCIO.preguntas.map(([q, a]) => [q, a.replace("$MINIMO", pesos(NEGOCIO.minimoMayorista)).replace("$ENVIO", pesos(NEGOCIO.envioSinCargoDesde))]);
+const faqLd = { "@context": "https://schema.org", "@type": "FAQPage", mainEntity: preguntas.map(([q, a]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })) };
+const cinta = Array.from({ length: 8 }, () => `${NEGOCIO.nombre} · Reparto propio · Precio por mayor · ${NEGOCIO.zona}`);
+---
+<Base seccion="inicio" jsonld={faqLd}>
+  <section class="portada" aria-labelledby="titulo">
+    <div class="portada__in">
+      <div class="portada__texto">
+        <p class="sobretitulo">Distribuidora mayorista · {NEGOCIO.zona}</p>
+        <h1 id="titulo" class="portada__titulo">
+          <span>Todo lo que</span>
+          <span>tu negocio gasta</span>
+          <span>por semana,</span>
+          <span class="resalte">en una entrega.</span>
+        </h1>
+        <p class="portada__bajada">Bolsas, papel, descartables y químicos de limpieza con precio por mayor publicado. Armás el pedido en dos minutos, lo confirmamos por WhatsApp y te lo lleva nuestra camioneta.</p>
+        <div class="portada__acciones">
+          <a class="btn btn--claro" href={ruta("lista")}>Ver lista de precios</a>
+          <a class="btn btn--linea-clara" href={ruta("cuenta-mayorista")}>Abrir cuenta mayorista</a>
+        </div>
+        <p class="portada__datos"><span>{PRODUCTOS.length} artículos</span><span>Factura en cada entrega</span><span>Envío sin cargo desde {pesos(NEGOCIO.envioSinCargoDesde)}</span></p>
+      </div>
+
+      <div class="bulto" aria-hidden="true">
+        <div class="bulto__grilla">
+          {bulto.map((p) => (
+            <div class="bulto__caja" data-rubro-tono={p.rubroId}>
+              <Pictograma nombre={p.icono} />
+              <span class="bulto__etq"><span>{p.codigo}</span><strong>{p.medida}</strong></span>
+            </div>
+          ))}
+        </div>
+        <div class="bulto__remito">
+          <p>Pedido de ejemplo</p>
+          {ejemplo.map(([c, n]) => <div><span>{n} × {porCodigo.get(c)!.medida} {porCodigo.get(c)!.icono === "bolsa" ? "consorcio" : porCodigo.get(c)!.icono === "bidon" ? "lavandina" : "servilletas"}</span><span>{pesos(porCodigo.get(c)!.mayorista * n)}</span></div>)}
+          <div><span>Total por mayor</span><span>{pesos(ejemploTotal)}</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="cinta-embalar" aria-hidden="true">{cinta.map((t) => <span>{t}</span>)}</div>
+  </section>
+
+  <section class="franja" aria-label="Por qué comprarnos">
+    <ul class="envoltura franja__lista">
+      <li><strong>Precio publicado</strong><span>La lista completa está a la vista. Sabés el total antes de pedir.</span></li>
+      <li><strong>Reparto propio</strong><span>Camioneta propia con día fijo por zona, dos veces por semana.</span></li>
+      <li><strong>Por mayor desde {pesos(NEGOCIO.minimoMayorista)}</strong><span>Se aplica solo a todo el pedido cuando llegás al monto.</span></li>
+      <li><strong>Factura en cada entrega</strong><span>Comprobante con el detalle de cada artículo.</span></li>
+    </ul>
+  </section>
+
+  <section class="seccion" aria-labelledby="rubros-titulo">
+    <div class="envoltura">
+      <header class="seccion__cabeza seccion__cabeza--fila">
+        <div>
+          <p class="sobretitulo">Catálogo</p>
+          <h2 id="rubros-titulo" class="titular">Seis rubros, una sola entrega</h2>
+        </div>
+        <a class="flecha" href={ruta("lista")}>Ver los {PRODUCTOS.length} artículos →</a>
+      </header>
+      <div class="rubros">
+        {RUBROS.map((r) => (
+          <a class="rubro" href={`${ruta("lista")}#${r.id}`} data-rubro-tono={r.id}>
+            <span class="rubro__texto">
+              <span class="rubro__n">{cuenta[r.id]} artículos</span>
+              <span class="rubro__nombre">{r.corto}</span>
+              <span class="rubro__ej">{r.ej}</span>
+            </span>
+            <span class="rubro__icono"><Pictograma nombre={r.icono} /></span>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="seccion seccion--blanca" id="kits" aria-labelledby="kits-titulo">
+    <div class="envoltura">
+      <header class="seccion__cabeza">
+        <p class="sobretitulo">Kits por rubro</p>
+        <h2 id="kits-titulo" class="titular">La reposición de un mes, armada en un toque</h2>
+        <p class="bajada">Partimos de lo que más se usa en cada tipo de negocio. Agregás el kit y después ajustás cantidades en el pedido.</p>
+      </header>
+      <div class="kits">
+        {NEGOCIO.kits.map((k) => <Kit id={k.id} />)}
+      </div>
+    </div>
+  </section>
+
+  <section class="seccion" aria-labelledby="como-titulo">
+    <div class="envoltura">
+      <header class="seccion__cabeza">
+        <p class="sobretitulo">Cómo comprar</p>
+        <h2 id="como-titulo" class="titular">Del pedido a tu depósito en tres pasos</h2>
+      </header>
+      <ol class="pasos">
+        <li><h3>Armás el pedido</h3><p>Desde la lista, con un kit o pegando tu lista de códigos en el <a href={ruta("pedido-rapido")}>pedido rápido</a>. El total se calcula solo.</p></li>
+        <li><h3>Lo confirmamos por WhatsApp</h3><p>Te llega el detalle completo. Respondemos con disponibilidad, día de entrega y forma de pago.</p></li>
+        <li><h3>Te lo llevamos</h3><p>Reparto propio por zona y día fijo, con factura. Si tu consumo es estable, dejamos programada la reposición mensual.</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="seccion seccion--blanca" id="reparto" aria-labelledby="reparto-titulo">
+    <div class="envoltura reparto">
+      <Zonas />
+      <div>
+        <header class="seccion__cabeza">
+          <p class="sobretitulo">Reparto propio</p>
+          <h2 id="reparto-titulo" class="titular">Pasamos por tu zona dos veces por semana</h2>
+          <p class="bajada">Pedidos confirmados hasta las {NEGOCIO.corte} salen en el próximo recorrido. Envío sin cargo desde {pesos(NEGOCIO.envioSinCargoDesde)}.</p>
+        </header>
+        <div class="tabla-envoltura">
+          <table class="tabla">
+            <thead><tr><th scope="col">Zona</th><th scope="col">Días</th></tr></thead>
+            <tbody>
+              {NEGOCIO.reparto.map((r) => (
+                <tr><td><span class:list={["punto", `punto--${r.id}`]}></span><span class="zona-nombre">{r.zona}</span><span class="barrios">{r.barrios}</span></td><td>{r.dias}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="seccion" aria-labelledby="faq-titulo">
+    <div class="envoltura preguntas">
+      <header class="seccion__cabeza">
+        <p class="sobretitulo">Preguntas frecuentes</p>
+        <h2 id="faq-titulo" class="titular">Lo que nos preguntan antes del primer pedido</h2>
+      </header>
+      <div class="preguntas__lista">
+        {preguntas.map(([q, a], i) => (
+          <details class="pregunta" open={i === 0}>
+            <summary>{q}</summary>
+            <p>{a}</p>
+          </details>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="llamado" aria-labelledby="llamado-titulo">
+    <div class="envoltura llamado__in">
+      <div>
+        <h2 id="llamado-titulo" class="titular">¿Tenés un negocio en {NEGOCIO.zona}?</h2>
+        <p>Abrí tu cuenta mayorista y te armamos la reposición mensual a medida. Sin costo ni compromiso.</p>
+      </div>
+      <div class="llamado__acciones">
+        <a class="btn btn--tinta" href={ruta("cuenta-mayorista")}>Abrir cuenta mayorista</a>
+        <a class="btn btn--linea" href={ruta("pedido-rapido")}>Pedido rápido</a>
+      </div>
+    </div>
+  </section>
+</Base>

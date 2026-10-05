@@ -1,0 +1,84 @@
+{
+  "nombre": "Doble Hoja",
+  "bajada": "Insumos de limpieza y descartables para negocios",
+  "sitio": "https://doblehoja.com",
+  "whatsapp": "",
+  "instagram": "",
+  "email": "",
+  "zona": "CABA y GBA",
+  "horario": "Lunes a viernes de 8 a 18 h · Sábados de 8 a 13 h",
+  "corte": "17 h",
+  "minimoMayorista": 150000,
+  "envioSinCargoDesde": 80000,
+  "reparto": [
+    { "id": "caba", "dias": "Lunes y jueves", "zona": "CABA", "barrios": "Centro, Palermo, Belgrano, Caballito, Flores, Almagro, Villa Urquiza" },
+    { "id": "norte", "dias": "Martes y viernes", "zona": "GBA Norte y Oeste", "barrios": "Vicente López, San Isidro, San Martín, Tres de Febrero, Morón, Ramos Mejía" },
+    { "id": "sur", "dias": "Miércoles y sábados", "zona": "GBA Sur", "barrios": "Avellaneda, Lanús, Lomas de Zamora, Banfield, Quilmes" }
+  ],
+  "kits": [
+    {
+      "id": "gastronomia",
+      "rubro": "Gastronomía",
+      "para": "Rotiserías, pizzerías, bares y cocinas de delivery",
+      "items": [["PS0004", 8], ["PV0007", 3], ["PC0302", 1], ["PC0303", 1], ["LB0089", 5], ["LD0248", 2], ["LT0045", 4]]
+    },
+    {
+      "id": "consorcios",
+      "rubro": "Consorcios",
+      "para": "Administraciones, encargados y empresas de limpieza",
+      "items": [["LB0008", 4], ["LB0003", 6], ["LL0228", 3], ["LD0279", 2], ["LT0011", 6], ["LE0035", 1]]
+    },
+    {
+      "id": "oficinas",
+      "rubro": "Oficinas y locales",
+      "para": "Oficinas, consultorios, gimnasios y peluquerías",
+      "items": [["LP0114", 4], ["LT0045", 6], ["LJ0087", 2], ["LL0252", 3], ["LP0181", 4], ["LD0297", 4], ["LB0070", 4]]
+    }
+  ],
+  "segmentos": [
+    {
+      "id": "gastronomia",
+      "titulo": "Descartables y limpieza para cocinas que no paran",
+      "sobretitulo": "Para gastronomía",
+      "bajada": "Rotiserías, pizzerías, hamburgueserías, heladerías, bares y cocinas de delivery. Lo que se te termina un viernes a la noche, te lo dejamos el día de reparto de tu zona.",
+      "dolores": [
+        ["Te quedás sin vasos o bandejas en pleno servicio", "Armamos un pedido base y lo reponemos todos los meses, o cada quince días si rotás mucho."],
+        ["Comprás en tres lugares distintos", "Descartables, servilletas, bolsas y químicos en una sola entrega y una sola factura."],
+        ["No sabés cuánto vas a pagar hasta que llega la factura", "La lista de precios está publicada. El total lo ves antes de mandar el pedido."]
+      ],
+      "claves": ["PV0007", "PV0150", "PS0004", "PS0250", "PB0141", "PB0145", "PC0302", "PC0303", "PC0380", "LB0089", "LD0248", "LT0045"]
+    },
+    {
+      "id": "consorcios",
+      "titulo": "La reposición de cada edificio, resuelta todos los meses",
+      "sobretitulo": "Para consorcios y administraciones",
+      "bajada": "Administraciones, encargados y empresas de limpieza. Un pedido por edificio, con entrega en portería y comprobante para la liquidación de expensas.",
+      "dolores": [
+        ["El encargado pide a último momento y caro", "Dejamos programada la reposición mensual de cada edificio y llega sola."],
+        ["Cada edificio compra distinto", "Un mismo kit base para todos tus consorcios, ajustable por edificio."],
+        ["Hay que justificar cada gasto", "Factura por edificio, con el detalle de cada artículo para adjuntar a las expensas."]
+      ],
+      "claves": ["LB0008", "LB0186", "LB0224", "LB0003", "LB0091", "LL0228", "LL0171", "LD0279", "LD0273", "LT0011", "LE0035", "LS0014"]
+    },
+    {
+      "id": "oficinas",
+      "titulo": "Papel, jabón y bolsas para que la oficina no se quede sin nada",
+      "sobretitulo": "Para oficinas y locales",
+      "bajada": "Oficinas, consultorios, gimnasios, peluquerías y veterinarias. Papel institucional, toallas, jabón y aerosoles con reposición programada.",
+      "dolores": [
+        ["Alguien tiene que acordarse de comprar papel", "Reposición mensual automática: te escribimos antes y confirmás con un mensaje."],
+        ["Comprar suelto en el súper sale caro", "Formatos institucionales y bidones de 5 L, a precio por mayor."],
+        ["Necesitás factura para rendir", "Facturamos cada entrega."]
+      ],
+      "claves": ["LP0114", "LP0119", "LT0045", "LT0087", "LJ0087", "LL0252", "LP0181", "LP0182", "LD0297", "LB0070", "LB0089", "LS0077"]
+    }
+  ],
+  "preguntas": [
+    ["¿Hay pedido mínimo?", "No. Con pedidos desde $MINIMO se aplica el precio por mayor a todo el pedido; debajo de ese monto rige el precio suelto."],
+    ["¿Cuánto cuesta el envío?", "Sin cargo desde $ENVIO dentro de nuestras zonas de reparto. Debajo de ese monto lo coordinamos con vos."],
+    ["¿Cómo pago?", "Transferencia, efectivo o Mercado Pago al momento de la entrega. A clientes con compras frecuentes les ofrecemos cuenta corriente."],
+    ["¿Hacen factura?", "Sí, emitimos factura C en todas las entregas."],
+    ["¿Puedo programar la reposición todos los meses?", "Sí. Marcá \"Repetir este pedido cada mes\" al enviarlo y te escribimos unos días antes de cada entrega para confirmar."],
+    ["¿Consiguen artículos que no están en la lista?", "Escribinos. Trabajamos con fábricas del rubro y muchas veces lo conseguimos para la próxima entrega."]
+  ]
+}

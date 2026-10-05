@@ -1,0 +1,17 @@
+{
+  "name": "doble-hoja-sitio",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "catalogo": "python3 ../scripts/generar-catalogo.py",
+    "dev": "astro dev",
+    "build": "astro build",
+    "vista-previa": "PUBLIC_VISTA=1 astro build --outDir dist-vista && node scripts/relativizar.mjs dist-vista",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@fontsource-variable/archivo": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "astro": "^7.3.5"
+  }
+}

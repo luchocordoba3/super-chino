@@ -1,0 +1,479 @@
+<title>Cuestionario Vidriería</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: una columna por pasos. Encabezado fijo con progreso, una sección por pantalla, barra de acciones abajo. */
+:root {
+  --bg: #eef3f1;
+  --surface: #ffffff;
+  --fg: #13201c;
+  --muted: #56665f;
+  --line: #d3dfda;
+  --accent: #1f6f5f;
+  --accent-soft: #dcece7;
+  --on-accent: #ffffff;
+  --edge: #8fc3b4;
+  --danger: #a23a2a;
+  --display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1513; --surface: #16211e; --fg: #e3ece8; --muted: #94a6a0; --line: #27352f;
+    --accent: #6cc4ad; --accent-soft: #1d3a33; --on-accent: #0b1714; --edge: #3f7f6f; --danger: #f08a76;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1513; --surface: #16211e; --fg: #e3ece8; --muted: #94a6a0; --line: #27352f;
+  --accent: #6cc4ad; --accent-soft: #1d3a33; --on-accent: #0b1714; --edge: #3f7f6f; --danger: #f08a76;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 17px; line-height: 1.5; }
+.wrap { max-width: 640px; margin: 0 auto; padding-inline: 16px; padding-block: 0 140px; }
+
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding-block: 14px 12px; border-bottom: 1px solid var(--line); }
+.eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.top h2 { font-family: var(--display); font-weight: 700; font-size: 28px; line-height: 1.1; margin: 2px 0 10px; text-wrap: balance; }
+.progress { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.progress > i { display: block; height: 100%; background: linear-gradient(90deg, var(--edge), var(--accent)); transition: width .25s ease; }
+
+.intro { padding-block: 28px 8px; display: grid; gap: 14px; }
+.intro h1 { font-family: var(--display); font-weight: 700; font-size: clamp(34px, 9vw, 48px); line-height: 1.02; margin: 0; text-wrap: balance; }
+.intro p { margin: 0; max-width: 60ch; }
+.spec { font-family: var(--mono); font-size: 13px; color: var(--muted); border-left: 3px solid var(--edge); padding-left: 10px; }
+.steps { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.steps button { width: 100%; display: grid; grid-template-columns: 2.2em 1fr auto; align-items: center; gap: 10px; text-align: left; font: inherit; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; cursor: pointer; }
+.steps .n { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+.steps .c { font-family: var(--mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.steps .c.done { color: var(--accent); }
+
+.q { display: grid; gap: 8px; padding-block: 20px; border-bottom: 1px solid var(--line); }
+.q:last-child { border-bottom: 0; }
+.ql { font-weight: 600; margin: 0; line-height: 1.35; }
+.qh { font-size: 15px; color: var(--muted); margin: -4px 0 0; }
+input[type="text"], textarea { width: 100%; font: inherit; font-size: 16px; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+textarea { min-height: 96px; resize: vertical; }
+input::placeholder, textarea::placeholder { color: var(--muted); opacity: .7; }
+.otro { font-size: 15px; padding: 10px 12px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font: inherit; font-size: 15px; line-height: 1.3; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 9px 14px; cursor: pointer; text-align: left; }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.multi .chip[aria-pressed="true"]::before { content: "✓ "; }
+.chip.ns { border-style: dashed; color: var(--muted); }
+.chip.ns[aria-pressed="true"] { color: var(--on-accent); }
+.err { color: var(--danger); font-size: 15px; margin: 0; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.final { padding-block: 22px; display: grid; gap: 14px; }
+.final p { margin: 0; }
+.out { font-family: var(--mono); font-size: 13px; line-height: 1.5; min-height: 260px; max-height: 50vh; white-space: pre-wrap; }
+.send { display: grid; gap: 10px; }
+.note { font-size: 15px; color: var(--muted); }
+.mail { font-family: var(--mono); font-size: 14px; user-select: all; color: var(--fg); background: var(--accent-soft); padding: 2px 6px; border-radius: 6px; word-break: break-all; }
+.warn { background: var(--accent-soft); border-radius: 12px; padding: 12px 14px; display: grid; gap: 8px; }
+.linkbtn { font: inherit; font-size: 15px; background: none; border: 0; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; justify-self: start; }
+.danger { color: var(--danger); }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.status { font-size: 15px; color: var(--accent); min-height: 1.5em; margin: 0; }
+
+.btn { display: inline-flex; justify-content: center; align-items: center; gap: 8px; font: inherit; font-weight: 600; text-decoration: none; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; cursor: pointer; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.btn.small { padding: 8px 12px; font-size: 15px; }
+.bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; background: var(--surface); border-top: 1px solid var(--line); padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); }
+.bar-in { max-width: 608px; margin: 0 auto; display: flex; gap: 10px; }
+.bar .btn { flex: 1; }
+@media (prefers-reduced-motion: reduce) { .progress > i { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header class="top" id="top">
+    <div class="eyebrow" id="eyebrow">Cuestionario</div>
+    <h2 id="stepTitle">Para tu vidriería</h2>
+    <div class="progress" aria-hidden="true"><i id="bar" style="width:0%"></i></div>
+  </header>
+  <main id="main"></main>
+</div>
+<nav class="bar"><div class="bar-in" id="nav"></div></nav>
+
+<script>
+// A dónde llegan las respuestas. Si WA_NUMBER queda vacío, WhatsApp le deja elegir el contacto al cliente.
+const EMAIL = 'lucianocordoba3@gmail.com';
+const WA_NUMBER = ''; // ej. '5493511234567'
+const KEY = 'vidrieria-cuestionario-v1';
+
+// t: text | area | one | many. s: etiqueta corta para el resumen. ns: agrega "No sé". otro: agrega campo libre.
+const S = [
+  { title: 'Tu negocio', qs: [
+    { id: 'nombre', t: 'text', s: 'Nombre', l: 'Nombre del negocio', req: true },
+    { id: 'responsable', t: 'text', s: 'Responsable', l: 'Tu nombre y qué hacés en el negocio', h: 'Ej.: Carlos, dueño' },
+    { id: 'ciudad', t: 'text', s: 'Local', l: '¿En qué ciudad y barrio está el local?' },
+    { id: 'zonas', t: 'area', s: 'Zonas que cubre', l: '¿Qué zonas cubrís para medir e instalar?', h: 'Ej.: Córdoba Capital y alrededores, hasta 30 km' },
+    { id: 'antiguedad', t: 'one', s: 'Años en el rubro', l: '¿Hace cuánto que trabajás en el rubro?', o: ['Menos de 2 años', '2 a 5 años', '5 a 15 años', 'Más de 15 años'] },
+    { id: 'empleados', t: 'one', s: 'Personas', l: '¿Cuántas personas trabajan con vos?', o: ['Solo yo', '2 o 3', '4 a 10', 'Más de 10'] },
+    { id: 'horario', t: 'text', s: 'Horario', l: 'Días y horarios de atención', h: 'Ej.: lunes a viernes de 8 a 17, sábados de 9 a 13' },
+    { id: 'whatsapp', t: 'text', s: 'WhatsApp', l: 'WhatsApp del negocio' },
+    { id: 'redes', t: 'text', s: 'Redes / web', l: 'Instagram, Facebook o página web actual', h: 'Pegá los links o los nombres de usuario' },
+    { id: 'material', t: 'many', s: 'Tiene para la web', l: '¿Qué tenés para usar en la web?', o: ['Logo', 'Fotos de trabajos terminados', 'Fotos del local o del taller', 'Dominio propio (.com.ar)', 'Nada todavía'] }
+  ]},
+  { title: 'Qué vendés y hacés', qs: [
+    { id: 'productos', t: 'many', s: 'Vende / hace', l: 'Marcá todo lo que hacés', otro: true, o: ['Vidrio común (float)', 'Vidrio templado', 'Laminado de seguridad (3+3, 4+4)', 'DVH (doble vidriado hermético)', 'Espejos', 'Mamparas de baño', 'Cerramientos de balcón', 'Ventanas y puertas de aluminio', 'Aberturas de PVC', 'Frentes vidriados de locales', 'Barandas de vidrio', 'Divisiones de oficina', 'Tapas de mesa y estantes', 'Vidrios para muebles', 'Esmerilado, arenado o film', 'Policarbonato', 'Reposición de vidrios rotos (urgencias)', 'Colocación a domicilio'] },
+    { id: 'top', t: 'area', s: 'Lo que más hace / más deja', l: '¿Cuáles son los 3 trabajos que más hacés? ¿Y cuáles te dejan más ganancia?' },
+    { id: 'nohace', t: 'text', s: 'Le piden y no hace', l: '¿Hay algo que te piden seguido y no hacés?' }
+  ]},
+  { title: 'Cómo cotizás hoy', qs: [
+    { id: 'formaCotizar', t: 'many', s: 'Cotiza', l: '¿Cómo calculás el precio?', o: ['Por metro cuadrado', 'Por unidad (precio fijo)', 'Por trabajo completo (material + colocación)', 'A ojo, según el caso'] },
+    { id: 'herramienta', t: 'one', s: 'Arma presupuestos en', l: '¿Dónde armás los presupuestos?', otro: true, o: ['Papel o cuaderno', 'Excel', 'Por WhatsApp, a mano', 'Un sistema o programa', 'Calculadora y de memoria'] },
+    { id: 'tardaPresu', t: 'one', s: 'Tarda en presupuestar', l: '¿Cuánto tardás en armar un presupuesto?', o: ['Menos de 10 min', '10 a 30 min', 'Más de 30 min', 'Depende, a veces días'] },
+    { id: 'minimo', t: 'text', s: 'Medida mínima', l: '¿Cobrás una medida mínima?', h: 'Ej.: mínimo 0,25 m² aunque el vidrio sea más chico', ns: true },
+    { id: 'redondeo', t: 'one', s: 'Redondeo', l: '¿Redondeás las medidas para cobrar?', ns: true, otro: true, o: ['No, cobro la medida exacta', 'Sí, a múltiplos de 5 cm', 'Sí, a múltiplos de 10 cm'] },
+    { id: 'recargos', t: 'many', s: 'Cobra aparte', l: '¿Qué cobrás aparte del vidrio?', otro: true, o: ['Pulido de cantos (por metro lineal)', 'Biselado', 'Agujeros y perforaciones', 'Recortes o calados', 'Templado (si lo mandás a templar)', 'Herrajes', 'Silicona y burletes', 'Medición', 'Colocación', 'Flete o traslado', 'Retiro del vidrio viejo', 'Urgencia o fuera de horario'] },
+    { id: 'desperdicio', t: 'one', s: '% desperdicio', l: '¿Sumás un porcentaje por desperdicio o roturas?', ns: true, o: ['No', '5 %', '10 %', '15 % o más'] },
+    { id: 'flete', t: 'text', s: 'Traslado', l: '¿Cómo cobrás el traslado?', h: 'Ej.: gratis en la zona, un fijo por barrio o $ por km' },
+    { id: 'iva', t: 'one', s: 'IVA', l: '¿Tus precios incluyen IVA?', o: ['Sí, con IVA', 'Sin IVA, lo sumo si piden factura', 'No facturo', 'Depende del cliente'] },
+    { id: 'moneda', t: 'one', s: 'Moneda', l: '¿En qué moneda pensás los precios?', o: ['Pesos', 'Dólares y paso a pesos', 'Pesos, según la lista del proveedor'] },
+    { id: 'actualiza', t: 'one', s: 'Actualiza precios', l: '¿Cada cuánto actualizás los precios?', o: ['Cada semana', 'Cada mes', 'Cuando sube el proveedor', 'Pocas veces al año'] },
+    { id: 'validez', t: 'text', s: 'Validez presupuesto', l: '¿Cuántos días vale un presupuesto?', ns: true },
+    { id: 'lista', t: 'one', s: 'Lista de precios', l: '¿Tenés una lista de precios armada?', o: ['Sí, en Excel', 'Sí, en papel', 'Uso la del proveedor', 'No'] },
+    { id: 'ejemplo', t: 'area', s: 'Ejemplo real', l: 'Contanos un presupuesto real reciente, paso por paso', h: 'Medidas en mm, ancho × alto. Ej.: mampara 1200 × 1800, templado 8 mm: vidrio $…, herrajes $…, colocación $…, total $…. Si es más fácil, mandá una foto por WhatsApp.' }
+  ]},
+  { title: 'Mano de obra y colocación', qs: [
+    { id: 'coloca', t: 'one', s: 'Quién coloca', l: '¿Quién hace las colocaciones?', o: ['Yo', 'Empleados míos', 'Colocadores tercerizados', 'Un poco de cada', 'No coloco, solo vendo'] },
+    { id: 'equipos', t: 'one', s: 'Equipos de colocación', l: '¿Cuántos equipos de colocación pueden salir a la vez?', o: ['1', '2', '3 o más'] },
+    { id: 'cobroMO', t: 'many', s: 'Cobra colocación', l: '¿Cómo cobrás la colocación?', o: ['Por metro cuadrado', 'Por unidad o abertura', 'Por hora', 'Precio cerrado por trabajo', 'Incluida en el precio del vidrio'] },
+    { id: 'valorMO', t: 'text', s: 'Valor colocación', l: '¿Cuánto cobrás hoy de colocación?', h: 'Ej.: $… el m², $… la hora o $… una mampara' },
+    { id: 'tiempos', t: 'area', s: 'Tiempos típicos', l: '¿Cuánto tardan en promedio en cada trabajo?', h: 'Ej.: reponer un vidrio de ventana 1 h, una mampara 3 h, un cerramiento de balcón 2 días' },
+    { id: 'espera', t: 'one', s: 'Espera del cliente', l: 'Desde que el cliente acepta, ¿cuánto espera hasta la instalación?', o: ['Menos de 1 semana', '1 a 2 semanas', '3 a 4 semanas', 'Más de un mes'] },
+    { id: 'pagoColoc', t: 'one', s: 'Pago a colocadores', l: '¿Cómo les pagás a los colocadores?', o: ['Sueldo fijo', 'Por trabajo o por m²', 'Por día', 'Un poco de cada', 'No aplica'] }
+  ]},
+  { title: 'Materiales y stock', qs: [
+    { id: 'proveedores', t: 'text', s: 'Proveedores', l: '¿Quiénes son tus proveedores principales?', h: 'De vidrio, de aluminio y de herrajes' },
+    { id: 'espesores', t: 'many', s: 'Espesores', l: '¿Qué espesores usás más?', otro: true, o: ['3 mm', '4 mm', '5 mm', '6 mm', '8 mm', '10 mm', '12 mm', 'Laminado 3+3', 'Laminado 4+4', 'Laminado 5+5', 'Espejo 4 mm'] },
+    { id: 'planchas', t: 'one', s: 'Corte', l: '¿Comprás planchas enteras o pedís cortado a medida?', o: ['Planchas enteras, corto yo', 'Pido cortado a medida', 'Las dos cosas'] },
+    { id: 'medidaPlancha', t: 'text', s: 'Medida de plancha', l: '¿De qué medida son las planchas que comprás?', h: 'En mm. Ej.: 2500 × 3600 o 2250 × 3210', ns: true },
+    { id: 'sobrantes', t: 'one', s: 'Sobrantes', l: '¿Guardás los sobrantes (retazos) para otros trabajos?', o: ['Sí, y sé lo que tengo', 'Sí, pero sin control', 'No, se tiran'] },
+    { id: 'stockOtros', t: 'many', s: 'Otro stock', l: '¿Qué más tenés en stock?', otro: true, o: ['Perfiles de aluminio', 'Herrajes de mampara', 'Herrajes de templado (zócalos, bisagras)', 'Siliconas y selladores', 'Burletes', 'Tornillería', 'Accesorios de baño', 'Policarbonato'] },
+    { id: 'controlStock', t: 'one', s: 'Control de stock', l: '¿Cómo controlás el stock hoy?', o: ['No lo controlo', 'A ojo', 'Planilla o cuaderno', 'Con un sistema'] },
+    { id: 'faltantes', t: 'one', s: 'Se queda sin material', l: '¿Te pasa quedarte sin material en medio de un trabajo?', o: ['Seguido', 'A veces', 'Casi nunca'] }
+  ]},
+  { title: 'Clientes y ventas', qs: [
+    { id: 'tipoClientes', t: 'many', s: 'Clientes', l: '¿Qué tipo de clientes tenés?', otro: true, o: ['Particulares', 'Constructoras', 'Arquitectos', 'Consorcios y administraciones', 'Comercios', 'Otras vidrierías (mayorista)', 'Aseguradoras (siniestros)'] },
+    { id: 'canales', t: 'many', s: 'Llegan por', l: '¿Cómo te llegan los clientes hoy?', otro: true, o: ['Pasan por el local', 'WhatsApp', 'Instagram', 'Facebook', 'Google Maps', 'Recomendación', 'MercadoLibre', 'Carteles en obras'] },
+    { id: 'presuSemana', t: 'one', s: 'Presupuestos por semana', l: '¿Cuántos presupuestos hacés por semana?', o: ['Menos de 5', '5 a 15', '15 a 40', 'Más de 40'] },
+    { id: 'cierre', t: 'one', s: 'Se concretan (de 10)', l: 'De cada 10 presupuestos, ¿cuántos se concretan?', ns: true, o: ['1 o 2', '3 a 5', '6 a 8', 'Casi todos'] },
+    { id: 'seguimiento', t: 'one', s: 'Vuelve a contactar', l: '¿Volvés a escribirles a los que no contestan?', o: ['Siempre', 'A veces', 'Nunca, no me da el tiempo'] },
+    { id: 'sena', t: 'one', s: 'Seña', l: '¿Pedís seña?', otro: true, o: ['No', 'Sí, 30 %', 'Sí, 50 %'] },
+    { id: 'pagos', t: 'many', s: 'Medios de pago', l: '¿Cómo te pagan?', o: ['Efectivo', 'Transferencia', 'Mercado Pago', 'Débito', 'Crédito en cuotas', 'Cheque', 'Cuenta corriente'] },
+    { id: 'ctaCte', t: 'one', s: 'Cuenta corriente', l: '¿Tenés clientes que te pagan después (cuenta corriente)?', o: ['No', 'Pocos', 'Muchos'] }
+  ]},
+  { title: 'Cómo manejás el negocio', qs: [
+    { id: 'registro', t: 'many', s: 'Anota en', l: '¿Dónde anotás ventas, gastos y deudas?', otro: true, o: ['Cuaderno', 'Excel', 'Notas del celular', 'Un sistema o programa', 'En la cabeza'] },
+    { id: 'gastosFijos', t: 'many', s: 'Gastos fijos', l: '¿Qué gastos fijos tenés?', otro: true, o: ['Alquiler', 'Sueldos', 'Luz y servicios', 'Vehículo y combustible', 'Impuestos', 'Contador', 'Mantenimiento de máquinas', 'Publicidad'] },
+    { id: 'factura', t: 'one', s: 'Factura', l: '¿Cómo facturás con ARCA (ex AFIP)?', o: ['Monotributo', 'Responsable inscripto', 'Solo cuando me piden', 'No facturo'] },
+    { id: 'usuarios', t: 'many', s: 'Usarían el sistema', l: '¿Quiénes usarían el sistema?', o: ['Yo', 'Socio', 'Administración', 'Vendedor de mostrador', 'Colocadores (desde el celular)'] },
+    { id: 'dispositivo', t: 'one', s: 'Lo usaría en', l: '¿Lo usarías más en la PC o en el celular?', o: ['Más en la PC', 'Más en el celular', 'En los dos'] },
+    { id: 'agenda', t: 'one', s: 'Agenda', l: '¿Cómo organizás las mediciones y las instalaciones?', otro: true, o: ['De memoria', 'Cuaderno o almanaque', 'Google Calendar', 'Por WhatsApp', 'Con un sistema'] },
+    { id: 'ganancia', t: 'one', s: 'Sabe cuánto ganó', l: '¿Sabés cuánto ganaste el mes pasado?', o: ['Sí, exacto', 'Más o menos', 'No'] }
+  ]},
+  { title: 'Problemas e ideas', qs: [
+    { id: 'comeTiempo', t: 'many', s: 'Le come tiempo', l: '¿Qué te come más tiempo?', otro: true, o: ['Hacer presupuestos', 'Ir a medir', 'Responder consultas por WhatsApp', 'Cobrar y perseguir pagos', 'Comprar material', 'Organizar a los colocadores', 'Corregir errores de medida o de corte', 'Llevar las cuentas'] },
+    { id: 'errores', t: 'area', s: 'Errores que cuestan plata', l: '¿Qué errores te cuestan plata?', h: 'Ej.: medidas mal tomadas, cortes que salen mal, presupuestos viejos con precios desactualizados' },
+    { id: 'preguntas', t: 'area', s: 'Preguntas de clientes', l: '¿Qué te preguntan siempre los clientes?', h: 'Ej.: cuánto sale, cuánto tarda, si es templado, si hacen factura' },
+    { id: 'webQuiere', t: 'many', s: 'Quiere en la web', l: '¿Qué querés que haga la web?', otro: true, o: ['Que el cliente calcule un precio aproximado', 'Que pida presupuesto con medidas y fotos', 'Mostrar trabajos hechos', 'Que reserve una visita para medir', 'Que escriba directo por WhatsApp', 'Aparecer en Google', 'Vender productos online'] },
+    { id: 'sistemaQuiere', t: 'many', s: 'Quiere en el sistema', l: '¿Qué querés que haga el sistema?', otro: true, o: ['Presupuestos rápidos en PDF para mandar por WhatsApp', 'Lista de precios que se actualice con un %', 'Calcular cómo cortar las planchas', 'Stock de material y retazos', 'Agenda de mediciones e instalaciones', 'Órdenes de trabajo para colocadores', 'Cuentas, gastos y ganancia', 'Cobros, señas y deudas', 'Seguimiento de presupuestos sin respuesta', 'Avisos automáticos a clientes'] },
+    { id: 'noQuiere', t: 'area', s: 'No quiere', l: '¿Hay algo que NO querés?', h: 'Ej.: nada complicado, no mostrar precios en la web' },
+    { id: 'extra', t: 'area', s: 'Otros comentarios', l: '¿Algo más que quieras contarnos?' }
+  ]},
+  { title: 'La página web', qs: [
+    { id: 'precioWeb', t: 'one', s: 'Precio en la web', l: 'En la web, ¿el cliente debería ver un precio?', ns: true, o: ['Sí, un precio estimado al instante', 'Un rango aproximado (desde / hasta)', 'No, solo que pida presupuesto'] },
+    { id: 'estilo', t: 'many', s: 'Estilo', l: '¿Qué estilo te gusta?', o: ['Moderno y simple', 'Industrial, de taller', 'Clásico y confiable', 'Colorido', 'De alta gama'] },
+    { id: 'colores', t: 'text', s: 'Colores', l: '¿Tu marca tiene colores?', h: 'Ej.: azul y gris, los del logo', ns: true },
+    { id: 'referencias', t: 'area', s: 'Referencias', l: 'Webs o cuentas de Instagram que te gusten, del rubro o no' },
+    { id: 'dominio', t: 'one', s: 'Dominio', l: '¿Tenés dominio propio (tunegocio.com.ar)?', o: ['Sí', 'No, pero quiero', 'No sé qué es'] }
+  ]}
+];
+
+const NS = 'No sé';
+const LAST = S.length + 1; // 0 = inicio, 1..9 = secciones, 10 = revisar y enviar
+let A = {};
+let step = 0;
+
+try {
+  const d = JSON.parse(localStorage.getItem(KEY) || 'null');
+  if (d) { A = d.a || {}; step = Math.min(Math.max(d.step || 0, 0), LAST); }
+} catch (e) {}
+function save() { try { localStorage.setItem(KEY, JSON.stringify({ a: A, step })); } catch (e) {} }
+
+function el(tag, cls, text) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text != null) n.textContent = text;
+  return n;
+}
+
+function val(q) {
+  const v = A[q.id];
+  const parts = Array.isArray(v) ? v.slice() : (v && String(v).trim() ? [String(v).trim()] : []);
+  const o = (A[q.id + '_otro'] || '').trim();
+  if (o) parts.push('Otro: ' + o);
+  return parts.join(', ').replace(/\s*\n+\s*/g, ' / ');
+}
+const answered = sec => sec.qs.filter(q => val(q)).length;
+const total = () => S.reduce((n, s) => n + s.qs.length, 0);
+
+function buildText() {
+  const n = S.reduce((k, s) => k + answered(s), 0);
+  const lines = [
+    '*CUESTIONARIO VIDRIERÍA*',
+    'Negocio: ' + ((A.nombre || '').trim() || '(sin nombre)'),
+    'Fecha: ' + new Date().toLocaleDateString('es-AR'),
+    'Respondidas: ' + n + ' de ' + total()
+  ];
+  S.forEach((sec, i) => {
+    const rows = sec.qs.map(q => [q, val(q)]).filter(r => r[1]);
+    if (!rows.length) return;
+    lines.push('', '*' + (i + 1) + '. ' + sec.title.toUpperCase() + '*');
+    rows.forEach(([q, v]) => lines.push('• ' + q.s + ': ' + v));
+  });
+  return lines.join('\n');
+}
+
+function renderQ(q) {
+  const box = el('div', 'q');
+  const qid = 'q-' + q.id;
+  if (q.t === 'text' || q.t === 'area') {
+    const lab = el('label', 'ql', q.l + (q.req ? ' *' : ''));
+    lab.htmlFor = qid;
+    box.append(lab);
+    if (q.h) box.append(el('p', 'qh', q.h));
+    const inp = q.t === 'area' ? el('textarea') : el('input');
+    if (q.t === 'text') inp.type = 'text';
+    inp.id = qid;
+    inp.value = A[q.id] || '';
+    let nsGroup = null;
+    inp.addEventListener('input', () => {
+      A[q.id] = inp.value;
+      save();
+      if (nsGroup) nsGroup.firstChild.setAttribute('aria-pressed', String(inp.value === NS));
+    });
+    box.append(inp);
+    if (q.ns) { nsGroup = chipGroup({ id: q.id + '_ns', t: 'one', o: [] }, true, qid); box.append(nsGroup); }
+    if (q.req) { const e = el('p', 'err'); e.id = 'err-' + q.id; e.hidden = true; box.append(e); }
+  } else {
+    const lab = el('p', 'ql', q.l);
+    lab.id = 'l-' + q.id;
+    box.append(lab);
+    if (q.h) box.append(el('p', 'qh', q.h));
+    box.append(chipGroup(q, q.ns));
+  }
+  if (q.otro) {
+    const o = el('input', 'otro');
+    o.type = 'text';
+    o.id = qid + '-otro';
+    o.placeholder = 'Otro (escribilo acá)';
+    o.setAttribute('aria-label', 'Otro: ' + q.l);
+    o.value = A[q.id + '_otro'] || '';
+    o.addEventListener('input', () => { A[q.id + '_otro'] = o.value; save(); });
+    box.append(o);
+  }
+  return box;
+}
+
+// Para preguntas de texto con "No sé", el chip escribe "No sé" en el campo.
+function chipGroup(q, withNs, textId) {
+  const g = el('div', 'chips' + (q.t === 'many' ? ' multi' : ''));
+  g.setAttribute('role', 'group');
+  if (!textId) g.setAttribute('aria-labelledby', 'l-' + q.id);
+  const opts = q.o.slice();
+  if (withNs) opts.push(NS);
+  opts.forEach(opt => {
+    const b = el('button', 'chip' + (opt === NS ? ' ns' : ''), opt);
+    b.type = 'button';
+    const on = () => {
+      if (textId) return (A[textId.slice(2)] || '') === NS;
+      const v = A[q.id];
+      return q.t === 'many' ? Array.isArray(v) && v.includes(opt) : v === opt;
+    };
+    b.setAttribute('aria-pressed', String(on()));
+    b.addEventListener('click', () => {
+      if (textId) {
+        const key = textId.slice(2);
+        A[key] = A[key] === NS ? '' : NS;
+        document.getElementById(textId).value = A[key];
+      } else if (q.t === 'many') {
+        let v = Array.isArray(A[q.id]) ? A[q.id] : [];
+        v = v.includes(opt) ? v.filter(x => x !== opt) : v.concat(opt);
+        A[q.id] = v;
+      } else {
+        A[q.id] = A[q.id] === opt ? '' : opt;
+      }
+      save();
+      g.querySelectorAll('.chip').forEach(c => {
+        const t = c.textContent;
+        const pressed = textId ? (A[textId.slice(2)] === NS)
+          : q.t === 'many' ? A[q.id].includes(t) : A[q.id] === t;
+        c.setAttribute('aria-pressed', String(pressed));
+      });
+    });
+    g.append(b);
+  });
+  return g;
+}
+
+function renderIntro(main) {
+  const w = el('section', 'intro');
+  w.append(el('h1', null, 'Contanos cómo trabaja tu vidriería'));
+  w.append(el('p', null, 'Con tus respuestas armamos tu página web y tu sistema de presupuestos, a la medida de cómo trabajás. Son 9 partes y llevan unos 10 minutos.'));
+  w.append(el('p', null, 'Solo el nombre del negocio es obligatorio. Si algo no lo sabés, saltealo o tocá "No sé". Lo que vas cargando queda guardado en este celular, así que podés seguir después.'));
+  w.append(el('p', 'spec', 'Medidas en milímetros, ancho × alto. Ej.: 1200 × 1800'));
+  const ol = el('ol', 'steps');
+  S.forEach((sec, i) => {
+    const li = el('li');
+    const b = el('button');
+    b.type = 'button';
+    const a = answered(sec);
+    b.append(el('span', 'n', String(i + 1).padStart(2, '0')), el('span', null, sec.title), el('span', 'c' + (a === sec.qs.length ? ' done' : ''), a + '/' + sec.qs.length));
+    b.addEventListener('click', () => go(i + 1));
+    li.append(b);
+    ol.append(li);
+  });
+  w.append(ol);
+  main.append(w);
+}
+
+function renderFinal(main) {
+  const w = el('section', 'final');
+  const text = buildText();
+  const name = (A.nombre || '').trim();
+  w.append(el('p', null, 'Estas son tus respuestas. Mandalas por WhatsApp o por mail, como te quede más cómodo.'));
+  if (!name) {
+    const warn = el('div', 'warn');
+    warn.append(el('p', null, 'Falta el nombre del negocio.'));
+    const b = el('button', 'linkbtn', 'Completarlo');
+    b.type = 'button';
+    b.addEventListener('click', () => go(1));
+    warn.append(b);
+    w.append(warn);
+  }
+  const out = el('textarea', 'out');
+  out.id = 'out';
+  out.readOnly = true;
+  out.value = text;
+  out.setAttribute('aria-label', 'Resumen de respuestas');
+  w.append(out);
+
+  const subject = 'Cuestionario vidriería – ' + (name || 'sin nombre');
+  const send = el('div', 'send');
+  const wa = el('a', 'btn primary', 'Enviar por WhatsApp');
+  wa.href = 'https://wa.me/' + WA_NUMBER + '?text=' + encodeURIComponent(text);
+  wa.target = '_blank';
+  wa.rel = 'noopener';
+  const gm = el('a', 'btn', 'Enviar por Gmail');
+  gm.href = 'https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(EMAIL) + '&su=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(text);
+  gm.target = '_blank';
+  gm.rel = 'noopener';
+  const cp = el('button', 'btn', 'Copiar respuestas');
+  cp.type = 'button';
+  const status = el('p', 'status');
+  status.setAttribute('role', 'status');
+  cp.addEventListener('click', () => copy(text, out, status, 'Copiado. Pegalo en WhatsApp o en un mail.'));
+  send.append(wa, gm, cp, status);
+  w.append(send);
+
+  const mailP = el('p', 'note');
+  mailP.append('¿Usás otro mail? Copiá las respuestas y mandalas a ', el('span', 'mail', EMAIL), '. ');
+  const mt = el('a', null, 'Abrir mi app de mail');
+  mt.href = 'mailto:' + EMAIL + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(text);
+  mailP.append(mt);
+  w.append(mailP);
+  w.append(el('p', 'note', 'Si el texto no aparece completo en WhatsApp, usá "Copiar respuestas" y pegalo. Las fotos (logo, trabajos hechos, un presupuesto en papel) mandalas aparte por WhatsApp.'));
+
+  const reset = el('div', 'row');
+  const rb = el('button', 'linkbtn danger', 'Borrar todo y empezar de nuevo');
+  rb.type = 'button';
+  const confirmRow = el('div', 'row');
+  confirmRow.hidden = true;
+  confirmRow.append(el('span', 'note', 'Se borra todo lo que cargaste.'));
+  const yes = el('button', 'btn small', 'Sí, borrar');
+  yes.type = 'button';
+  yes.addEventListener('click', () => { A = {}; save(); go(0); });
+  const no = el('button', 'btn small', 'Cancelar');
+  no.type = 'button';
+  no.addEventListener('click', () => { confirmRow.hidden = true; rb.hidden = false; });
+  confirmRow.append(yes, no);
+  rb.addEventListener('click', () => { rb.hidden = true; confirmRow.hidden = false; });
+  reset.append(rb, confirmRow);
+  w.append(reset);
+  main.append(w);
+}
+
+function copy(text, field, status, ok) {
+  const fallback = () => { field.focus(); field.select(); status.textContent = 'Texto seleccionado: copialo con Copiar del celular.'; };
+  try {
+    navigator.clipboard.writeText(text).then(() => { status.textContent = ok; }, fallback);
+  } catch (e) { fallback(); }
+}
+
+function navBtn(label, cls, fn) {
+  const b = el('button', 'btn' + (cls ? ' ' + cls : ''), label);
+  b.type = 'button';
+  b.addEventListener('click', fn);
+  return b;
+}
+
+function render() {
+  const main = document.getElementById('main');
+  const nav = document.getElementById('nav');
+  main.textContent = '';
+  nav.textContent = '';
+  document.getElementById('bar').style.width = Math.round((step / LAST) * 100) + '%';
+  const eb = document.getElementById('eyebrow');
+  const st = document.getElementById('stepTitle');
+
+  if (step === 0) {
+    eb.textContent = 'Cuestionario';
+    st.textContent = 'Para tu vidriería';
+    renderIntro(main);
+    const any = Object.keys(A).some(k => A[k] && A[k].length);
+    nav.append(navBtn(any ? 'Seguir completando' : 'Empezar', 'primary', () => {
+      const next = S.findIndex(s => answered(s) < s.qs.length);
+      go(any && next >= 0 ? next + 1 : 1);
+    }));
+    if (any) nav.append(navBtn('Revisar y enviar', null, () => go(LAST)));
+  } else if (step === LAST) {
+    eb.textContent = 'Último paso';
+    st.textContent = 'Revisá y mandá';
+    renderFinal(main);
+    nav.append(navBtn('Atrás', null, () => go(LAST - 1)), navBtn('Ver las partes', null, () => go(0)));
+  } else {
+    const sec = S[step - 1];
+    eb.textContent = 'Parte ' + step + ' de ' + S.length;
+    st.textContent = sec.title;
+    sec.qs.forEach(q => main.append(renderQ(q)));
+    nav.append(navBtn('Atrás', null, () => go(step - 1)));
+    nav.append(navBtn(step === S.length ? 'Revisar y enviar' : 'Siguiente', 'primary', () => {
+      if (step === 1 && !(A.nombre || '').trim()) {
+        const e = document.getElementById('err-nombre');
+        e.textContent = 'Escribí el nombre del negocio para seguir.';
+        e.hidden = false;
+        document.getElementById('q-nombre').focus();
+        return;
+      }
+      go(step + 1);
+    }));
+  }
+}
+
+function go(n) {
+  step = n;
+  save();
+  render();
+  window.scrollTo(0, 0);
+}
+
+render();
+</script>

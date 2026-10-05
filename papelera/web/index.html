@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tu Papelera</title>
+<meta name="description" content="Distribuidora de artículos de limpieza, descartables gastronómicos, bolsas y embalaje. Precio por mayor y reparto propio en CABA y GBA.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+
+<header class="barra" id="barra">
+  <div class="barra__in">
+    <a class="marca" href="#inicio" aria-label="Inicio">
+      <span class="marca__nombre" data-config="nombre">Tu Papelera</span>
+      <span class="marca__bajada" data-config="bajada">Limpieza, descartables y embalaje</span>
+    </a>
+    <nav class="nav" aria-label="Secciones">
+      <a href="#catalogo">Lista de precios</a>
+      <a href="#kits">Kits por rubro</a>
+      <a href="#reparto">Reparto</a>
+    </nav>
+    <button class="btn-pedido" id="abrir-pedido" type="button" aria-controls="pedido">
+      Pedido <span class="btn-pedido__n" id="contador">0</span>
+    </button>
+  </div>
+</header>
+
+<main id="inicio">
+
+  <section class="portada" aria-labelledby="titulo">
+    <div class="portada__in">
+      <div class="portada__texto">
+        <p class="sobretitulo">Distribuidora mayorista · <span data-config="zona">CABA y GBA</span></p>
+        <h1 id="titulo" class="portada__titulo">
+          <span>Todo lo que tu negocio</span>
+          <span>gasta por semana,</span>
+          <span class="resalte">en una sola entrega.</span>
+        </h1>
+        <p class="portada__bajada">Bolsas, papel, descartables y químicos de limpieza con precio por mayor. Armás el pedido acá, lo confirmamos por WhatsApp y te lo llevamos con nuestra camioneta.</p>
+        <div class="portada__acciones">
+          <a class="btn btn--claro" href="#catalogo">Ver lista de precios</a>
+          <a class="btn btn--linea" id="cotizar" href="https://wa.me/" target="_blank" rel="noopener">Pedir cotización por WhatsApp</a>
+        </div>
+      </div>
+
+      <aside class="ficha" aria-label="Condiciones comerciales">
+        <p class="ficha__cabeza">Condiciones <span id="mes-lista"></span></p>
+        <dl class="ficha__lista">
+          <div><dt>Artículos en lista</dt><dd id="ficha-articulos">248</dd></div>
+          <div><dt>Precio por mayor desde</dt><dd id="ficha-minimo">$ 150.000</dd></div>
+          <div><dt>Envío sin cargo desde</dt><dd id="ficha-envio">$ 80.000</dd></div>
+          <div><dt>Entrega</dt><dd>24 a 72 h hábiles</dd></div>
+          <div><dt>Facturación</dt><dd>Factura C</dd></div>
+        </dl>
+        <p class="ficha__pie">Precios finales con IVA incluido.</p>
+      </aside>
+    </div>
+  </section>
+
+  <section class="rubros" aria-label="Rubros">
+    <div class="envoltura">
+      <ul class="rubros__lista" id="rubros"></ul>
+    </div>
+  </section>
+
+  <section class="seccion" id="kits" aria-labelledby="kits-titulo">
+    <div class="envoltura">
+      <header class="seccion__cabeza">
+        <p class="sobretitulo sobretitulo--tinta">Kits por rubro</p>
+        <h2 id="kits-titulo" class="seccion__titulo">La reposición de un mes, armada en un toque</h2>
+        <p class="seccion__bajada">Partimos de lo que más se usa en cada tipo de negocio. Agregás el kit y después ajustás cantidades en el pedido.</p>
+      </header>
+      <div class="kits" id="lista-kits"></div>
+    </div>
+  </section>
+
+  <section class="seccion seccion--franja" aria-labelledby="como-titulo">
+    <div class="envoltura">
+      <header class="seccion__cabeza">
+        <p class="sobretitulo sobretitulo--tinta">Cómo comprar</p>
+        <h2 id="como-titulo" class="seccion__titulo">Del pedido a tu depósito en tres pasos</h2>
+      </header>
+      <ol class="pasos">
+        <li>
+          <h3>Armás el pedido</h3>
+          <p>Buscás por nombre o código en la lista y cargás cantidades. El total se calcula solo y te avisa cuánto falta para el precio por mayor.</p>
+        </li>
+        <li>
+          <h3>Lo confirmamos por WhatsApp</h3>
+          <p>El pedido llega con el detalle completo. Te respondemos con disponibilidad, día de entrega y forma de pago.</p>
+        </li>
+        <li>
+          <h3>Te lo llevamos</h3>
+          <p>Reparto propio por zona y día fijo, con factura. Si tu consumo es estable, dejamos armada la reposición mensual.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="seccion" id="reparto" aria-labelledby="reparto-titulo">
+    <div class="envoltura reparto">
+      <header class="seccion__cabeza">
+        <p class="sobretitulo sobretitulo--tinta">Reparto propio</p>
+        <h2 id="reparto-titulo" class="seccion__titulo">Pasamos por tu zona dos veces por semana</h2>
+        <p class="seccion__bajada">Pedidos confirmados hasta las 17 h salen en el próximo recorrido de tu zona. <span id="reparto-envio"></span></p>
+      </header>
+      <div class="tabla-envoltura">
+        <table class="tabla-reparto">
+          <thead><tr><th scope="col">Días</th><th scope="col">Zona</th><th scope="col">Incluye</th></tr></thead>
+          <tbody id="tabla-reparto"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="catalogo" id="catalogo" aria-labelledby="catalogo-titulo">
+    <div class="envoltura">
+      <header class="catalogo__cabeza">
+        <div>
+          <p class="sobretitulo sobretitulo--tinta">Lista de precios</p>
+          <h2 id="catalogo-titulo" class="seccion__titulo">Catálogo completo</h2>
+        </div>
+        <p class="catalogo__regla" id="regla-mayor"></p>
+      </header>
+
+      <div class="filtros" id="filtros">
+        <label class="buscador" for="buscar">
+          <span class="visualmente-oculto">Buscar producto</span>
+          <svg aria-hidden="true" viewBox="0 0 20 20" width="18" height="18"><circle cx="8.5" cy="8.5" r="6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M13 13l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+          <input id="buscar" type="search" placeholder="Buscar: consorcio, 5 lt, servilleta, PB0102…" autocomplete="off">
+        </label>
+        <div class="chips" id="chips" role="group" aria-label="Filtrar por rubro"></div>
+      </div>
+
+      <div class="lista-precios" role="table" aria-label="Lista de precios">
+        <div class="lp-cabeza" role="row">
+          <span role="columnheader">Código</span>
+          <span role="columnheader">Artículo</span>
+          <span role="columnheader" class="num">Por mayor</span>
+          <span role="columnheader" class="num">Suelto</span>
+          <span role="columnheader" class="num">Cantidad</span>
+        </div>
+        <div id="filas" role="rowgroup"></div>
+        <p class="lista-vacia" id="vacia" hidden>No encontramos artículos con esa búsqueda. Probá con otra palabra o escribinos y lo conseguimos.</p>
+      </div>
+      <p class="catalogo__pie">Precios finales con IVA incluido. Sujetos a cambio sin previo aviso; el precio se confirma al aceptar el pedido.</p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="pie">
+  <div class="envoltura pie__in">
+    <div>
+      <p class="pie__marca" data-config="nombre">Tu Papelera</p>
+      <p data-config="bajada">Limpieza, descartables y embalaje</p>
+    </div>
+    <div>
+      <p class="pie__titulo">Atención</p>
+      <p data-config="horario"></p>
+      <p id="pie-whatsapp"></p>
+      <p id="pie-instagram"></p>
+    </div>
+    <div>
+      <p class="pie__titulo">Comprar</p>
+      <p>Pedido por web y WhatsApp · Reparto en <span data-config="zona"></span></p>
+      <p>Transferencia, efectivo o Mercado Pago</p>
+    </div>
+  </div>
+</footer>
+
+<!-- Barra inferior en celular -->
+<div class="barra-total" id="barra-total" hidden>
+  <div>
+    <span class="barra-total__n" id="barra-n"></span>
+    <strong class="barra-total__monto" id="barra-monto"></strong>
+  </div>
+  <button class="btn btn--tinta" type="button" id="abrir-pedido-2">Ver pedido</button>
+</div>
+
+<!-- Pedido con formato de remito -->
+<div class="velo" id="velo" hidden></div>
+<aside class="pedido" id="pedido" aria-labelledby="pedido-titulo" aria-hidden="true" tabindex="-1">
+  <div class="remito">
+    <header class="remito__cabeza">
+      <div>
+        <p class="remito__tipo">Nota de pedido</p>
+        <h2 id="pedido-titulo" class="remito__numero">N.º <span id="remito-numero"></span></h2>
+      </div>
+      <div class="remito__fecha"><span id="remito-fecha"></span></div>
+      <button class="cerrar" type="button" id="cerrar-pedido" aria-label="Cerrar pedido">
+        <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M4 4l12 12M16 4L4 16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </header>
+
+    <div class="remito__cuerpo">
+      <div class="umbral" id="umbral">
+        <p class="umbral__texto" id="umbral-texto"></p>
+        <div class="umbral__barra"><span id="umbral-avance"></span></div>
+      </div>
+
+      <div class="remito__vacio" id="remito-vacio">
+        <p><strong>Tu pedido está vacío.</strong></p>
+        <p>Cargá cantidades en la lista de precios o sumá un kit por rubro.</p>
+      </div>
+
+      <table class="renglones" id="renglones" hidden>
+        <thead>
+          <tr><th scope="col" class="num">Cant.</th><th scope="col">Artículo</th><th scope="col" class="num">Importe</th><th scope="col"><span class="visualmente-oculto">Quitar</span></th></tr>
+        </thead>
+        <tbody id="renglones-cuerpo"></tbody>
+      </table>
+
+      <dl class="totales" id="totales" hidden>
+        <div><dt>Subtotal <span id="tipo-precio"></span></dt><dd id="subtotal"></dd></div>
+        <div><dt>Envío</dt><dd id="envio"></dd></div>
+        <div class="totales__final"><dt>Total</dt><dd id="total"></dd></div>
+        <div class="totales__ahorro" id="ahorro-fila" hidden><dt>Ahorro por mayor</dt><dd id="ahorro"></dd></div>
+      </dl>
+
+      <form class="datos" id="datos" novalidate hidden>
+        <p class="datos__titulo">Datos para la entrega</p>
+        <label for="d-negocio">Negocio o nombre<input id="d-negocio" name="negocio" required autocomplete="organization"></label>
+        <label for="d-direccion">Dirección y localidad<input id="d-direccion" name="direccion" required autocomplete="street-address"></label>
+        <div class="datos__fila">
+          <label for="d-cuit">CUIT o DNI <small>(para la factura)</small><input id="d-cuit" name="cuit" inputmode="numeric"></label>
+          <label for="d-pago">Forma de pago
+            <select id="d-pago" name="pago">
+              <option>Transferencia</option>
+              <option>Efectivo</option>
+              <option>Mercado Pago</option>
+            </select>
+          </label>
+        </div>
+        <label for="d-nota">Aclaraciones <small>(horario, timbre, faltantes)</small><textarea id="d-nota" name="nota" rows="2"></textarea></label>
+        <p class="datos__error" id="datos-error" hidden>Completá el negocio y la dirección para poder enviar el pedido.</p>
+        <a class="btn btn--whatsapp" id="enviar" href="https://wa.me/" target="_blank" rel="noopener">Enviar pedido por WhatsApp</a>
+        <button class="btn-texto" type="button" id="copiar">Copiar el pedido</button>
+        <button class="btn-texto btn-texto--suave" type="button" id="vaciar">Vaciar pedido</button>
+      </form>
+    </div>
+  </div>
+</aside>
+
+<div class="aviso" id="aviso" role="status" aria-live="polite"></div>
+
+<script src="config.js"></script>
+<script src="productos.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,1739 @@
+// Generado por scripts/generar-catalogo.py. No editar a mano.
+window.PRODUCTOS = [
+ {
+  "codigo": "LA0037",
+  "nombre": "ALCOHOL FAJINADOR APROBADO X 5 LTS.",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 15300,
+  "minorista": 17650
+ },
+ {
+  "codigo": "LA0049",
+  "nombre": "ALCOHOL FINO X 1LTS AL 70%",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 3580,
+  "minorista": 4130
+ },
+ {
+  "codigo": "LA0079",
+  "nombre": "AYUDIN ANTIHONGOS REMOV ACTIVO DOYPACK 450 ML",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 2080,
+  "minorista": 2400
+ },
+ {
+  "codigo": "LA0078",
+  "nombre": "AYUDIN BAÑO LIMPIEZA ACTIVA DOYPACK 450 ML",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 2080,
+  "minorista": 2400
+ },
+ {
+  "codigo": "LM0077",
+  "nombre": "DESENGRASANTE MULTIUSO ALDEX X 5LT (CS)",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 9570,
+  "minorista": 11040
+ },
+ {
+  "codigo": "LD0408",
+  "nombre": "DESENGRASANTE SF 300 4x5Kg(425807)",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 162400,
+  "minorista": 187380
+ },
+ {
+  "codigo": "LD0297",
+  "nombre": "DESINFECTANTE AEROSOL AYUDIN EXPERT ORIGINAL 332ML",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 3730,
+  "minorista": 4300
+ },
+ {
+  "codigo": "LD0065",
+  "nombre": "DESODORANTE INODORO CANASTA GLADE REPUESTO",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 1850,
+  "minorista": 2130
+ },
+ {
+  "codigo": "LD0273",
+  "nombre": "DESODORANTE SERVIDOR X 5 LT CHERRY",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 5860,
+  "minorista": 6760
+ },
+ {
+  "codigo": "LD0151",
+  "nombre": "DETEGENTE LIQUIDO ALA x 750 cc",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 9570,
+  "minorista": 11040
+ },
+ {
+  "codigo": "LD0279",
+  "nombre": "DETERGENTE ALDEX X 5 LT",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 8640,
+  "minorista": 9970
+ },
+ {
+  "codigo": "LD0248",
+  "nombre": "DETERGENTE SERVIDOR X 5 LTS",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 10550,
+  "minorista": 12170
+ },
+ {
+  "codigo": "LI0012",
+  "nombre": "INSECTICIDA MOSQUITRAP AERO MMM",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 7690,
+  "minorista": 8870
+ },
+ {
+  "codigo": "LJ0012",
+  "nombre": "JABON EN PAN BLANCO",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 1440,
+  "minorista": 1660
+ },
+ {
+  "codigo": "LJ0069",
+  "nombre": "JABON EN POLVO ALAMATIC X 3 KG",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 10770,
+  "minorista": 12430
+ },
+ {
+  "codigo": "LJ0087",
+  "nombre": "JABON P/ MANOS ANTIBACTERIAL ALDEX X 5 LT",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 8640,
+  "minorista": 9970
+ },
+ {
+  "codigo": "LL0228",
+  "nombre": "LAVANDINA 55 gr ALDEX X 5 LT",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 7810,
+  "minorista": 9010
+ },
+ {
+  "codigo": "LL0255",
+  "nombre": "LAVANDINA AYUDIN ANTI SPLAH 1 LT",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 1980,
+  "minorista": 2280
+ },
+ {
+  "codigo": "LL0027",
+  "nombre": "LAVANDINA AYUDIN ORIGINAL 1 LT",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 1340,
+  "minorista": 1550
+ },
+ {
+  "codigo": "LL0013",
+  "nombre": "LAVANDINA AYUDIN ORIGINAL 2 LT",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 2740,
+  "minorista": 3160
+ },
+ {
+  "codigo": "LL0171",
+  "nombre": "LAVANDINA AYUDIN ORIGINAL 4 LT",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 5480,
+  "minorista": 6320
+ },
+ {
+  "codigo": "LL0076",
+  "nombre": "LIMPIADOR CREMOSO ALDEX 500 CC",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 2370,
+  "minorista": 2730
+ },
+ {
+  "codigo": "LL0020",
+  "nombre": "LIMPIADOR CREMOSO MR MUSCULO/LYSOFORM X 450 GRS",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 3410,
+  "minorista": 3930
+ },
+ {
+  "codigo": "LL0086",
+  "nombre": "LIMPIADOR LIQUIDO PROCENEX X 900 cc",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 3970,
+  "minorista": 4580
+ },
+ {
+  "codigo": "LL0015",
+  "nombre": "LIMPIADOR MULTISUO MR. MUSCULO REPUESTO 500 CC",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 4090,
+  "minorista": 4720
+ },
+ {
+  "codigo": "LL0163",
+  "nombre": "LIMPIADOR TERGI INOX EN AEROSOL SUTTER(426900)",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 24250,
+  "minorista": 27980
+ },
+ {
+  "codigo": "LL0252",
+  "nombre": "LIMPIAVIDRIOS ALDEX X 1 LT",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 3990,
+  "minorista": 4600
+ },
+ {
+  "codigo": "LL0225",
+  "nombre": "LUSTRAMUEBLE PREMIUM WOOD POLISH 360ML (SPARTAN)",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 6600,
+  "minorista": 7620
+ },
+ {
+  "codigo": "LD0154",
+  "nombre": "MOBILI FRESH 400 GR (678307) SUTTER",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 7240,
+  "minorista": 8350
+ },
+ {
+  "codigo": "LD0290",
+  "nombre": "MULTIUSO DESENGRASANTE ALDEX 3 UNIDADES X 5 LT",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 28710,
+  "minorista": 33120
+ },
+ {
+  "codigo": "LP0181",
+  "nombre": "POETT MULTI AMBIENTES AERO LAVANDA 360CC",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 3550,
+  "minorista": 4090
+ },
+ {
+  "codigo": "LP0182",
+  "nombre": "POETT MULTI AMBIENTES AERO PRIMAVERA 360CC",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 3550,
+  "minorista": 4090
+ },
+ {
+  "codigo": "LP0186",
+  "nombre": "POETT MULTI AMBIENTES AERO SOLO PARA TI 360CC",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 3550,
+  "minorista": 4090
+ },
+ {
+  "codigo": "LP0184",
+  "nombre": "POETT MULTI AMBIENTES AERO SUAV DE ALGODÓN 360CC",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 3550,
+  "minorista": 4090
+ },
+ {
+  "codigo": "LR0030",
+  "nombre": "REPELENTE DE INSECTOS OFF AEROSOL",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 6990,
+  "minorista": 8060
+ },
+ {
+  "codigo": "LJ0080",
+  "nombre": "SUAVIZANTE LIQUIDO COMFORT X 5 LT",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 32800,
+  "minorista": 37840
+ },
+ {
+  "codigo": "LS0077",
+  "nombre": "SUAVIZANTE VIVERE X 5 LTS",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 19940,
+  "minorista": 23000
+ },
+ {
+  "codigo": "LT0163",
+  "nombre": "TRENET DOYPACK 400ML",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 2300,
+  "minorista": 2650
+ },
+ {
+  "codigo": "LD0158",
+  "nombre": "WC REIN 750ml (559200)SUTTER",
+  "rubro": "QUÍMICOS Y LIMPIEZA",
+  "mayorista": 14380,
+  "minorista": 16590
+ },
+ {
+  "codigo": "LB0065",
+  "nombre": "BALDE PLASTICO CON ESCURRIDOR",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 14130,
+  "minorista": 16300
+ },
+ {
+  "codigo": "LB0020",
+  "nombre": "BALDE PLASTICO X 10 LITROS",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 4250,
+  "minorista": 4900
+ },
+ {
+  "codigo": "LC0142",
+  "nombre": "CABO ACERO REFORZADO 22MM (1150AZ)",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 6810,
+  "minorista": 7850
+ },
+ {
+  "codigo": "LC0143",
+  "nombre": "CABO ACERO REFORZADO 22MM (1150RO)",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 6810,
+  "minorista": 7850
+ },
+ {
+  "codigo": "LC0060",
+  "nombre": "CABO TELESCOPICO DE ALUMINIO 3 X 2 MTS.",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 43450,
+  "minorista": 50130
+ },
+ {
+  "codigo": "LC0001",
+  "nombre": "CEPILLO DE MANO VINILICO",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 2700,
+  "minorista": 3110
+ },
+ {
+  "codigo": "LC0002",
+  "nombre": "CEPILLO DE PISO VINILICO",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 2540,
+  "minorista": 2930
+ },
+ {
+  "codigo": "LC0007",
+  "nombre": "CEPILLO DE UÑAS",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 1060,
+  "minorista": 1230
+ },
+ {
+  "codigo": "LC0003",
+  "nombre": "CEPILLO PARRILLERO PALMIRA/GUINEA",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 14480,
+  "minorista": 16700
+ },
+ {
+  "codigo": "LE0015",
+  "nombre": "ESCOBILLA PLASTICA W.C.(sin recipiente)",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 1650,
+  "minorista": 1900
+ },
+ {
+  "codigo": "LE0035",
+  "nombre": "ESCOBILLON BARRENDERO",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 11080,
+  "minorista": 12790
+ },
+ {
+  "codigo": "LE0033",
+  "nombre": "ESCOBILLON PLASTICO X 80 CM.",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 14240,
+  "minorista": 16430
+ },
+ {
+  "codigo": "LE0029",
+  "nombre": "ESCOBILLON VINILICO X 40 CM.",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 6540,
+  "minorista": 7550
+ },
+ {
+  "codigo": "LE0081",
+  "nombre": "ESPONJA CUADRICULADA MORTIMER",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 1300,
+  "minorista": 1500
+ },
+ {
+  "codigo": "LE0005",
+  "nombre": "ESPONJA INOXIDABLE",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 250,
+  "minorista": 290
+ },
+ {
+  "codigo": "LF0005",
+  "nombre": "FIBRA X UNIDAD",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 570,
+  "minorista": 650
+ },
+ {
+  "codigo": "LG0007",
+  "nombre": "GUANTES AFELPADOS MAPA GRANDES NARANJAS",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 5950,
+  "minorista": 6860
+ },
+ {
+  "codigo": "LG0006",
+  "nombre": "GUANTES AFELPADOS MAPA MEDIANOS NARANJAS",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 5950,
+  "minorista": 6860
+ },
+ {
+  "codigo": "LM0072",
+  "nombre": "MOPA CENTRIFUGA TURBOMAX (BN333-1)",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 47960,
+  "minorista": 55340
+ },
+ {
+  "codigo": "LM0041",
+  "nombre": "MOPIN",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 2280,
+  "minorista": 2630
+ },
+ {
+  "codigo": "LP0024",
+  "nombre": "PALA 1/2 LUNA PLASTICA",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 1730,
+  "minorista": 2000
+ },
+ {
+  "codigo": "LP0022",
+  "nombre": "PALA AEROPUERTO",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 15710,
+  "minorista": 18130
+ },
+ {
+  "codigo": "LP0020",
+  "nombre": "PALA PLASTICA",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 980,
+  "minorista": 1130
+ },
+ {
+  "codigo": "LP0030",
+  "nombre": "PALO DE MADERA DE 1,30 MTS.",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 1010,
+  "minorista": 1170
+ },
+ {
+  "codigo": "LP0028",
+  "nombre": "PALO DE MADERA DE 2,20 MTS.",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 2300,
+  "minorista": 2660
+ },
+ {
+  "codigo": "LP0029",
+  "nombre": "PALO METALICO DE 1,30 CON ROSCA",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 1790,
+  "minorista": 2060
+ },
+ {
+  "codigo": "LP0195",
+  "nombre": "PAÑO MICROFIBRA ROSA",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 1790,
+  "minorista": 2060
+ },
+ {
+  "codigo": "LP0027",
+  "nombre": "PLUMERO CHICO",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 10840,
+  "minorista": 12510
+ },
+ {
+  "codigo": "LP0056",
+  "nombre": "PLUMERO GATO",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 8100,
+  "minorista": 9340
+ },
+ {
+  "codigo": "LP0026",
+  "nombre": "PLUMERO GLOBO/BOCHA",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 3990,
+  "minorista": 4600
+ },
+ {
+  "codigo": "LP0037",
+  "nombre": "PLUMERO GRANDE",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 17100,
+  "minorista": 19730
+ },
+ {
+  "codigo": "LP0025",
+  "nombre": "PLUMERO MEDIANO",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 13010,
+  "minorista": 15010
+ },
+ {
+  "codigo": "LR0010",
+  "nombre": "RECIPIENTE PLASTICO X 8 LITROS",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 7660,
+  "minorista": 8840
+ },
+ {
+  "codigo": "LR0009",
+  "nombre": "RECIPIENTE X 6 LTS TAPA VAIVEN",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 9220,
+  "minorista": 10640
+ },
+ {
+  "codigo": "LR0001",
+  "nombre": "REPASADOR ECO",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 760,
+  "minorista": 880
+ },
+ {
+  "codigo": "LR0088",
+  "nombre": "REPASADOR GASTRONOMICO",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 1300,
+  "minorista": 1500
+ },
+ {
+  "codigo": "LS0010",
+  "nombre": "SECADOR SACCHI X 40 CM.",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 8410,
+  "minorista": 9710
+ },
+ {
+  "codigo": "LS0012",
+  "nombre": "SECADOR TODO GOMA X 30 CM.",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 1720,
+  "minorista": 1980
+ },
+ {
+  "codigo": "LS0013",
+  "nombre": "SECADOR TODO GOMA X 40 CM.",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 1840,
+  "minorista": 2120
+ },
+ {
+  "codigo": "LS0014",
+  "nombre": "SECADOR TODO GOMA X 50 CM.",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 2780,
+  "minorista": 3200
+ },
+ {
+  "codigo": "LT0011",
+  "nombre": "TRAPO DE PISO GRIS",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 830,
+  "minorista": 960
+ },
+ {
+  "codigo": "LT0007",
+  "nombre": "TRAPO PAÑO TIPO BALLERINA AZUL X UNID.",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 490,
+  "minorista": 570
+ },
+ {
+  "codigo": "LT0008",
+  "nombre": "TRAPO PAÑO TIPO BALLERINA VERDE X UNID.",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 490,
+  "minorista": 570
+ },
+ {
+  "codigo": "LT0005",
+  "nombre": "TRAPO REJILLA 113",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 610,
+  "minorista": 700
+ },
+ {
+  "codigo": "LT0003",
+  "nombre": "TRAPO REJILLA DE AUTO",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 980,
+  "minorista": 1130
+ },
+ {
+  "codigo": "LV0005",
+  "nombre": "VENTOSA DE GOMA",
+  "rubro": "ARTÍCULOS DE LIMPIEZA",
+  "mayorista": 1490,
+  "minorista": 1720
+ },
+ {
+  "codigo": "PB0092",
+  "nombre": "BOBINA DE ARRANQUE 20 X 25",
+  "rubro": "BOLSAS",
+  "mayorista": 8030,
+  "minorista": 9270
+ },
+ {
+  "codigo": "PB0249",
+  "nombre": "BOBINA DE ARRANQUE 20 X 30 X 1.5 KG",
+  "rubro": "BOLSAS",
+  "mayorista": 18530,
+  "minorista": 21380
+ },
+ {
+  "codigo": "PB0391",
+  "nombre": "BOBINA DE ARRANQUE 25 X 35 X 1.5 KG",
+  "rubro": "BOLSAS",
+  "mayorista": 18530,
+  "minorista": 21380
+ },
+ {
+  "codigo": "PB0097",
+  "nombre": "BOBINA DE ARRANQUE 40 X 50",
+  "rubro": "BOLSAS",
+  "mayorista": 8030,
+  "minorista": 9270
+ },
+ {
+  "codigo": "PB0104",
+  "nombre": "BOBINA DE ARRANQUE 40 X 60",
+  "rubro": "BOLSAS",
+  "mayorista": 8030,
+  "minorista": 9270
+ },
+ {
+  "codigo": "PB0100",
+  "nombre": "BOBINA DE ARRANQUE 50 X 70",
+  "rubro": "BOLSAS",
+  "mayorista": 8030,
+  "minorista": 9270
+ },
+ {
+  "codigo": "LB0118",
+  "nombre": "BOLSA CONSORCIO 60 X 90 CELESTE X 50 UNI",
+  "rubro": "BOLSAS",
+  "mayorista": 7270,
+  "minorista": 8390
+ },
+ {
+  "codigo": "LB0091",
+  "nombre": "BOLSA CONSORCIO 60 X 90 VIRGEN X 50 UNID.",
+  "rubro": "BOLSAS",
+  "mayorista": 12030,
+  "minorista": 13880
+ },
+ {
+  "codigo": "LB0224",
+  "nombre": "BOLSA CONSORCIO ROJA 100 X 120 X 50 UND",
+  "rubro": "BOLSAS",
+  "mayorista": 16990,
+  "minorista": 19600
+ },
+ {
+  "codigo": "LB0186",
+  "nombre": "BOLSA DE CONSORCIO 110 X 130 X 50 UNI VERDES",
+  "rubro": "BOLSAS",
+  "mayorista": 20410,
+  "minorista": 23550
+ },
+ {
+  "codigo": "LB0089",
+  "nombre": "BOLSA DE RESIDUOS 45 X 60 VIRGEN X 50 UNID.",
+  "rubro": "BOLSAS",
+  "mayorista": 5660,
+  "minorista": 6530
+ },
+ {
+  "codigo": "LB0070",
+  "nombre": "BOLSA DE RESIDUOS 60 X 90 X 50 UNID. AZUL",
+  "rubro": "BOLSAS",
+  "mayorista": 7270,
+  "minorista": 8390
+ },
+ {
+  "codigo": "LB0074",
+  "nombre": "BOLSA RESIDUO ROJA 50 X 70 X 50 UNID.",
+  "rubro": "BOLSAS",
+  "mayorista": 4550,
+  "minorista": 5250
+ },
+ {
+  "codigo": "PB0102",
+  "nombre": "BOLSAS CAMISETAS 30 X 40 paquete indiv",
+  "rubro": "BOLSAS",
+  "mayorista": 1250,
+  "minorista": 1440
+ },
+ {
+  "codigo": "PB0103",
+  "nombre": "BOLSAS CAMISETAS 40 X 50 paquete indiv ( NEG LISA)",
+  "rubro": "BOLSAS",
+  "mayorista": 1520,
+  "minorista": 1750
+ },
+ {
+  "codigo": "PB0108",
+  "nombre": "BOLSAS CAMISETAS 45 X 60 paquete indiv",
+  "rubro": "BOLSAS",
+  "mayorista": 3250,
+  "minorista": 3750
+ },
+ {
+  "codigo": "PB0110",
+  "nombre": "BOLSAS CAMISETAS 50 X 60",
+  "rubro": "BOLSAS",
+  "mayorista": 3680,
+  "minorista": 4250
+ },
+ {
+  "codigo": "PB0112",
+  "nombre": "BOLSAS CAMISETAS 60 X 80",
+  "rubro": "BOLSAS",
+  "mayorista": 5630,
+  "minorista": 6490
+ },
+ {
+  "codigo": "PB0828",
+  "nombre": "BOLSAS CAMISETAS BLANCA 30 X 40",
+  "rubro": "BOLSAS",
+  "mayorista": 2380,
+  "minorista": 2750
+ },
+ {
+  "codigo": "PB0779",
+  "nombre": "BOLSAS CAMISETAS BLANCA 40 X 50 ( ZETA )",
+  "rubro": "BOLSAS",
+  "mayorista": 2770,
+  "minorista": 3200
+ },
+ {
+  "codigo": "PB0937",
+  "nombre": "BOLSAS CAMISETAS BLANCA 40 X 50 paquete indiv.",
+  "rubro": "BOLSAS",
+  "mayorista": 2020,
+  "minorista": 2330
+ },
+ {
+  "codigo": "PB0829",
+  "nombre": "BOLSAS CAMISETAS BLANCA 50 X 60 paquete x 100 u",
+  "rubro": "BOLSAS",
+  "mayorista": 9270,
+  "minorista": 10700
+ },
+ {
+  "codigo": "LB0027",
+  "nombre": "BOLSAS CONS 80 X 100 TRANSP APT.CO X 50 UNID",
+  "rubro": "BOLSAS",
+  "mayorista": 18330,
+  "minorista": 21140
+ },
+ {
+  "codigo": "LB0008",
+  "nombre": "BOLSAS CONSORCIO 100 X 110 X 50 UNID.",
+  "rubro": "BOLSAS",
+  "mayorista": 15120,
+  "minorista": 17440
+ },
+ {
+  "codigo": "LB0017",
+  "nombre": "BOLSAS CONSORCIO 60 X 90 BLANCAS X 50 UNID.",
+  "rubro": "BOLSAS",
+  "mayorista": 7270,
+  "minorista": 8390
+ },
+ {
+  "codigo": "LB0019",
+  "nombre": "BOLSAS CONSORCIO 60 X 90 CARAMELO X 50 UNID",
+  "rubro": "BOLSAS",
+  "mayorista": 7270,
+  "minorista": 8390
+ },
+ {
+  "codigo": "LB0024",
+  "nombre": "BOLSAS CONSORCIO 60 X 90 VERDES X 50 UNID.",
+  "rubro": "BOLSAS",
+  "mayorista": 7270,
+  "minorista": 8390
+ },
+ {
+  "codigo": "LB0003",
+  "nombre": "BOLSAS CONSORCIO 60 X 90 X 50 UNID.",
+  "rubro": "BOLSAS",
+  "mayorista": 7090,
+  "minorista": 8180
+ },
+ {
+  "codigo": "LB0006",
+  "nombre": "BOLSAS CONSORCIO 80 X 100 X 50 UNID.",
+  "rubro": "BOLSAS",
+  "mayorista": 10800,
+  "minorista": 12460
+ },
+ {
+  "codigo": "LB0038",
+  "nombre": "BOLSAS CONSORCIO 90 X 110 VERDES X 50 UNID.",
+  "rubro": "BOLSAS",
+  "mayorista": 13880,
+  "minorista": 16020
+ },
+ {
+  "codigo": "LB0041",
+  "nombre": "BOLSAS DE RESIDUOS 45 X 60 VERDES X 50 UNID",
+  "rubro": "BOLSAS",
+  "mayorista": 3430,
+  "minorista": 3950
+ },
+ {
+  "codigo": "LB0094",
+  "nombre": "BOLSAS NEGRAS 110 X 130 X 50 UNDS",
+  "rubro": "BOLSAS",
+  "mayorista": 19890,
+  "minorista": 22950
+ },
+ {
+  "codigo": "LB0394",
+  "nombre": "BOLSAS RESIDUOS 45 x 60 NEGRAS ALUMAX x 10 und",
+  "rubro": "BOLSAS",
+  "mayorista": 490,
+  "minorista": 560
+ },
+ {
+  "codigo": "LB0395",
+  "nombre": "BOLSAS RESIDUOS NEGRAS 50 x 70 ALUMAX x 10 und",
+  "rubro": "BOLSAS",
+  "mayorista": 650,
+  "minorista": 750
+ },
+ {
+  "codigo": "LB0398",
+  "nombre": "BOLSAS RESIDUOS NEGRAS 90 x 110 ALUMAX x 10 U",
+  "rubro": "BOLSAS",
+  "mayorista": 1950,
+  "minorista": 2250
+ },
+ {
+  "codigo": "PB0581",
+  "nombre": "ROLLO BOLSA ARRANQUE 60 X 90 X 1.5kg",
+  "rubro": "BOLSAS",
+  "mayorista": 18530,
+  "minorista": 21380
+ },
+ {
+  "codigo": "PB1096",
+  "nombre": "BOB IND D/H BLANCO A 2 un x 20 cm 2.3 kg c/precort",
+  "rubro": "PAPEL HIGIÉNICO, TOALLAS Y SERVILLETAS",
+  "mayorista": 10520,
+  "minorista": 12140
+ },
+ {
+  "codigo": "LB0316",
+  "nombre": "BOBINA D/H BLANCO 2 2 X 20 (INSTI)",
+  "rubro": "PAPEL HIGIÉNICO, TOALLAS Y SERVILLETAS",
+  "mayorista": 5370,
+  "minorista": 6200
+ },
+ {
+  "codigo": "LB0302",
+  "nombre": "BOBINA PREM D/H STD 2X400X20(INSTI)(BA218020DHG)",
+  "rubro": "PAPEL HIGIÉNICO, TOALLAS Y SERVILLETAS",
+  "mayorista": 8690,
+  "minorista": 10030
+ },
+ {
+  "codigo": "PC0074",
+  "nombre": "CARILINA ELITE X10 PACK X6/35 (5496)",
+  "rubro": "PAPEL HIGIÉNICO, TOALLAS Y SERVILLETAS",
+  "mayorista": 52160,
+  "minorista": 60180
+ },
+ {
+  "codigo": "LD0070",
+  "nombre": "DISPENSER JABON LIQ/ALCOHOL GEL PLASTICO (10412)",
+  "rubro": "PAPEL HIGIÉNICO, TOALLAS Y SERVILLETAS",
+  "mayorista": 17710,
+  "minorista": 20430
+ },
+ {
+  "codigo": "LD0073",
+  "nombre": "DISPENSER PAPEL HIGIENICO X 300 MTS. PLASTICO",
+  "rubro": "PAPEL HIGIÉNICO, TOALLAS Y SERVILLETAS",
+  "mayorista": 18200,
+  "minorista": 21000
+ },
+ {
+  "codigo": "PP1130",
+  "nombre": "PAP HIG BLANCO A S/H cono chico 8 u",
+  "rubro": "PAPEL HIGIÉNICO, TOALLAS Y SERVILLETAS",
+  "mayorista": 10290,
+  "minorista": 11880
+ },
+ {
+  "codigo": "LP0114",
+  "nombre": "PAPEL H. S/H 300 X 8 UN C/G (INSTI)(HN8150GG)",
+  "rubro": "PAPEL HIGIÉNICO, TOALLAS Y SERVILLETAS",
+  "mayorista": 6570,
+  "minorista": 7580
+ },
+ {
+  "codigo": "LP0348",
+  "nombre": "PAPEL HIGI ELITE x 100 mts x 40 und (1519/6122 )",
+  "rubro": "PAPEL HIGIÉNICO, TOALLAS Y SERVILLETAS",
+  "mayorista": 76240,
+  "minorista": 87970
+ },
+ {
+  "codigo": "LP0051",
+  "nombre": "PAPEL HIGIENICO CAMPANITA DOBLE HOJA X 30 MTS.",
+  "rubro": "PAPEL HIGIÉNICO, TOALLAS Y SERVILLETAS",
+  "mayorista": 1650,
+  "minorista": 1900
+ },
+ {
+  "codigo": "LP0119",
+  "nombre": "Papel H. BLANCO eco S/H cono Grande 8un",
+  "rubro": "PAPEL HIGIÉNICO, TOALLAS Y SERVILLETAS",
+  "mayorista": 5790,
+  "minorista": 6670
+ },
+ {
+  "codigo": "PS0245",
+  "nombre": "SERVILLETA 18 BARMAN X 2000 tissue",
+  "rubro": "PAPEL HIGIÉNICO, TOALLAS Y SERVILLETAS",
+  "mayorista": 5840,
+  "minorista": 6740
+ },
+ {
+  "codigo": "PS0248",
+  "nombre": "SERVILLETA 24 BARMAN ECO",
+  "rubro": "PAPEL HIGIÉNICO, TOALLAS Y SERVILLETAS",
+  "mayorista": 5250,
+  "minorista": 6060
+ },
+ {
+  "codigo": "PS0250",
+  "nombre": "SERVILLETA 24 BARMAN X 2000",
+  "rubro": "PAPEL HIGIÉNICO, TOALLAS Y SERVILLETAS",
+  "mayorista": 9110,
+  "minorista": 10510
+ },
+ {
+  "codigo": "PS0004",
+  "nombre": "SERVILLETA 24 X 24 X 1000 UNID.",
+  "rubro": "PAPEL HIGIÉNICO, TOALLAS Y SERVILLETAS",
+  "mayorista": 3740,
+  "minorista": 4310
+ },
+ {
+  "codigo": "PS0115",
+  "nombre": "SERVILLETA ELITE INTERC 20 X 11 CM.(6523)",
+  "rubro": "PAPEL HIGIÉNICO, TOALLAS Y SERVILLETAS",
+  "mayorista": 181660,
+  "minorista": 209600
+ },
+ {
+  "codigo": "PS0194",
+  "nombre": "SERVILLETA. ELITE 30x33 5x200 (6567)",
+  "rubro": "PAPEL HIGIÉNICO, TOALLAS Y SERVILLETAS",
+  "mayorista": 16580,
+  "minorista": 19130
+ },
+ {
+  "codigo": "PS0563",
+  "nombre": "SERVILLETAS 18 CODIGO ALUMAX tissue",
+  "rubro": "PAPEL HIGIÉNICO, TOALLAS Y SERVILLETAS",
+  "mayorista": 3140,
+  "minorista": 3630
+ },
+ {
+  "codigo": "PS1048",
+  "nombre": "SERVILLETAS 30x30 BLANCAS ALUMAX COD",
+  "rubro": "PAPEL HIGIÉNICO, TOALLAS Y SERVILLETAS",
+  "mayorista": 3860,
+  "minorista": 4450
+ },
+ {
+  "codigo": "PS1027",
+  "nombre": "SERVILLETAS 30x30 BLANCAS ALUMAX x 1000",
+  "rubro": "PAPEL HIGIÉNICO, TOALLAS Y SERVILLETAS",
+  "mayorista": 5860,
+  "minorista": 6760
+ },
+ {
+  "codigo": "PS0810",
+  "nombre": "SERVILLETAS 33 X 33 1000 BARMAN",
+  "rubro": "PAPEL HIGIÉNICO, TOALLAS Y SERVILLETAS",
+  "mayorista": 7890,
+  "minorista": 9100
+ },
+ {
+  "codigo": "PS1060",
+  "nombre": "SERVILLETAS 33x21.5 BCA PREM ALUMAX excell x 1000",
+  "rubro": "PAPEL HIGIÉNICO, TOALLAS Y SERVILLETAS",
+  "mayorista": 8600,
+  "minorista": 9920
+ },
+ {
+  "codigo": "PS0562",
+  "nombre": "SERVILLETAS BAR CODIGO ALUMAX",
+  "rubro": "PAPEL HIGIÉNICO, TOALLAS Y SERVILLETAS",
+  "mayorista": 4990,
+  "minorista": 5760
+ },
+ {
+  "codigo": "LT0045",
+  "nombre": "TOALLA INTERC. BCA PREMIUM LIVIANA ECO",
+  "rubro": "PAPEL HIGIÉNICO, TOALLAS Y SERVILLETAS",
+  "mayorista": 6220,
+  "minorista": 7180
+ },
+ {
+  "codigo": "LT0087",
+  "nombre": "TOALLA ROLLO SH ELITE 2 X 300 MTS (6203)",
+  "rubro": "PAPEL HIGIÉNICO, TOALLAS Y SERVILLETAS",
+  "mayorista": 30940,
+  "minorista": 35700
+ },
+ {
+  "codigo": "PA0012",
+  "nombre": "AGITADOR DE MADERA LARGO 140 mm X 500 UNID.",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 3650,
+  "minorista": 4210
+ },
+ {
+  "codigo": "PA0003",
+  "nombre": "AGITADOR TRAGO LARGO SUPER X 100 UNID.",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 2910,
+  "minorista": 3360
+ },
+ {
+  "codigo": "PB0757",
+  "nombre": "BANDEJA 107 FOOD CONTAINER PP X 100 UN",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 28030,
+  "minorista": 32340
+ },
+ {
+  "codigo": "PB0147",
+  "nombre": "BANDEJA DE CARTON N° 7 X 100 UNID.",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 29860,
+  "minorista": 34450
+ },
+ {
+  "codigo": "PB0140",
+  "nombre": "BANDEJA DE CARTON Nº 1 15 X 12 X 100 UNID.",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 6820,
+  "minorista": 7870
+ },
+ {
+  "codigo": "PB0141",
+  "nombre": "BANDEJA DE CARTON Nº 2 18 X 15 X 100 UNID.",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 7660,
+  "minorista": 8840
+ },
+ {
+  "codigo": "PB0145",
+  "nombre": "BANDEJA DE CARTON Nº 6 29 X 22 X 100 UNID.",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 19820,
+  "minorista": 22870
+ },
+ {
+  "codigo": "PB0158",
+  "nombre": "BANDEJA DE CARTON REDONDA Nº 13 22 CM. X 100 UNID.",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 17960,
+  "minorista": 20720
+ },
+ {
+  "codigo": "PB0161",
+  "nombre": "BANDEJA DE CARTON REDONDA Nº 15 27 CM. X 100 UNID.",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 37140,
+  "minorista": 42850
+ },
+ {
+  "codigo": "PB0668",
+  "nombre": "BANDEJA EXPANDIDO 615 NEGRA BANDEX X 100 UNID",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 5640,
+  "minorista": 6500
+ },
+ {
+  "codigo": "PB0853",
+  "nombre": "BANDEJA EXPANDIDO K15 BCA CELPACK ECO X 600 U.",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 57210,
+  "minorista": 66010
+ },
+ {
+  "codigo": "PB1193",
+  "nombre": "BANDEJA PP BANDEX 147 BISAGRA X 200 UNID",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 358150,
+  "minorista": 413250
+ },
+ {
+  "codigo": "PB0038",
+  "nombre": "BLONDA BORDADA Nº 26 X 100 UNID.",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 7100,
+  "minorista": 8190
+ },
+ {
+  "codigo": "PB0039",
+  "nombre": "BLONDA BORDADA Nº 28 X 100 UNID.",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 7150,
+  "minorista": 8250
+ },
+ {
+  "codigo": "PB0056",
+  "nombre": "BLONDA PLASTICA Nº 27 X 10 UNID.",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 9090,
+  "minorista": 10490
+ },
+ {
+  "codigo": "PB0050",
+  "nombre": "BLONDA RECTANGULAR 26 X 32 X 100 UNID.",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 9850,
+  "minorista": 11370
+ },
+ {
+  "codigo": "PB0051",
+  "nombre": "BLONDA RECTANGULAR 32 X 36 X 100 UNID.",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 9940,
+  "minorista": 11470
+ },
+ {
+  "codigo": "PC0005",
+  "nombre": "CAJA DE PIZZA MICRO CORRUGADA M/M CHICA X 100 UNID",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 20570,
+  "minorista": 23730
+ },
+ {
+  "codigo": "PC0058",
+  "nombre": "COFIAS X 100 UNID.",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 5310,
+  "minorista": 6130
+ },
+ {
+  "codigo": "PC0380",
+  "nombre": "CONO CHICO fritas MARRON ENCASTRE x 300 und",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 10070,
+  "minorista": 11620
+ },
+ {
+  "codigo": "PC0302",
+  "nombre": "CUBIERTO CUCHILLO BLANCO (A) X 1000 U",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 21020,
+  "minorista": 24260
+ },
+ {
+  "codigo": "PC0303",
+  "nombre": "CUBIERTO TENEDOR BLANCO (A) X 1000 U",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 21020,
+  "minorista": 24260
+ },
+ {
+  "codigo": "PC0304",
+  "nombre": "CUCHARA PLASTICA POSTRE/SOPERA X 1000 U",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 44360,
+  "minorista": 51180
+ },
+ {
+  "codigo": "PE0067",
+  "nombre": "CUCHILLO DE MADERA ALUMAX 16,5CM X 100 UN(ROJO)",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 4960,
+  "minorista": 5720
+ },
+ {
+  "codigo": "PE0063",
+  "nombre": "ENSALADERA AMER CRISTAL X 1024CC PET X 100 U",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 39890,
+  "minorista": 46030
+ },
+ {
+  "codigo": "PE0029",
+  "nombre": "ESCARBADIENTES BARRIL BLISTER X 12 U",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 4010,
+  "minorista": 4620
+ },
+ {
+  "codigo": "PE0081",
+  "nombre": "ESCARBADIENTES ENSOBRADOS X 1 X 500 UNID.",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 1060,
+  "minorista": 1220
+ },
+ {
+  "codigo": "PB0063",
+  "nombre": "ESTUCHE BISAGRA 103 / 143 PET/TBE X 100 UN",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 50610,
+  "minorista": 58390
+ },
+ {
+  "codigo": "PE0010",
+  "nombre": "ESTUCHE TELGOPOR PROF.232X155X8 X 200 UNID.",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 89310,
+  "minorista": 103050
+ },
+ {
+  "codigo": "PG0001",
+  "nombre": "GUANTES DESCARTABLES DE POLIPROPILENO X 100 UNID",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 500,
+  "minorista": 570
+ },
+ {
+  "codigo": "PM0567",
+  "nombre": "MARMITA TAPA X 300 UNID.",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 37050,
+  "minorista": 42750
+ },
+ {
+  "codigo": "PP0290",
+  "nombre": "PLATO DESCARTABLE AMERICAN GRANDE 22 CM X 100 UNID",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 11270,
+  "minorista": 13010
+ },
+ {
+  "codigo": "PP1000",
+  "nombre": "PLATO TERMICO ESTISOL PL34 1000cc X 147 U",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 136490,
+  "minorista": 157490
+ },
+ {
+  "codigo": "PP0075",
+  "nombre": "PORTA PANCHOS X 500 UNID.",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 7370,
+  "minorista": 8500
+ },
+ {
+  "codigo": "PP0067",
+  "nombre": "SORBETE DAIKIRI NEGRO X 1000 UNID.",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 11230,
+  "minorista": 12950
+ },
+ {
+  "codigo": "PT0003",
+  "nombre": "TAPA BANDEJA MICRO 103 X 100 UNID.cotnyl",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 18790,
+  "minorista": 21680
+ },
+ {
+  "codigo": "PT1363",
+  "nombre": "TAPA BANDEJA MICROONDAS 125 OVAL X 300 UNID",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 78240,
+  "minorista": 90280
+ },
+ {
+  "codigo": "PT0188",
+  "nombre": "TAPA ENSALADERA AMER PET X 100 U",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 22170,
+  "minorista": 25580
+ },
+ {
+  "codigo": "PT1006",
+  "nombre": "TAPA V TERMICO P/VERTEDOR/NEG ESTISOL 240cc X 1000",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 67760,
+  "minorista": 78180
+ },
+ {
+  "codigo": "PT1237",
+  "nombre": "TAPA V TERMICO PLANA WC 240cc X 1000 U",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 44580,
+  "minorista": 51440
+ },
+ {
+  "codigo": "PT1296",
+  "nombre": "TAPA V. POLIPAPEL ENPOLEX DUOMO 12 OZ NEG X 1000 U",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 58430,
+  "minorista": 67420
+ },
+ {
+  "codigo": "PT0098",
+  "nombre": "TAPA VASO MILANO/TOLEDO PARA SORBETE X 100 UNID",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 17310,
+  "minorista": 19970
+ },
+ {
+  "codigo": "PT0264",
+  "nombre": "TAPA VASO POLIPAPEL CALIENTE BCO 8 OZ X 1000 UNI",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 69430,
+  "minorista": 80110
+ },
+ {
+  "codigo": "PT0058",
+  "nombre": "TAPA VASO TERMICO 360 X 100 UNID(pico vertedor)",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 8040,
+  "minorista": 9280
+ },
+ {
+  "codigo": "PE0068",
+  "nombre": "TENEDOR DE MADERA ALUMAX 16CM X 100 UN(ROJO)",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 6280,
+  "minorista": 7240
+ },
+ {
+  "codigo": "PV0029",
+  "nombre": "VASO COPA SUNDAE/SIDRA CAJA X 180 UNIDADES",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 42760,
+  "minorista": 49340
+ },
+ {
+  "codigo": "PV0086",
+  "nombre": "VASO DE EXPANDIDO DE 240 cc PLAISIR x 100 UNI",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 11540,
+  "minorista": 13320
+ },
+ {
+  "codigo": "PV0095",
+  "nombre": "VASO EXPANDIDOS 180 cc LAS LOMAS x 100",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 7400,
+  "minorista": 8540
+ },
+ {
+  "codigo": "PV0018",
+  "nombre": "VASO PLASTICO 220 CC BELLA CUP X 100 UNID",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 5620,
+  "minorista": 6490
+ },
+ {
+  "codigo": "PV0007",
+  "nombre": "VASO PLASTICO 500CC X 100 UNID",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 9930,
+  "minorista": 11450
+ },
+ {
+  "codigo": "PV0166",
+  "nombre": "VASO PLASTICO AMERICAN 110CC NAT/TRSL PS X 100 U",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 4530,
+  "minorista": 5230
+ },
+ {
+  "codigo": "PV0158",
+  "nombre": "VASO PLASTICO AMERICAN 220CC LIV TRASL PP X 100 UN",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 4600,
+  "minorista": 5300
+ },
+ {
+  "codigo": "PV0150",
+  "nombre": "VASO PLASTICO AMERICAN 300CC LIV BCO PP X 100 UNID",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 5340,
+  "minorista": 6160
+ },
+ {
+  "codigo": "PV0153",
+  "nombre": "VASO PLASTICO AMERICAN 330CC LIV TRASL PP X 100 UN",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 6060,
+  "minorista": 7000
+ },
+ {
+  "codigo": "PV0141",
+  "nombre": "VASO PLASTICO TRASLUCIDO 1000 cc X 100 UNID",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 19580,
+  "minorista": 22590
+ },
+ {
+  "codigo": "PV0140",
+  "nombre": "VASO PLASTICO TRASLUCIDO 800cc X 100 UNID",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 15310,
+  "minorista": 17670
+ },
+ {
+  "codigo": "PV0076",
+  "nombre": "VASO POLIPAPEL 120cc (4 OZ) X 80 U IRINEO",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 16600,
+  "minorista": 19150
+ },
+ {
+  "codigo": "PV0075",
+  "nombre": "VASO POLIPAPEL 375cc (12 OZ) X 100 U IRINEO",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 18240,
+  "minorista": 21040
+ },
+ {
+  "codigo": "PV1043",
+  "nombre": "VASO POLIPAPEL ENPOLEX 12 OZ BCO X 1500 U (SP)",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 184110,
+  "minorista": 212430
+ },
+ {
+  "codigo": "PV1045",
+  "nombre": "VASO POLIPAPEL ENPOLEX 16 OZ BCO X 1250 U (SP)",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 232960,
+  "minorista": 268800
+ },
+ {
+  "codigo": "PV1041",
+  "nombre": "VASO POLIPAPEL ENPOLEX 8 OZ BCO X 1500 U (SP)",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 135300,
+  "minorista": 156120
+ },
+ {
+  "codigo": "PV0042",
+  "nombre": "VASO TERMICO 240 CC COMEDOR PABELLON X 100 U",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 11540,
+  "minorista": 13320
+ },
+ {
+  "codigo": "PV0057",
+  "nombre": "VASO TERMICO 360 CC X 100 UNID",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 9960,
+  "minorista": 11490
+ },
+ {
+  "codigo": "PV1151",
+  "nombre": "VASO TERMICO ENPOLEX 475CC X 1000 U",
+  "rubro": "DESCARTABLES GASTRONÓMICOS",
+  "mayorista": 147720,
+  "minorista": 170440
+ },
+ {
+  "codigo": "MC0248",
+  "nombre": "CAJA CARTON POLIMAX DORADO x 45",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 830,
+  "minorista": 950
+ },
+ {
+  "codigo": "MC0393",
+  "nombre": "CAJA CARTON TOALLA INTERC FOOD PACKAG",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 1250,
+  "minorista": 1440
+ },
+ {
+  "codigo": "PC0069",
+  "nombre": "CINTA DE PAPEL 24 MM",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 1050,
+  "minorista": 1210
+ },
+ {
+  "codigo": "PC0419",
+  "nombre": "CINTA DE PAPEL 24 MM caja x 72 unds",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 102510,
+  "minorista": 118270
+ },
+ {
+  "codigo": "PC0088",
+  "nombre": "CINTA DE PAPEL DE 48 MM",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 2010,
+  "minorista": 2320
+ },
+ {
+  "codigo": "PC0041",
+  "nombre": "CINTA ENGOMADA TRANSPARENTE 24 MM. X 50 MTS.",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 330,
+  "minorista": 380
+ },
+ {
+  "codigo": "PC0042",
+  "nombre": "CINTA ENGOMADA TRANSPARENTE 48 MM. X 50 MTS.",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 620,
+  "minorista": 710
+ },
+ {
+  "codigo": "PC0412",
+  "nombre": "CINTA POLIP TRANSP 48 mm x 80 X 72 unds",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 65940,
+  "minorista": 76090
+ },
+ {
+  "codigo": "PC0416",
+  "nombre": "CINTA POLIP TRANSP 48 mm. X 40 x 72 unds",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 43960,
+  "minorista": 50730
+ },
+ {
+  "codigo": "PF0072",
+  "nombre": "ECOMAX VERDE 300",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 12060,
+  "minorista": 13920
+ },
+ {
+  "codigo": "PP0286",
+  "nombre": "FILM 300 NARANJA",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 5840,
+  "minorista": 6740
+ },
+ {
+  "codigo": "PP0244",
+  "nombre": "FILM P.V.C. 38 cm X 300 mts Especial Amarillo",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 7590,
+  "minorista": 8760
+ },
+ {
+  "codigo": "PP0433",
+  "nombre": "PAP FILM 30 x 500 ECO CAJA MARRON",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 10560,
+  "minorista": 12180
+ },
+ {
+  "codigo": "PP0437",
+  "nombre": "PAP FILM 38 x 1000 ECO CAJA MARRON",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 24330,
+  "minorista": 28070
+ },
+ {
+  "codigo": "PP0438",
+  "nombre": "PAP FILM 45 x 1000 ECO CAJA MARRON",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 33140,
+  "minorista": 38240
+ },
+ {
+  "codigo": "PF0023",
+  "nombre": "PAPEL FILM 30 X 300",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 3540,
+  "minorista": 4080
+ },
+ {
+  "codigo": "PP0157",
+  "nombre": "PAPEL FILM 45 x 1000 mts. brasil",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 43240,
+  "minorista": 49890
+ },
+ {
+  "codigo": "PP0043",
+  "nombre": "PAPEL FILM X 300 MTS.",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 4200,
+  "minorista": 4840
+ },
+ {
+  "codigo": "PP0319",
+  "nombre": "PAPEL FOLEX 20 X 25 X BOBINA",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 12530,
+  "minorista": 14460
+ },
+ {
+  "codigo": "PP0002",
+  "nombre": "PAPEL FOLEX 25 X 37 X 1 KILO",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 12530,
+  "minorista": 14460
+ },
+ {
+  "codigo": "PP0245",
+  "nombre": "PAPEL FONDO DE PIZZA 15 X 15 X KG",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 2630,
+  "minorista": 3030
+ },
+ {
+  "codigo": "PP0004",
+  "nombre": "PAPEL HAMBURGUESA 30 X 40 X 1 KILO Blanco",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 9580,
+  "minorista": 11050
+ },
+ {
+  "codigo": "PP0016",
+  "nombre": "PAPEL KRAFT BOBINA X 60 CM. X KILO",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 2400,
+  "minorista": 2770
+ },
+ {
+  "codigo": "PP0052",
+  "nombre": "PAPEL MANTECA X KG",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 4670,
+  "minorista": 5390
+ },
+ {
+  "codigo": "PR0022",
+  "nombre": "RESMA TEMPO FSC LETTER 75 2159 X 2794",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 5640,
+  "minorista": 6500
+ },
+ {
+  "codigo": "PS0233",
+  "nombre": "SOBRE POLIPROPILENO ADHESIVO 25 X 35 X 100",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 11230,
+  "minorista": 12960
+ },
+ {
+  "codigo": "PR0025",
+  "nombre": "RESMA TEMPO FSC LEGAL 80 2159 X 3556",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 5640,
+  "minorista": 6500
+ },
+ {
+  "codigo": "PR0045",
+  "nombre": "ROLLO MAQUINA TERMICO 57 MM x 20 mts x 100 und",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 34040,
+  "minorista": 39280
+ },
+ {
+  "codigo": "PS0022",
+  "nombre": "SOBRE KRAF Nº 4 A X 100 UNID.",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 2480,
+  "minorista": 2860
+ },
+ {
+  "codigo": "PS0025",
+  "nombre": "SOBRE KRAF Nº 6 X 100 UNID.",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 3610,
+  "minorista": 4160
+ },
+ {
+  "codigo": "PS0026",
+  "nombre": "SOBRE KRAF Nº 7 X 100 UNID.",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 4160,
+  "minorista": 4800
+ },
+ {
+  "codigo": "PS0075",
+  "nombre": "SOBRE POLIPROPILENO 25 X 35 X 100 UNID.",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 4860,
+  "minorista": 5600
+ },
+ {
+  "codigo": "PS0046",
+  "nombre": "SOBRE POLIPROPILENO 5 X 30 X 100 UNID.",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 2170,
+  "minorista": 2510
+ },
+ {
+  "codigo": "PS0013",
+  "nombre": "SOBRE SULFITO N° 3 L 11 X 26 X 100 UNID.",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 2690,
+  "minorista": 3100
+ },
+ {
+  "codigo": "PS0014",
+  "nombre": "SOBRE SULFITO N° 4 A 15 X 23 X 100 UNID.",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 3200,
+  "minorista": 3690
+ },
+ {
+  "codigo": "PS0138",
+  "nombre": "STRETCH CON MANGO X 2.5 kg (VITAL)",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 12220,
+  "minorista": 14100
+ },
+ {
+  "codigo": "PS0542",
+  "nombre": "STRETCH MULTIGRAPH NEGRO 10 cm",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 2150,
+  "minorista": 2480
+ },
+ {
+  "codigo": "PS0566",
+  "nombre": "STRETCH SIN MANGO NEGRO 4.1 kg",
+  "rubro": "EMBALAJE, PAPELES Y LIBRERÍA",
+  "mayorista": 20250,
+  "minorista": 23360
+ }
+];

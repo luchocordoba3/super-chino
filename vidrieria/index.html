@@ -1,4 +1,16 @@
-<title>Cuestionario Vidriería</title>
+<!doctype html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cuestionario para tu vidriería · Lumina</title>
+<meta name="description" content="Lumina · 10 minutos para contarnos cómo trabajás.">
+<meta name="robots" content="noindex">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Cuestionario para tu vidriería">
+<meta property="og:description" content="Lumina · 10 minutos para contarnos cómo trabajás.">
+<meta name="theme-color" content="#1f6f5f">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231f6f5f'/%3E%3Ctext x='32' y='45' font-family='Arial,sans-serif' font-size='38' font-weight='700' fill='white' text-anchor='middle'%3EL%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -33,6 +45,10 @@
 }
 
 * { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; background: var(--bg); }
+body { margin: 0; }
+[hidden] { display: none !important; }
+:root { padding-top: env(safe-area-inset-top, 0px); }
 body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 17px; line-height: 1.5; }
 .wrap { max-width: 640px; margin: 0 auto; padding-inline: 16px; padding-block: 0 140px; }
 
@@ -79,6 +95,7 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: .7; }
 .linkbtn { font: inherit; font-size: 15px; background: none; border: 0; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; justify-self: start; }
 .danger { color: var(--danger); }
 .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.firma { font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); text-align: center; margin: 8px 0 0; }
 .status { font-size: 15px; color: var(--accent); min-height: 1.5em; margin: 0; }
 
 .btn { display: inline-flex; justify-content: center; align-items: center; gap: 8px; font: inherit; font-weight: 600; text-decoration: none; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; cursor: pointer; }
@@ -89,10 +106,11 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: .7; }
 .bar .btn { flex: 1; }
 @media (prefers-reduced-motion: reduce) { .progress > i { transition: none; } }
 </style>
-
+</head>
+<body>
 <div class="wrap">
   <header class="top" id="top">
-    <div class="eyebrow" id="eyebrow">Cuestionario</div>
+    <div class="eyebrow" id="eyebrow">Lumina · Cuestionario</div>
     <h2 id="stepTitle">Para tu vidriería</h2>
     <div class="progress" aria-hidden="true"><i id="bar" style="width:0%"></i></div>
   </header>
@@ -103,7 +121,9 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: .7; }
 <script>
 // A dónde llegan las respuestas. Si WA_NUMBER queda vacío, WhatsApp le deja elegir el contacto al cliente.
 const EMAIL = 'lucianocordoba3@gmail.com';
-const WA_NUMBER = ''; // ej. '5493511234567'
+// El número también puede venir en el link: ?wa=5493511234567
+let WA_NUMBER = '';
+try { WA_NUMBER = (new URLSearchParams(location.search).get('wa') || '').replace(/\D/g, ''); } catch (e) {}
 const KEY = 'vidrieria-cuestionario-v1';
 
 // t: text | area | one | many. s: etiqueta corta para el resumen. ns: agrega "No sé". otro: agrega campo libre.
@@ -342,6 +362,7 @@ function renderIntro(main) {
     ol.append(li);
   });
   w.append(ol);
+  w.append(el('p', 'firma', 'Hecho por Lumina'));
   main.append(w);
 }
 
@@ -408,6 +429,7 @@ function renderFinal(main) {
   rb.addEventListener('click', () => { rb.hidden = true; confirmRow.hidden = false; });
   reset.append(rb, confirmRow);
   w.append(reset);
+  w.append(el('p', 'firma', 'Hecho por Lumina'));
   main.append(w);
 }
 
@@ -435,7 +457,7 @@ function render() {
   const st = document.getElementById('stepTitle');
 
   if (step === 0) {
-    eb.textContent = 'Cuestionario';
+    eb.textContent = 'Lumina · Cuestionario';
     st.textContent = 'Para tu vidriería';
     renderIntro(main);
     const any = Object.keys(A).some(k => A[k] && A[k].length);
@@ -445,13 +467,13 @@ function render() {
     }));
     if (any) nav.append(navBtn('Revisar y enviar', null, () => go(LAST)));
   } else if (step === LAST) {
-    eb.textContent = 'Último paso';
+    eb.textContent = 'Lumina · Último paso';
     st.textContent = 'Revisá y mandá';
     renderFinal(main);
     nav.append(navBtn('Atrás', null, () => go(LAST - 1)), navBtn('Ver las partes', null, () => go(0)));
   } else {
     const sec = S[step - 1];
-    eb.textContent = 'Parte ' + step + ' de ' + S.length;
+    eb.textContent = 'Lumina · Parte ' + step + ' de ' + S.length;
     st.textContent = sec.title;
     sec.qs.forEach(q => main.append(renderQ(q)));
     nav.append(navBtn('Atrás', null, () => go(step - 1)));
@@ -477,3 +499,5 @@ function go(n) {
 
 render();
 </script>
+</body>
+</html>

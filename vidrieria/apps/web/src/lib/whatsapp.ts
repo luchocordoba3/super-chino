@@ -73,3 +73,33 @@ export function crewMessage(j: JobMsg & { crewToken: string }) {
     .filter(Boolean)
     .join('\n');
 }
+
+type PostJob = { warrantyToken: string; quote: { number: number; title: string; customer: { name: string; phone?: string } | null } };
+const job = (j: PostJob) => (j.quote.title ? j.quote.title.toLowerCase() : 'el trabajo');
+
+/** El mismo día de la colocación, a todos los clientes (Google no permite pedirla solo a los contentos ni dar algo a cambio). */
+export function reviewMessage(j: PostJob, reviewUrl: string, businessName: string) {
+  return `${hola(j.quote.customer?.name)} Gracias por elegir ${businessName}. ¿Cómo quedó ${job(j)}? Si tenés un minuto, nos ayuda mucho tu opinión en Google: ${reviewUrl}`;
+}
+
+export function check30Message(j: PostJob) {
+  return `${hola(j.quote.customer?.name)} Pasó un mes de la colocación de ${job(j)}. ¿Anda todo bien? Si algo no quedó como esperabas, avisanos: está en garantía. Ficha del trabajo: ${warrantyUrl(j.warrantyToken)}`;
+}
+
+export function maintenanceMessage(j: PostJob, months: 6 | 12) {
+  return `${hola(j.quote.customer?.name)} Ya pasaron ${months === 6 ? '6 meses' : 'un año'} desde que colocamos ${job(j)}. Te recomendamos revisar herrajes y burletes para que dure muchos años. Si querés, pasamos a hacerle un service.`;
+}
+
+export function stormMessage(name: string, businessName: string) {
+  return `${hola(name)} Somos ${businessName}. ¿Cómo quedaron tus vidrios después de la tormenta? Si se rompió alguno, hoy atendemos urgencias.`;
+}
+
+/** Texto para Instagram o Google con la foto del trabajo terminado. */
+export function postCaption(p: { title: string; glass: string; size: string; zone: string }, businessName: string, siteUrl: string) {
+  return [
+    `${p.title}${p.zone ? ` en ${p.zone}` : ''} ✨`,
+    [p.glass, p.size].filter(Boolean).join(' · '),
+    `Medimos, fabricamos y colocamos. ¿Necesitás uno? Pedí tu presupuesto: ${siteUrl}`,
+    `#vidrieria #${p.title.toLowerCase().split(' ')[0]} ${p.zone ? `#${p.zone.toLowerCase().replace(/\s+/g, '')}` : ''} #${businessName.toLowerCase().replace(/\s+/g, '')}`.trim(),
+  ].join('\n');
+}

@@ -20,6 +20,7 @@ import { customerRoutes } from './routes/customers';
 import { invoiceRoutes } from './routes/invoices';
 import { jobRoutes } from './routes/jobs';
 import { leadRoutes } from './routes/leads';
+import { marketingRoutes } from './routes/marketing';
 import { numberRoutes } from './routes/numbers';
 import { businessByHost, publicRoutes } from './routes/public';
 import { publicJobRoutes } from './routes/publicJobs';
@@ -28,7 +29,7 @@ import { purchaseRoutes } from './routes/purchases';
 import { pushRoutes } from './routes/push';
 import { quoteRoutes } from './routes/quotes';
 import { salesRoutes } from './routes/sales';
-import { RESERVED_SLUGS, siteContent } from './services/site';
+import { RESERVED_SLUGS, serviceSlug, siteContent } from './services/site';
 
 export async function buildApp(opts: FastifyServerOptions = {}) {
   // Las fotos llegan como texto (base64): hasta 3 por consulta.
@@ -78,6 +79,7 @@ export async function buildApp(opts: FastifyServerOptions = {}) {
       await invoiceRoutes(api);
       await numberRoutes(api);
       await salesRoutes(api);
+      await marketingRoutes(api);
     },
     { prefix: '/api' },
   );
@@ -116,10 +118,23 @@ async function withMeta(html: string, req: FastifyRequest) {
   let extra = '';
   let noindex = true;
   try {
-    const seg = path.split('/').filter(Boolean);
-    const byHost = seg.length === 0 ? await businessByHost(req.hostname) : null;
-    if (byHost || (seg.length === 1 && !RESERVED_SLUGS.has(seg[0]))) {
-      const b = byHost ?? (await prisma.business.findUnique({ where: { slug: decodeURIComponent(seg[0]) } }));
+    const seg = path.split('/').filter(Boolean).map((x) => decodeURIComponent(x));
+    // Página de un servicio: /:slug/servicios/:servicio (o /servicios/:servicio con dominio propio).
+    const svc = seg.length === 3 && seg[1] === 'servicios' ? { slug: seg[0], service: seg[2] } : seg.length === 2 && seg[0] === 'servicios' ? { slug: null, service: seg[1] } : null;
+    const byHost = seg.length === 0 || (svc && !svc.slug) ? await businessByHost(req.hostname) : null;
+    if (svc) {
+      const b = byHost ?? (svc.slug ? await prisma.business.findUnique({ where: { slug: svc.slug } }) : null);
+      const site = b ? siteContent(b) : null;
+      const sv = site?.services.find((x) => serviceSlug(x.title) === svc.service);
+      if (b && site && sv) {
+        title = `${sv.title}${b.zones ? ` en ${b.zones}` : ''} · ${b.name}`;
+        desc = sv.text || `${sv.title}. Pedí tu presupuesto a ${b.name}.`;
+        image = sv.image ?? site.heroImage ?? null;
+        noindex = false;
+        if (byHost) extra = `<script>window.__SLUG__=${JSON.stringify(b.slug)}</script>`;
+      }
+    } else if (byHost || (seg.length === 1 && !RESERVED_SLUGS.has(seg[0]))) {
+      const b = byHost ?? (await prisma.business.findUnique({ where: { slug: seg[0] } }));
       if (b) {
         const site = siteContent(b);
         title = `${b.name} · ${site.headline || 'Vidriería'}`;

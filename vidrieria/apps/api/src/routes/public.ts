@@ -10,7 +10,7 @@ import { money } from '../lib/text';
 import { ensureJob } from '../services/jobs';
 import { notifyLater } from '../services/push';
 import { acceptData, expireIfNeeded, insuranceDetail, publicQuote, storedOptions } from '../services/quotes';
-import { publicBusiness, siteContent } from '../services/site';
+import { publicBusiness, siteContent, similarWork } from '../services/site';
 import { RECEIPT_MIMES, decodeDataUrl } from './assets';
 
 /** Una vista cuenta si pasaron 30 minutos de la anterior (recargar o volver a la pestaña no suma). */
@@ -38,9 +38,16 @@ export async function businessByHost(host: string | undefined) {
 export async function publicRoutes(app: FastifyInstance) {
   app.get('/public/site/:slug', async (req) => {
     const { slug } = req.params as { slug: string };
+    const { ref } = req.query as { ref?: string };
     const b = await prisma.business.findUnique({ where: { slug } });
     if (!b) throw notFound();
-    return { business: publicBusiness(b), jobKinds: JOB_KINDS };
+    // Llegó con el link de recomendación de un cliente: se muestra quién lo recomendó y el beneficio.
+    const referrer = ref ? await prisma.customer.findFirst({ where: { businessId: b.id, referralCode: ref }, select: { name: true } }) : null;
+    return {
+      business: publicBusiness(b),
+      jobKinds: JOB_KINDS,
+      referral: referrer ? { by: referrer.name.split(' ')[0], benefit: b.referralBenefit } : null,
+    };
   });
 
   app.get('/public/host', async (req) => {
@@ -133,8 +140,10 @@ export async function publicRoutes(app: FastifyInstance) {
     }
     const b = q.business;
     const site = siteContent(b);
+    const firstTitle = (q.result as unknown as { items: { title: string }[] }).items[0]?.title ?? q.title;
     return {
       quote: publicQuote(q, b),
+      similar: similarWork(site, firstTitle).map((g) => ({ image: g.image, caption: g.caption })),
       insurance: req.query && (req.query as { seguro?: string }).seguro === '1' ? insuranceDetail(q) : null,
       business: {
         name: b.name,

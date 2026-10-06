@@ -21,7 +21,7 @@ export interface SiteContent {
   accentColor: string;
   heroImage?: string | null;
   services: { title: string; text: string; image?: string | null }[];
-  gallery: { image: string; caption: string }[];
+  gallery: { image: string; caption: string; kind?: string; zone?: string }[];
   steps: { title: string; text: string }[];
   faqs: { q: string; a: string }[];
   illustrativeImages: boolean;
@@ -99,6 +99,7 @@ export interface PublicBusiness {
   instagram: string;
   logo: string | null;
   site: SiteContent;
+  storm: boolean;
 }
 
 export interface CatalogItem {
@@ -318,6 +319,7 @@ export interface PublicQuote {
     installments: Record<string, number>;
     pay: { alias: string; cbu: string; holder: string; note: string };
   };
+  similar: { image: string; caption: string }[];
 }
 
 export type JobStatus = 'PENDING' | 'ORDERED' | 'MAKING' | 'RECEIVED' | 'SCHEDULED' | 'INSTALLED' | 'CLOSED';

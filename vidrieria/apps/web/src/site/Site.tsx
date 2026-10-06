@@ -14,14 +14,35 @@ const hideBroken = (e: React.SyntheticEvent<HTMLImageElement>) => {
 interface SiteData {
   business: PublicBusiness;
   jobKinds: string[];
+  referral: { by: string; benefit: string } | null;
 }
 
+/** "Mampara de baño" -> "mampara-de-bano" (igual que en el servidor). */
+export const serviceSlug = (t: string) =>
+  t
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+/** Palabra clave del tipo de trabajo, para juntar fotos de la galería con su servicio. */
+const keyOf = (t: string) => {
+  const x = t.toLowerCase();
+  return ['mampara', 'box', 'baranda', 'escalera', 'espejo', 'dvh', 'cerramiento', 'frente', 'puerta', 'cambio'].find((k) => x.includes(k)) ?? x.split(' ')[0];
+};
+
 /** Web pública de una vidriería: presenta el negocio y lleva a pedir presupuesto. Sin precios. */
-export function Site({ slug }: { slug: string }) {
-  const q = useQuery({ queryKey: ['site', slug], queryFn: () => api<SiteData>(`/public/site/${encodeURIComponent(slug)}`) });
+export function Site({ slug, service }: { slug: string; service?: string }) {
+  const [ref] = useState(() => new URLSearchParams(location.search).get('ref'));
+  const q = useQuery({
+    queryKey: ['site', slug, ref],
+    queryFn: () => api<SiteData>(`/public/site/${encodeURIComponent(slug)}${ref ? `?ref=${encodeURIComponent(ref)}` : ''}`),
+  });
+  const sv = service ? q.data?.business.site.services.find((x) => serviceSlug(x.title) === service) : undefined;
   useEffect(() => {
-    if (q.data) document.title = `${q.data.business.name} · ${q.data.business.site.headline}`;
-  }, [q.data]);
+    if (q.data) document.title = sv ? `${sv.title} · ${q.data.business.name}` : `${q.data.business.name} · ${q.data.business.site.headline}`;
+  }, [q.data, sv]);
   if (q.isLoading) return <Loading />;
   if (q.error instanceof ApiError && q.error.status === 404)
     return (
@@ -36,18 +57,23 @@ export function Site({ slug }: { slug: string }) {
   const b = q.data.business;
   const s = b.site;
   const style = { '--brand': s.primaryColor, '--brand-accent': s.accentColor } as CSSProperties;
-  const wa = waLink(b.whatsapp, `¡Hola ${b.name}! Quería hacer una consulta.`);
+  const wa = waLink(b.whatsapp, `¡Hola ${b.name}! Quería hacer una consulta${sv ? ` por ${sv.title.toLowerCase()}` : ''}.`);
+  // Con dominio propio la web está en la raíz; si no, en /:slug.
+  const base = window.__SLUG__ ? '' : `/${b.slug}`;
+  const home = sv ? `${base || '/'}` : '';
+  const gallery = sv ? s.gallery.filter((g) => keyOf(g.kind || g.caption).includes(keyOf(sv.title)) || (g.kind || g.caption).toLowerCase().includes(keyOf(sv.title))) : s.gallery;
+  const initialKind = sv ? q.data.jobKinds.find((k) => keyOf(k) === keyOf(sv.title)) : undefined;
 
   return (
     <div className="site" style={style}>
       <header className="site-top">
-        <a href="#inicio" className="site-brand">
+        <a href={home || '#inicio'} className="site-brand">
           {b.logo ? <img src={b.logo} alt="" /> : <span className="site-mark" aria-hidden="true" />}
           <span>{b.name}</span>
         </a>
         <nav className="site-nav" aria-label="Secciones">
-          <a href="#servicios">Servicios</a>
-          {!!s.gallery.length && <a href="#trabajos">Trabajos</a>}
+          <a href={`${home}#servicios`}>Servicios</a>
+          {!!gallery.length && <a href="#trabajos">Trabajos</a>}
           <a href="#como">Cómo trabajamos</a>
           <a href="#presupuesto" className="site-cta-sm">
             Pedí presupuesto
@@ -55,11 +81,25 @@ export function Site({ slug }: { slug: string }) {
         </nav>
       </header>
 
+      {b.storm && (
+        <div className="site-storm" role="status">
+          <strong>Atendemos urgencias por la tormenta.</strong> Vidrios rotos, cerramientos y frentes: escribinos y vamos lo antes posible.
+          <a href={waLink(b.whatsapp, `¡Hola ${b.name}! Tengo una urgencia por la tormenta.`)} target="_blank" rel="noreferrer">
+            WhatsApp
+          </a>
+        </div>
+      )}
+      {q.data.referral && (
+        <div className="site-referral" role="status">
+          Te recomendó <strong>{q.data.referral.by}</strong>.{q.data.referral.benefit && <> Por venir recomendado: {q.data.referral.benefit}.</>}
+        </div>
+      )}
+
       <section className="site-hero" id="inicio">
         <div className="site-hero-text">
-          {b.zones && <p className="site-eyebrow">{b.zones}</p>}
-          <h1>{s.headline || b.name}</h1>
-          <p className="site-lead">{s.subheadline}</p>
+          {b.zones && <p className="site-eyebrow">{sv ? `${sv.title} en ${b.zones}` : b.zones}</p>}
+          <h1>{sv ? sv.title : s.headline || b.name}</h1>
+          <p className="site-lead">{sv ? sv.text : s.subheadline}</p>
           <div className="row wrap">
             <a href="#presupuesto" className="site-btn">
               Pedí tu presupuesto
@@ -69,36 +109,39 @@ export function Site({ slug }: { slug: string }) {
             </a>
           </div>
         </div>
-        {s.heroImage && (
+        {(sv?.image || s.heroImage) && (
           <figure className="site-hero-img">
-            <img src={s.heroImage} alt={`Trabajo de ${b.name}`} onError={hideBroken} />
+            <img src={(sv?.image || s.heroImage)!} alt={`Trabajo de ${b.name}`} onError={hideBroken} />
           </figure>
         )}
       </section>
 
-      <section className="site-section" id="servicios">
-        <h2>Lo que hacemos</h2>
-        <div className="site-services">
-          {s.services.map((x, i) => (
-            <article key={i} className="site-service">
-              {x.image && <img src={x.image} alt="" loading="lazy" onError={hideBroken} />}
-              <div>
-                <h3>{x.title}</h3>
-                <p>{x.text}</p>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
+      {!sv && (
+        <section className="site-section" id="servicios">
+          <h2>Lo que hacemos</h2>
+          <div className="site-services">
+            {s.services.map((x, i) => (
+              <a key={i} className="site-service" href={`${base}/servicios/${serviceSlug(x.title)}`}>
+                {x.image && <img src={x.image} alt="" loading="lazy" onError={hideBroken} />}
+                <div>
+                  <h3>{x.title}</h3>
+                  <p>{x.text}</p>
+                  <span className="site-more">Ver más →</span>
+                </div>
+              </a>
+            ))}
+          </div>
+        </section>
+      )}
 
-      {!!s.gallery.length && (
+      {!!gallery.length && (
         <section className="site-section" id="trabajos">
-          <h2>Trabajos hechos</h2>
+          <h2>{sv ? `${sv.title}: trabajos hechos` : 'Trabajos hechos'}</h2>
           <div className="site-gallery">
-            {s.gallery.map((g, i) => (
+            {gallery.map((g, i) => (
               <figure key={i}>
                 <img src={g.image} alt={g.caption || 'Trabajo terminado'} loading="lazy" onError={hideBroken} />
-                {g.caption && <figcaption>{g.caption}</figcaption>}
+                {(g.caption || g.zone) && <figcaption>{g.caption || g.zone}</figcaption>}
               </figure>
             ))}
           </div>
@@ -129,11 +172,26 @@ export function Site({ slug }: { slug: string }) {
               <li>Medimos antes de fabricar: no hace falta que las medidas sean exactas</li>
             </ul>
           </div>
-          <LeadForm slug={b.slug} kinds={q.data.jobKinds} businessName={b.name} whatsapp={b.whatsapp} />
+          <LeadForm slug={b.slug} kinds={q.data.jobKinds} businessName={b.name} whatsapp={b.whatsapp} initialKind={initialKind} />
         </div>
       </section>
 
-      {!!s.faqs.length && (
+      {sv && (
+        <section className="site-section alt">
+          <h2>Otros trabajos</h2>
+          <div className="row wrap site-others">
+            {s.services
+              .filter((x) => x !== sv)
+              .map((x, i) => (
+                <a key={i} className="site-btn ghost" href={`${base}/servicios/${serviceSlug(x.title)}`}>
+                  {x.title}
+                </a>
+              ))}
+          </div>
+        </section>
+      )}
+
+      {!sv && !!s.faqs.length && (
         <section className="site-section alt" id="preguntas">
           <h2>Preguntas frecuentes</h2>
           <div className="site-faqs">
@@ -200,8 +258,8 @@ function visitOrigin(slug: string) {
   }
 }
 
-function LeadForm({ slug, kinds, businessName, whatsapp }: { slug: string; kinds: string[]; businessName: string; whatsapp: string }) {
-  const [f, setF] = useState({ kind: '', widthCm: '', heightCm: '', quantity: '1', details: '', zone: '', name: '', phone: '', when: '', website: '' });
+function LeadForm({ slug, kinds, businessName, whatsapp, initialKind }: { slug: string; kinds: string[]; businessName: string; whatsapp: string; initialKind?: string }) {
+  const [f, setF] = useState({ kind: initialKind ?? '', widthCm: '', heightCm: '', quantity: '1', details: '', zone: '', name: '', phone: '', when: '', website: '' });
   const [photos, setPhotos] = useState<string[]>([]);
   const [busyPhoto, setBusyPhoto] = useState(false);
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });

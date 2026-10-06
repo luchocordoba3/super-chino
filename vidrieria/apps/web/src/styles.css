@@ -1194,6 +1194,19 @@ a.list-row:hover strong {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.15s, transform 0.15s;
+}
+a.site-service:hover {
+  border-color: var(--brand);
+  transform: translateY(-2px);
+}
+.site-more {
+  margin-top: auto;
+  color: var(--brand);
+  font-weight: 600;
+  font-size: 15px;
 }
 .site-service img {
   aspect-ratio: 16 / 10;
@@ -2816,4 +2829,159 @@ details summary {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+/* Web: carteles de tormenta y recomendación, otros servicios */
+.site-storm,
+.site-referral {
+  padding: 10px 16px;
+  text-align: center;
+  font-size: 15px;
+}
+.site-storm {
+  background: #fef3c7;
+  color: #78350f;
+}
+.site-storm a {
+  margin-left: 8px;
+  font-weight: 700;
+  color: inherit;
+}
+.site-referral {
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+.site-others {
+  gap: 8px;
+}
+
+/* Presupuesto: trabajos parecidos */
+.pq-similar {
+  margin: 0;
+}
+.pq-similar img {
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+.pq-similar figcaption {
+  font-size: 13px;
+  color: var(--muted);
+  padding-top: 4px;
+}
+
+/* Marketing */
+.steps-list {
+  margin: 8px 0 12px;
+  padding-left: 20px;
+  display: grid;
+  gap: 4px;
+}
+.stack-sm {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+.qr-row {
+  margin-top: 12px;
+  align-items: center;
+}
+.qr-row .qr,
+.list-row .qr {
+  flex: none;
+  background: #fff;
+}
+.zones {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+.zones details {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 12px;
+}
+.zones summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.before-after {
+  display: grid;
+  gap: 8px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+.before-after:first-of-type {
+  border-top: 0;
+}
+.before-after .photos {
+  gap: 8px;
+}
+.before-after .render-thumb img {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 10px;
+  display: block;
+}
+.before-after textarea {
+  width: 100%;
+}
+.before-after > .btn {
+  justify-self: start;
+}
+.photo-tag {
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  background: rgba(15, 23, 42, 0.7);
+  color: #fff;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+.photo-pub {
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+}
+.btn.photo-pub {
+  padding: 2px 8px;
+  font-size: 12px;
+  background: var(--surface);
+}
+
+/* Inicio: para mandar hoy */
+.card.today {
+  border-color: var(--brand);
+  box-shadow: inset 4px 0 0 var(--brand);
+}
+.card.today .list-row {
+  flex-wrap: wrap;
+}
+
+/* Hoja del QR para imprimir */
+.qr-print {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px 16px;
+  text-align: center;
+  background: #fff;
+}
+.qr-print h1 {
+  font-family: var(--display);
+  font-size: clamp(28px, 6vw, 44px);
+  margin: 0;
+}
+.qr-print .qr-sub {
+  font-size: 20px;
+  margin: 0;
+}
+.qr-print .mono {
+  font-size: 16px;
+  word-break: break-all;
 }

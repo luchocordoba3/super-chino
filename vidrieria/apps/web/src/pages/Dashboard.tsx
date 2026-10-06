@@ -5,9 +5,10 @@ import { api, errMsg } from '../api';
 import { ErrorBox, Loading, StatusChip, toast } from '../components/ui';
 import { ago, money, money2, qty } from '../lib/format';
 import { QUEUE_EVENT, pendingMeasures, syncPending } from '../lib/measure';
+import { useMe } from '../lib/me';
 import { type PushState, disablePush, enablePush, pushState } from '../lib/push';
 import type { Dashboard as D, Quote } from '../lib/types';
-import { dollarUpdateMessage, waLink } from '../lib/whatsapp';
+import { check30Message, confirmTurnMessage, delayMessage, dollarUpdateMessage, maintenanceMessage, reviewMessage, waLink } from '../lib/whatsapp';
 import { FollowUpList } from './Quotes';
 
 export default function Dashboard() {
@@ -33,6 +34,7 @@ export default function Dashboard() {
 
       <PushCard />
       <PendingMeasures />
+      <Today />
 
       <section className="tiles">
         <Link to="/panel/consultas" className={'tile' + (d.newLeads ? ' attention' : '')}>
@@ -268,5 +270,121 @@ function PendingMeasures() {
         Subir ahora
       </button>
     </p>
+  );
+}
+
+type TJob = {
+  id: string;
+  address: string;
+  installedAt: string | null;
+  scheduledAt: string | null;
+  promisedAt: string | null;
+  warrantyToken: string;
+  crewToken: string;
+  confirmSentAt?: string | null;
+  crew?: { name: string } | null;
+  quote: { id: string; number: number; title: string; customer: { name: string; phone: string } | null };
+};
+interface TodayData {
+  reviewUrl: string;
+  reviews: TJob[];
+  check30: TJob[];
+  maint: (TJob & { kind: 'maint6' | 'maint12' })[];
+  tomorrow: TJob[];
+  late: TJob[];
+  toOrder: TJob[];
+  lowStock: { id: string; name: string; stockQty: number; stockMin: number }[];
+}
+
+/** Lo que conviene hacer hoy, con el mensaje de WhatsApp listo: postventa, turnos, atrasos y compras. */
+function Today() {
+  const qc = useQueryClient();
+  const me = useMe();
+  const q = useQuery({ queryKey: ['today'], queryFn: () => api<TodayData>('/today') });
+  const sent = (id: string, kind: string) => void api(`/jobs/${id}/sent`, { body: { kind } }).then(() => qc.invalidateQueries({ queryKey: ['today'] }));
+  const t = q.data;
+  if (!t) return null;
+  const total = t.reviews.length + t.check30.length + t.maint.length + t.tomorrow.length + t.late.length + t.toOrder.length + t.lowStock.length;
+  if (!total) return null;
+  const biz = me.data?.business.name ?? '';
+  const who = (j: TJob) => (
+    <span className="grow">
+      <strong>{j.quote.customer?.name ?? `N° ${j.quote.number}`}</strong>
+      <span className="muted"> · {j.quote.title || 'Trabajo'}</span>
+    </span>
+  );
+  const wa = (j: TJob, text: string, kind: string | null, label: string) =>
+    j.quote.customer?.phone ? (
+      <a className="btn wa small" href={waLink(j.quote.customer.phone, text)} target="_blank" rel="noreferrer" onClick={() => kind && sent(j.id, kind)}>
+        {label}
+      </a>
+    ) : (
+      <span className="muted small">sin WhatsApp</span>
+    );
+  return (
+    <section className="card today">
+      <h2>Para mandar hoy</h2>
+      <ul className="list">
+        {t.tomorrow.map((j) => (
+          <li key={`t${j.id}`} className="list-row">
+            <span className="pill neutral">Mañana {j.scheduledAt && new Date(j.scheduledAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })}</span>
+            {who(j)}
+            {j.confirmSentAt ? <span className="muted small">confirmado ✓</span> : wa(j, confirmTurnMessage(j), 'confirm', 'Confirmar turno')}
+          </li>
+        ))}
+        {t.reviews.map((j) => (
+          <li key={`r${j.id}`} className="list-row">
+            <span className="pill good">Reseña</span>
+            {who(j)}
+            {t.reviewUrl ? (
+              wa(j, reviewMessage(j, t.reviewUrl, biz), 'review', 'Pedir reseña')
+            ) : (
+              <Link className="small" to="/panel/marketing">
+                Cargá tu link de Google
+              </Link>
+            )}
+          </li>
+        ))}
+        {t.check30.map((j) => (
+          <li key={`c${j.id}`} className="list-row">
+            <span className="pill neutral">Control 30 días</span>
+            {who(j)}
+            {wa(j, check30Message(j), 'check30', 'Preguntar cómo anda')}
+          </li>
+        ))}
+        {t.maint.map((j) => (
+          <li key={`m${j.id}`} className="list-row">
+            <span className="pill neutral">{j.kind === 'maint6' ? '6 meses' : '1 año'}</span>
+            {who(j)}
+            {wa(j, maintenanceMessage(j, j.kind === 'maint6' ? 6 : 12), j.kind, 'Ofrecer service')}
+          </li>
+        ))}
+        {t.late.map((j) => (
+          <li key={`l${j.id}`} className="list-row">
+            <span className="pill">Se atrasa</span>
+            {who(j)}
+            {wa(j, delayMessage(j), null, 'Avisar demora')}
+          </li>
+        ))}
+        {t.toOrder.map((j) => (
+          <li key={`o${j.id}`} className="list-row">
+            <span className="pill">Pedir material</span>
+            {who(j)}
+            <Link className="btn small" to={`/panel/trabajos?ver=${j.id}`}>
+              Ver trabajo
+            </Link>
+          </li>
+        ))}
+        {!!t.lowStock.length && (
+          <li className="list-row">
+            <span className="pill">Reponer</span>
+            <span className="grow">{t.lowStock.map((c) => c.name).join(', ')}</span>
+            <Link className="btn small" to="/panel/materiales/stock">
+              Ver stock
+            </Link>
+          </li>
+        )}
+      </ul>
+    </section>
   );
 }

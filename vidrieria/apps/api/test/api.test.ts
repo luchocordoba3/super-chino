@@ -577,3 +577,48 @@ describe('vender', () => {
     expect((await call(cookie, 'GET', `/api/buildings?customerId=${c.id}`)).json()[0].name).toBe('Edificio Mitre 1200');
   });
 });
+
+describe('atraer y postventa', () => {
+  it('carteles con QR, recomendaciones, modo tormenta y fotos de obra a la web', async () => {
+    const { cookie, slug } = await signup('Marketing', 'marketing@test.com');
+    const sign = (await call(cookie, 'POST', '/api/signs', { name: 'Obra Mitre 1200' })).json();
+    await app.inject({ method: 'POST', url: `/api/public/site/${slug}/signs/${sign.code}/visit` });
+    await app.inject({ method: 'POST', url: `/api/public/site/${slug}/leads`, payload: { kind: 'Espejo', name: 'Ana', phone: '1155551111', sign: sign.code } });
+    const c = (await call(cookie, 'POST', '/api/customers', { name: 'Laura Gómez', phone: '1155550101' })).json();
+    const { code } = (await call(cookie, 'POST', `/api/customers/${c.id}/referral`)).json();
+    await call(cookie, 'PATCH', '/api/business', { referralBenefit: '10 % de descuento' });
+    const site = (await app.inject({ method: 'GET', url: `/api/public/site/${slug}?ref=${code}` })).json();
+    expect(site.referral).toEqual({ by: 'Laura', benefit: '10 % de descuento' });
+
+    const mk = (await call(cookie, 'GET', '/api/marketing')).json();
+    expect(mk.signs[0]).toMatchObject({ code: sign.code, visits: 1, leads: 1 });
+    expect(mk.referrals[0]).toMatchObject({ referralCode: code, leads: 0 });
+    expect(mk.sources[0]).toMatchObject({ source: 'CARTEL', count: 1 });
+
+    expect((await call(cookie, 'POST', '/api/storm', { on: true })).json().on).toBe(true);
+    expect((await app.inject({ method: 'GET', url: `/api/public/site/${slug}` })).json().business.storm).toBe(true);
+  });
+
+  it('para mandar hoy: reseña del trabajo colocado y foto publicada en la web', async () => {
+    const { cookie, slug } = await signup('Hoy', 'hoy@test.com');
+    const q = (await call(cookie, 'POST', '/api/quotes', { title: 'Mampara', items: [item([vidrioUsd])], extras: [] })).json();
+    await call(cookie, 'POST', `/api/quotes/${q.id}/status`, { status: 'ACCEPTED' });
+    const [job] = (await call(cookie, 'GET', '/api/jobs')).json();
+    await app.inject({ method: 'POST', url: `/api/public/jobs/${job.crewToken}/photos`, payload: { kind: 'after', photos: [tiny] } });
+    await app.inject({ method: 'POST', url: `/api/public/jobs/${job.crewToken}/done`, payload: {} });
+    const today = (await call(cookie, 'GET', '/api/today')).json();
+    expect(today.reviews.map((j: { id: string }) => j.id)).toEqual([job.id]);
+    await call(cookie, 'POST', `/api/jobs/${job.id}/sent`, { kind: 'review' });
+    expect((await call(cookie, 'GET', '/api/today')).json().reviews).toHaveLength(0);
+
+    const photoId = (await call(cookie, 'GET', `/api/jobs/${job.id}`)).json().afterIds[0];
+    expect((await app.inject({ method: 'GET', url: `/api/assets/${photoId}` })).statusCode).toBe(401);
+    await call(cookie, 'POST', `/api/jobs/${job.id}/publish`, { photoId, caption: 'Mampara en Villa Urquiza', kind: 'Mampara corrediza', zone: 'Villa Urquiza' });
+    expect((await app.inject({ method: 'GET', url: `/api/assets/${photoId}` })).statusCode).toBe(200);
+    const gallery = (await app.inject({ method: 'GET', url: `/api/public/site/${slug}` })).json().business.site.gallery;
+    expect(gallery[0]).toMatchObject({ image: `/api/assets/${photoId}`, kind: 'Mampara corrediza', zone: 'Villa Urquiza' });
+    // El presupuesto de otra mampara muestra ese trabajo como "parecido".
+    const q2 = (await call(cookie, 'POST', '/api/quotes', { title: 'Mampara', items: [item([vidrioUsd])], extras: [] })).json();
+    expect((await app.inject({ method: 'GET', url: `/api/public/quotes/${q2.publicToken}?preview=1` })).json().similar[0].image).toBe(`/api/assets/${photoId}`);
+  });
+});

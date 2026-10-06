@@ -206,6 +206,20 @@ export function PublicQuotePage() {
         {p.notes && <p className="pq-notes">{p.notes}</p>}
         {p.footer && <p className="pq-small">{p.footer}</p>}
 
+        {!!q.data.similar.length && (
+          <section className="pq-renders no-print" aria-label="Trabajos parecidos">
+            <h2>Trabajos parecidos que hicimos</h2>
+            <div className="pq-render-grid">
+              {q.data.similar.map((g) => (
+                <figure key={g.image} className="pq-similar">
+                  <img src={g.image} alt={g.caption || 'Trabajo terminado'} loading="lazy" />
+                  {g.caption && <figcaption>{g.caption}</figcaption>}
+                </figure>
+              ))}
+            </div>
+          </section>
+        )}
+
         {accepted && !preview && b.deposit && (
           <section className="pq-pay no-print">
             {p.depositPaidAt ? (

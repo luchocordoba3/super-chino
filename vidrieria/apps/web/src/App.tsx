@@ -9,6 +9,7 @@ import { Login, Signup } from './pages/Auth';
 import Measure from './pages/Measure';
 import { CrewSheetPage } from './pages/CrewSheet';
 import { PublicQuotePage } from './pages/PublicQuote';
+import { QrPrintPage } from './pages/QrPrint';
 import { WarrantyPage } from './pages/Warranty';
 import { Site } from './site/Site';
 
@@ -24,6 +25,7 @@ const Jobs = lazy(() => import('./pages/Jobs'));
 const LuminaAdmin = lazy(() => import('./pages/LuminaAdmin'));
 const Cash = lazy(() => import('./pages/Cash'));
 const Numbers = lazy(() => import('./pages/Numbers'));
+const Marketing = lazy(() => import('./pages/Marketing'));
 
 declare global {
   interface Window {
@@ -32,19 +34,15 @@ declare global {
   }
 }
 
-/** Mientras se termina una sección. */
-function Soon({ title }: { title: string }) {
-  return (
-    <section className="card locked">
-      <h1>{title}</h1>
-      <p className="muted">Esta sección se está terminando y aparece acá en los próximos días.</p>
-    </section>
-  );
+function SiteBySlug() {
+  const { slug, service } = useParams();
+  return <Site slug={slug!} service={service} />;
 }
 
-function SiteBySlug() {
-  const { slug } = useParams();
-  return <Site slug={slug!} />;
+/** Página de un servicio con dominio propio: /servicios/:service. */
+function ServiceOnDomain() {
+  const { service } = useParams();
+  return window.__SLUG__ ? <Site slug={window.__SLUG__} service={service} /> : <Navigate to="/" replace />;
 }
 
 export function App() {
@@ -58,6 +56,7 @@ export function App() {
           <Route path="/p/:token" element={<PublicQuotePage />} />
           <Route path="/o/:token" element={<CrewSheetPage />} />
           <Route path="/g/:token" element={<WarrantyPage />} />
+          <Route path="/qr" element={<QrPrintPage />} />
           <Route path="/panel" element={<PanelLayout />}>
             <Route index element={<Dashboard />} />
             <Route path="consultas" element={<Leads />} />
@@ -73,12 +72,14 @@ export function App() {
             <Route path="lumina" element={<LuminaAdmin />} />
             <Route path="caja" element={<Gate feature="cash"><Cash /></Gate>} />
             <Route path="numeros" element={<Gate feature="numbers"><Numbers /></Gate>} />
-            <Route path="marketing" element={<Soon title="Marketing" />} />
+            <Route path="marketing" element={<Gate feature="marketing"><Marketing /></Gate>} />
             <Route path="mi-web" element={<MySite />} />
             <Route path="ajustes" element={<Settings />} />
             <Route path="*" element={<Navigate to="/panel" replace />} />
           </Route>
+          <Route path="/servicios/:service" element={<ServiceOnDomain />} />
           <Route path="/:slug" element={<SiteBySlug />} />
+          <Route path="/:slug/servicios/:service" element={<SiteBySlug />} />
         </Routes>
       </Suspense>
       <Toaster />

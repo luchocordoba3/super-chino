@@ -152,12 +152,19 @@ export default function MySite() {
 
       <section className="card">
         <h2>Trabajos hechos</h2>
-        <p className="muted small">Subí fotos de tus trabajos: es lo que más confianza da.</p>
+        <p className="muted small">Subí fotos de tus trabajos: es lo que más confianza da. Con el tipo de trabajo, cada foto aparece también en la página de ese servicio y en los presupuestos parecidos.</p>
+        <datalist id="site-kinds">
+          {s.services.map((x) => (
+            <option key={x.title} value={x.title} />
+          ))}
+        </datalist>
         <div className="gallery-edit">
           {s.gallery.map((g, i) => (
             <figure key={i}>
               <img src={g.image} alt="" />
               <input value={g.caption} placeholder="Descripción" onChange={(e) => listSet('gallery', i, { caption: e.target.value })} aria-label="Descripción de la foto" />
+              <input value={g.kind ?? ''} list="site-kinds" placeholder="Tipo de trabajo" onChange={(e) => listSet('gallery', i, { kind: e.target.value })} aria-label="Tipo de trabajo" />
+              <input value={g.zone ?? ''} placeholder="Barrio" onChange={(e) => listSet('gallery', i, { zone: e.target.value })} aria-label="Barrio" />
               <button type="button" className="link-btn small danger" onClick={() => listDel('gallery', i)}>
                 Quitar
               </button>

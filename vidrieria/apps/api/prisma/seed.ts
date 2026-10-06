@@ -84,10 +84,10 @@ export async function seedDemo({ reset = false } = {}) {
   const images = [IMG.mampara, IMG.baranda, IMG.cambio, IMG.espejo, IMG.templado, IMG.frente];
   site.services = site.services.map((s, i) => ({ ...s, image: images[i] ?? null }));
   site.gallery = [
-    { image: IMG.hero, caption: 'Escalera con baranda de vidrio laminado' },
-    { image: IMG.mampara, caption: 'Mampara corrediza en templado 8 mm' },
-    { image: IMG.baranda, caption: 'Baranda de vidrio en balcón' },
-    { image: IMG.espejo, caption: 'Espejo a medida con cantos pulidos' },
+    { image: IMG.hero, caption: 'Escalera con baranda de vidrio laminado', kind: 'Baranda / escalera de vidrio', zone: 'Villa Ballester' },
+    { image: IMG.mampara, caption: 'Mampara corrediza en templado 8 mm', kind: 'Mampara corrediza', zone: 'Villa Urquiza' },
+    { image: IMG.baranda, caption: 'Baranda de vidrio en balcón', kind: 'Baranda / escalera de vidrio', zone: 'Belgrano' },
+    { image: IMG.espejo, caption: 'Espejo a medida con cantos pulidos', kind: 'Espejo a medida', zone: 'San Martín' },
   ];
 
   const passwordHash = await bcrypt.hash('demo1234', 10);

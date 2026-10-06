@@ -59,6 +59,13 @@ export interface Business {
   validDays: number;
   customerAdjust: Partial<Record<CustomerType, number>>;
   quoteFooter: string;
+  dollarAlertPct: number;
+  payAlias: string;
+  payCbu: string;
+  payHolder: string;
+  payNote: string;
+  supplierName: string;
+  supplierWhatsapp: string;
   dollar: DollarInfo;
 }
 
@@ -142,11 +149,27 @@ export interface QuoteListItem {
   followUpAt: string | null;
   validUntil: string;
   publicToken: string;
+  viewCount: number;
+  depositReportedAt: string | null;
+  depositPaidAt: string | null;
+  optionCount: number;
   customer: { id: string; name: string; phone: string } | null;
 }
 
-export interface Quote extends Omit<QuoteListItem, 'customer'> {
+export interface QuoteOption {
+  label: string;
+  input: QuoteInput;
+  result: QuoteResult;
+}
+
+export interface Quote extends Omit<QuoteListItem, 'customer' | 'optionCount'> {
   notes: string;
+  options: QuoteOption[] | null;
+  chosenOption: number | null;
+  lastViewedAt: string | null;
+  depositProofId: string | null;
+  purchasedAt: string | null;
+  photoIds: string[];
   customerId: string | null;
   leadId: string | null;
   input: QuoteInput;
@@ -169,11 +192,49 @@ export interface Dashboard {
   followUps: number;
   week: { count: number; total: number };
   accepted: { count: number; total: number; deposit: number };
+  month: { count: number; total: number; profit: number; costedLines: number; totalLines: number; depositsPaid: number };
+  depositsToConfirm: QuoteListItem[];
+  dollar: { rate: number; source: DollarInfo['source']; alertPct: number };
+  dollarStale: {
+    id: string;
+    number: number;
+    title: string;
+    status: QuoteStatus;
+    publicToken: string;
+    validUntil: string;
+    customer: { id: string; name: string; phone: string } | null;
+    total: number;
+    newTotal: number;
+    dollarRate: number;
+  }[];
+  toBuy: number;
   recent: QuoteListItem[];
 }
 
+export interface PurchaseQuote {
+  id: string;
+  number: number;
+  title: string;
+  acceptedAt: string;
+  result: QuoteResult;
+  customer: { id: string; name: string } | null;
+}
+
+export interface PublicResult {
+  items: { title: string; widthMm: number; heightMm: number; quantity: number; lines: { name: string; qty: number; unit: string }[]; total: number }[];
+  extras: { name: string; total: number }[];
+  adjust: number;
+  urgency: number;
+  freight: number;
+  discount: number;
+  total: number;
+  vat: number;
+  deposit: number;
+  balance: number;
+}
+
 export interface PublicQuote {
-  quote: {
+  quote: PublicResult & {
     number: number;
     title: string;
     notes: string;
@@ -182,19 +243,23 @@ export interface PublicQuote {
     createdAt: string;
     validUntil: string;
     acceptedAt: string | null;
-    items: { title: string; widthMm: number; heightMm: number; quantity: number; lines: { name: string; qty: number; unit: string }[]; total: number }[];
-    extras: { name: string; total: number }[];
-    adjust: number;
-    urgency: number;
-    freight: number;
-    discount: number;
-    total: number;
-    vat: number;
+    options: (PublicResult & { label: string })[] | null;
+    chosenLabel: string | null;
     pricesIncludeVat: boolean;
     depositPct: number;
-    deposit: number;
-    balance: number;
+    depositReportedAt: string | null;
+    depositPaidAt: string | null;
     footer: string;
   };
-  business: { name: string; slug: string; whatsapp: string; address: string; email: string; logo: string | null; primaryColor: string; accentColor: string };
+  business: {
+    name: string;
+    slug: string;
+    whatsapp: string;
+    address: string;
+    email: string;
+    logo: string | null;
+    primaryColor: string;
+    accentColor: string;
+    pay: { alias: string; cbu: string; holder: string; note: string };
+  };
 }

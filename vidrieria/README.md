@@ -12,23 +12,38 @@ Proyecto independiente: vive en `vidrieria/` dentro de este repo, pero se puede 
 - La consulta llega al panel, y el visitante puede avisar por WhatsApp con un toque.
 - Botón flotante de WhatsApp. Título y vista previa listos para Google y WhatsApp.
 
-**Panel del dueño** (`/panel`, en la PC o el celular)
-- **Inicio:** consultas nuevas, presupuestos para seguir hoy, presupuestado y aceptado de la semana.
+**Panel del dueño** (`/panel`, en la PC o el celular; en el celular, con barra de accesos abajo y botón **Medir**)
+- **Inicio:**
+  - consultas nuevas, presupuestos para seguir hoy, aceptados del mes, señas cobradas y **ganancia del mes**;
+  - **señas para confirmar**, con el comprobante que subió el cliente;
+  - **"Subió el dólar":** presupuestos enviados que hoy quedaron baratos. Con un toque se pasan al dólar de hoy y se reenvían por WhatsApp;
+  - trabajos aceptados sin pedir material.
+- **Avisos al celular** (notificación push): consulta nueva, el cliente está mirando el presupuesto (y cuántas veces lo abrió), aceptó, mandó la seña. Se activan en cada celular desde Inicio o Ajustes; en iPhone, primero "Agregar a inicio".
+- **Medir en obra** (`/panel/medir`):
+  - se dicta o se escribe "mampara 1,20 por 1,80 templado 8";
+  - fotos y nota por pieza;
+  - arma el presupuesto ahí mismo;
+  - **funciona sin señal**: queda guardada en el celular y se sube sola cuando vuelve.
 - **Consultas:** las que llegan desde la web, con fotos. "Presupuestar" arma el presupuesto con los datos ya cargados.
 - **Presupuestador:**
   - eligís una plantilla (mampara, box, espejo, cambio de vidrio, baranda, DVH), ponés ancho × alto y cantidad, y calcula al instante;
   - m² con desperdicio, cantos por metro lineal, herrajes, colocación, flete por km, urgencia, ajuste por tipo de cliente, descuento, seña y saldo;
   - los precios en dólares se pasan a pesos con el dólar del día (oficial o blue, de dolarapi.com) o el que cargues a mano. El dólar queda congelado en cada presupuesto.
-  - todo se puede tocar a mano: cantidades, precios y líneas.
-- **Enviar:** link propio (`/p/…`) por WhatsApp con el mensaje armado. El cliente ve el detalle sin precios unitarios, lo guarda en PDF y lo acepta con un toque. El panel muestra si lo abrió.
+  - todo se puede tocar a mano: cantidades, precios y líneas;
+  - **opciones** (hasta 3, ej. "Templado 8 mm" y "Templado 10 mm"): el cliente las ve una al lado de la otra y acepta la que elige;
+  - **ganancia estimada** de cada presupuesto con el costo cargado en Precios (el cliente no la ve);
+  - **pegar mensaje:** pegás el WhatsApp del cliente ("2 vidrios de 50x70 de 4mm y un espejo de 1x1.5") y arma los trabajos;
+  - dibujo a escala de cada pieza con sus medidas.
+- **Enviar:** link propio (`/p/…`) por WhatsApp con el mensaje armado. El cliente ve el detalle con el dibujo de cada pieza, sin precios unitarios, lo guarda en PDF y lo acepta con un toque. Al aceptar ve el alias o CBU para la seña y sube el comprobante (foto o PDF); el dueño confirma el cobro. El panel muestra cuántas veces lo abrió.
 - **Seguimiento:** enviados hace 2 días o más sin respuesta, con el mensaje de seguimiento listo.
 - **Precios:**
   - catálogo en pesos o dólares;
   - suba o baja por %;
   - importar la lista del proveedor desde Excel o CSV, que adivina columnas, categoría, unidad, moneda y espesor;
   - plantillas de trabajo editables.
+- **Compras:** junta el material de los trabajos aceptados (vidrios cortados a medida con cada pieza, herrajes sumados) y arma el pedido al proveedor por WhatsApp. Después se marcan como comprados.
 - **Mi web:** textos, colores, logo, fotos de trabajos, servicios y preguntas.
-- **Ajustes:** dólar, desperdicio, seña, urgencia, flete, validez, redondeo de medidas, mínimo por pieza, IVA, ajuste por tipo de cliente, y usuarios (dueño y socio).
+- **Ajustes:** dólar y % de alerta, desperdicio, seña, urgencia, flete, validez, redondeo de medidas, mínimo por pieza, IVA, ajuste por tipo de cliente, datos para cobrar la seña, proveedor, avisos y usuarios (dueño y socio).
 
 Cada vidriería nueva arranca con catálogo y plantillas **de ejemplo** (precios orientativos) para reemplazar por los suyos.
 
@@ -70,7 +85,9 @@ Mientras esté dentro de `super-chino` (se hace desde el celular, en unos 10 min
 
 1. **New → Postgres**: nombre `vidrieria-db`, región Virginia, plan Free. Cuando esté lista, copiá la **Internal Database URL**.
 2. **New → Web Service** → repo `super-chino`, Branch `claude/sleepy-dirac-y0lt89`, **Root Directory** `vidrieria`, Language Docker, región Virginia (la misma que la base), plan Free.
-3. **Environment Variables**: `DATABASE_URL` = la URL del paso 1 y `SEED_DEMO` = `true` (carga la demo de Cristales Ariel). `JWT_SECRET` es opcional: si no está, se deriva de `DATABASE_URL`.
+3. **Environment Variables**: `DATABASE_URL` = la URL del paso 1 y `SEED_DEMO` = `true` (carga la demo de Cristales Ariel). `JWT_SECRET` es opcional: si no está, se deriva de `DATABASE_URL`. Las claves de los avisos (`VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY`) también son opcionales: si no están, se derivan del secreto.
+
+Cuando la demo cambia (`DEMO_VERSION` en `prisma/seed.ts`), al publicar se vuelve a crear sola. Solo toca la cuenta de demo (`ariel@demo.com`), nunca una cuenta real.
 
 Cuando se mude al repo de Lumina, `render.yaml` crea las dos cosas sola (**New → Blueprint**).
 
@@ -91,6 +108,8 @@ docs/            Respuestas de cada cliente
 - Trabajos y agenda de mediciones e instalaciones por equipo, con órdenes de trabajo para los colocadores en el celular.
 - Jornales de colocadores.
 - Compras al proveedor por WhatsApp.
-- Stock de perfiles, herrajes y retazos, y optimización del corte de planchas.
+- Stock de perfiles, herrajes y **retazos**: que el presupuestador avise "tenés un retazo de 8 mm que sirve", y optimización del corte de planchas.
+- Ficha de obra para el colocador (dirección, dibujo, materiales y checklist); la foto del trabajo terminado pasa a la web y se le pide reseña de Google al cliente.
+- Leer el mensaje del cliente con IA (hoy son reglas simples).
 - Caja, cobros, señas, cuentas corrientes, gastos fijos y ganancia por trabajo y por mes.
 - Factura ARCA.

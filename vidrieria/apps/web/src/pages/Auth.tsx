@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { ErrorBox, Field } from '../components/ui';
+import { forgetMe } from '../lib/me';
 
 function AuthShell({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -27,6 +28,7 @@ export function Login() {
     mutationFn: () => api('/auth/login', { body: { email, password } }),
     onSuccess: () => {
       qc.clear();
+      forgetMe();
       nav('/panel');
     },
   });
@@ -66,6 +68,7 @@ export function Signup() {
     mutationFn: () => api('/auth/signup', { body: f }),
     onSuccess: () => {
       qc.clear();
+      forgetMe();
       nav('/panel');
     },
   });

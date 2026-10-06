@@ -112,10 +112,16 @@ export default function Quotes() {
                     <Link to={`/panel/presupuestos/${r.id}`}>
                       <strong>{r.customer?.name ?? 'Sin cliente'}</strong>
                     </Link>
-                    <span className="muted block small">{r.title || '—'}</span>
+                    <span className="muted block small">
+                      {r.title || '—'}
+                      {r.optionCount > 1 && <span className="pill small-pill">{r.optionCount} opciones</span>}
+                    </span>
                   </td>
                   <td>
                     <StatusChip status={r.status} />
+                    {r.status === 'ACCEPTED' && r.depositPaidAt && <span className="pill small-pill good">seña ✓</span>}
+                    {r.status === 'ACCEPTED' && !r.depositPaidAt && r.depositReportedAt && <span className="pill small-pill warn">seña a confirmar</span>}
+                    {r.viewCount > 1 && r.status !== 'ACCEPTED' && <span className="muted small block">lo abrió {r.viewCount} veces</span>}
                   </td>
                   <td className="num">{money(r.total)}</td>
                   <td className="hide-sm muted">{dateFmt(r.createdAt)}</td>

@@ -5,6 +5,7 @@ import { api, errMsg } from '../api';
 import { ErrorBox, Field, Loading, NumInput, toast } from '../components/ui';
 import { dateTimeFmt, money2 } from '../lib/format';
 import type { Business, User } from '../lib/types';
+import { PushCard } from './Dashboard';
 
 export default function Settings() {
   const qc = useQueryClient();
@@ -40,6 +41,13 @@ export default function Settings() {
           validDays: b.validDays,
           customerAdjust: b.customerAdjust,
           quoteFooter: b.quoteFooter,
+          dollarAlertPct: b.dollarAlertPct,
+          payAlias: b.payAlias,
+          payCbu: b.payCbu,
+          payHolder: b.payHolder,
+          payNote: b.payNote,
+          supplierName: b.supplierName,
+          supplierWhatsapp: b.supplierWhatsapp,
         },
       }),
     onSuccess: (b) => {
@@ -53,7 +61,9 @@ export default function Settings() {
   });
   if (q.isLoading || !f) return q.error ? <ErrorBox error={q.error} /> : <Loading />;
   const set = <K extends keyof Business>(k: K, v: Business[K]) => setF({ ...f, [k]: v });
-  const text = (k: 'name' | 'slug' | 'whatsapp' | 'email' | 'address' | 'zones' | 'hours' | 'instagram') => ({
+  const text = (
+    k: 'name' | 'slug' | 'whatsapp' | 'email' | 'address' | 'zones' | 'hours' | 'instagram' | 'payAlias' | 'payCbu' | 'payHolder' | 'payNote' | 'supplierName' | 'supplierWhatsapp',
+  ) => ({
     value: f[k],
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(k, e.target.value),
   });
@@ -110,6 +120,9 @@ export default function Settings() {
           <Field label="IVA (%)">
             <NumInput value={f.vatPct} onChange={(v) => set('vatPct', v ?? 0)} />
           </Field>
+          <Field label="Avisarme si el dólar sube más de (%)" hint="En Inicio te muestra los presupuestos mandados que quedaron baratos">
+            <NumInput value={f.dollarAlertPct} onChange={(v) => set('dollarAlertPct', v ?? 0)} />
+          </Field>
         </div>
         <label className="check">
           <input type="checkbox" checked={f.pricesIncludeVat} onChange={(e) => set('pricesIncludeVat', e.target.checked)} />
@@ -127,6 +140,44 @@ export default function Settings() {
         <Field label="Texto al pie del presupuesto" wide>
           <textarea rows={2} value={f.quoteFooter} onChange={(e) => set('quoteFooter', e.target.value)} placeholder="Ej.: Seña del 50 % para empezar; el saldo, al terminar." />
         </Field>
+      </section>
+
+      <section className="card">
+        <h2>Cobro de señas</h2>
+        <p className="muted small">Cuando el cliente acepta, ve estos datos para transferir la seña y sube el comprobante. Te llega el aviso para confirmar el cobro.</p>
+        <div className="form-grid">
+          <Field label="Alias">
+            <input {...text('payAlias')} placeholder="cristales.ariel" autoComplete="off" />
+          </Field>
+          <Field label="CBU o CVU">
+            <input {...text('payCbu')} inputMode="numeric" autoComplete="off" />
+          </Field>
+          <Field label="Titular">
+            <input {...text('payHolder')} />
+          </Field>
+          <Field label="Aclaración (opcional)" hint="Ej.: También aceptamos efectivo en el local.">
+            <input {...text('payNote')} />
+          </Field>
+        </div>
+      </section>
+
+      <section className="card">
+        <h2>Proveedor</h2>
+        <p className="muted small">Para mandarle el pedido desde Compras con un toque.</p>
+        <div className="form-grid">
+          <Field label="Nombre">
+            <input {...text('supplierName')} placeholder="Ej.: Elasic" />
+          </Field>
+          <Field label="WhatsApp">
+            <input {...text('supplierWhatsapp')} inputMode="tel" />
+          </Field>
+        </div>
+      </section>
+
+      <section className="card">
+        <h2>Avisos en este dispositivo</h2>
+        <PushCard always />
+        <p className="muted small">Se activa en cada celular o compu por separado (vos y tu socio, cada uno en el suyo).</p>
       </section>
 
       <section className="card">

@@ -10,46 +10,32 @@ import {
   CUSTOMER_TYPE_LABEL,
   calcQuote,
   linesFromTemplate,
+  parsePieces,
   type Basis,
   type CustomerType,
   type ItemInput,
   type LineInput,
+  type QuoteResult,
   type QuoteSettings,
-  type Unit,
 } from '@vidrieria/shared';
 import { api, errMsg } from '../api';
-import { ErrorBox, Field, Loading, NumInput, StatusChip, copyText, toast } from '../components/ui';
-import { dateFmt, dollars, money, money2, qty } from '../lib/format';
+import { PieceSketch } from '../components/PieceSketch';
+import { ErrorBox, Field, Loading, Modal, NumInput, StatusChip, copyText, toast } from '../components/ui';
+import { dateFmt, dateTimeFmt, dollars, money, money2, qty } from '../lib/format';
 import { useMe } from '../lib/me';
+import { itemFromSpec, lineFromCatalog, templateForKind } from '../lib/pieces';
 import type { CatalogItem, Customer, Lead, Quote, QuoteSettingsResponse, Template } from '../lib/types';
 import { quoteMessage, quoteUrl, waLink } from '../lib/whatsapp';
 
-const DEFAULT_BASIS: Record<Unit, Basis> = { M2: 'm2', ML: 'perimetro', UNIT: 'unidad', FIXED: 'fijo' };
-
-function lineFromCatalog(c: CatalogItem, fixed = false): LineInput {
-  return {
-    catalogItemId: c.id,
-    name: c.name,
-    basis: fixed ? 'fijo' : DEFAULT_BASIS[c.unit],
-    factor: 1,
-    unitPrice: c.price,
-    currency: c.currency,
-    applyWaste: c.isGlass,
-  };
+/** Una opción del presupuesto (simple / mejor / premium). Flete, urgencia y ajuste son comunes. */
+interface Opt {
+  label: string;
+  items: ItemInput[];
+  extras: LineInput[];
+  discount: number;
 }
-
-/** Plantilla que mejor corresponde al tipo de trabajo que pidió el visitante. */
-function templateForKind(kind: string, templates: Template[]) {
-  const k = kind.toLowerCase();
-  const pick = (re: RegExp) => templates.find((t) => re.test(t.name.toLowerCase()));
-  if (/box/.test(k)) return pick(/box/);
-  if (/mampara/.test(k)) return pick(/mampara/);
-  if (/espejo/.test(k)) return pick(/espejo/);
-  if (/cambio|roto/.test(k)) return pick(/cambio/);
-  if (/baranda|escalera/.test(k)) return pick(/baranda|escalera/);
-  if (/dvh|doble/.test(k)) return pick(/dvh/);
-  return undefined;
-}
+const LETTERS = ['A', 'B', 'C'];
+const emptyOpt = (): Opt => ({ label: '', items: [], extras: [], discount: 0 });
 
 interface NewCustomer {
   name: string;
@@ -76,12 +62,12 @@ export default function QuoteEditor() {
   const [newCustomer, setNewCustomer] = useState<NewCustomer | null>(null);
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
-  const [items, setItems] = useState<ItemInput[]>([]);
-  const [extras, setExtras] = useState<LineInput[]>([]);
+  const [opts, setOpts] = useState<Opt[]>([emptyOpt()]);
+  const [active, setActive] = useState(0);
   const [freightKm, setFreightKm] = useState(0);
   const [urgent, setUrgent] = useState(false);
   const [adjustPct, setAdjustPct] = useState(0);
-  const [discount, setDiscount] = useState(0);
+  const [pasting, setPasting] = useState(false);
   const [validDays, setValidDays] = useState<number | null>(null);
   const [useTodayDollar, setUseTodayDollar] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -89,6 +75,14 @@ export default function QuoteEditor() {
 
   const catalog = catalogQ.data ?? [];
   const templates = templatesQ.data ?? [];
+
+  // items, extras y descuento son los de la opción que se está viendo.
+  const cur = opts[active] ?? opts[0];
+  const { items, extras, discount } = cur;
+  const patchCur = (fn: (o: Opt) => Opt) => setOpts((all) => all.map((o, i) => (i === active ? fn(o) : o)));
+  const setItems = (v: ItemInput[] | ((a: ItemInput[]) => ItemInput[])) => patchCur((o) => ({ ...o, items: typeof v === 'function' ? v(o.items) : v }));
+  const setExtras = (v: LineInput[]) => patchCur((o) => ({ ...o, extras: v }));
+  const setDiscount = (n: number) => patchCur((o) => ({ ...o, discount: n }));
 
   // Carga inicial: presupuesto existente o consulta de la web.
   useEffect(() => {
@@ -98,12 +92,15 @@ export default function QuoteEditor() {
       setNewCustomer(null);
       setTitle(q.title);
       setNotes(q.notes);
-      setItems(q.input.items);
-      setExtras(q.input.extras);
+      setOpts(
+        q.options?.length
+          ? q.options.map((o) => ({ label: o.label, items: o.input.items, extras: o.input.extras, discount: o.input.discount }))
+          : [{ label: '', items: q.input.items, extras: q.input.extras, discount: q.input.discount }],
+      );
+      setActive(q.chosenOption ?? 0);
       setFreightKm(q.input.freightKm);
       setUrgent(q.input.urgent);
       setAdjustPct(q.input.adjustPct);
-      setDiscount(q.input.discount);
       setValidDays(Math.max(1, Math.round((new Date(q.validUntil).getTime() - new Date(q.createdAt).getTime()) / 86_400_000)));
       setUseTodayDollar(false);
       setDirty(false);
@@ -118,13 +115,19 @@ export default function QuoteEditor() {
       setNotes([l.details, l.when ? `Para: ${l.when}` : '', l.zone ? `Zona: ${l.zone}` : ''].filter(Boolean).join('\n'));
       const t = templateForKind(l.kind, templatesQ.data);
       const cat = catalogQ.data.map((c) => ({ ...c }));
-      setItems([
+      setActive(0);
+      setOpts([
         {
+          ...emptyOpt(),
+          items: [
+            {
           title: l.kind,
           widthMm: l.widthCm ? Math.round(l.widthCm * 10) : (t?.defaultWidthMm ?? 1000),
           heightMm: l.heightCm ? Math.round(l.heightCm * 10) : (t?.defaultHeightMm ?? 1000),
           quantity: l.quantity ?? 1,
           lines: t ? linesFromTemplate(t.lines, cat) : [],
+            },
+          ],
         },
       ]);
       void api<Customer[]>(`/customers?q=${encodeURIComponent(l.phone)}`).then((found) => {
@@ -141,10 +144,12 @@ export default function QuoteEditor() {
     return settingsQ.data.settings;
   }, [settingsQ.data, quoteQ.data, useTodayDollar]);
 
-  const result = useMemo(
-    () => (settings ? calcQuote({ items, extras, freightKm, urgent, adjustPct, discount }, settings) : null),
-    [items, extras, freightKm, urgent, adjustPct, discount, settings],
+  const results = useMemo(
+    () => (settings ? opts.map((o) => calcQuote({ items: o.items, extras: o.extras, discount: o.discount, freightKm, urgent, adjustPct }, settings)) : null),
+    [opts, freightKm, urgent, adjustPct, settings],
   );
+  const result = results?.[active] ?? results?.[0] ?? null;
+  const emptyOptions = opts.some((o) => !o.items.length && !o.extras.length);
 
   const setCustomerType = (type: CustomerType) => {
     setAdjustPct(settingsQ.data?.customerAdjust[type] ?? 0);
@@ -159,18 +164,20 @@ export default function QuoteEditor() {
         setCustomer(c);
         setNewCustomer(null);
       }
+      const multi = opts.length > 1;
       const body = {
         customerId,
         leadId: id ? undefined : leadId,
         title,
         notes,
-        items,
-        extras,
+        items: opts[0].items,
+        extras: opts[0].extras,
+        discount: opts[0].discount,
         freightKm,
         urgent,
         adjustPct,
-        discount,
         validDays: validDays ?? undefined,
+        options: multi ? opts.map((o, i) => ({ ...o, label: o.label.trim() || `Opción ${LETTERS[i]}` })) : null,
       };
       return id
         ? api<Quote>(`/quotes/${id}${useTodayDollar ? '?recalcDollar=1' : ''}`, { method: 'PUT', body })
@@ -214,6 +221,26 @@ export default function QuoteEditor() {
     touch();
   };
   const dollar = settingsQ.data!.dollar;
+  const addOption = () => {
+    setOpts((all) => {
+      const named = all.map((o, i) => ({ ...o, label: o.label || `Opción ${LETTERS[i]}` }));
+      return [...named, { ...structuredClone(cur), label: `Opción ${LETTERS[all.length]}` }];
+    });
+    setActive(opts.length);
+    touch();
+  };
+  const removeOption = (i: number) => {
+    setOpts((all) => all.filter((_, j) => j !== i));
+    setActive(0);
+    touch();
+  };
+  // Trae el costo del catálogo a las líneas que no lo tienen (presupuestos viejos o ítems recién costeados).
+  const missingCosts = items.flatMap((it) => it.lines).concat(extras).filter((l) => l.unitCost == null && catalog.find((c) => c.id === l.catalogItemId)?.cost != null).length;
+  const fillCosts = () => {
+    const withCost = (l: LineInput): LineInput => (l.unitCost != null ? l : { ...l, unitCost: catalog.find((c) => c.id === l.catalogItemId)?.cost ?? null });
+    patchCur((o) => ({ ...o, items: o.items.map((it) => ({ ...it, lines: it.lines.map(withCost) })), extras: o.extras.map(withCost) }));
+    touch();
+  };
 
   return (
     <div className="editor">
@@ -260,6 +287,65 @@ export default function QuoteEditor() {
             </Field>
           </section>
 
+          {!locked && (
+            <section className={'card options-card' + (opts.length > 1 ? '' : ' compact')}>
+              {opts.length > 1 ? (
+                <>
+                  <div className="row between">
+                    <h2>Opciones para el cliente</h2>
+                    {opts.length < 3 && (
+                      <button type="button" className="link-btn small" onClick={addOption}>
+                        + Otra opción
+                      </button>
+                    )}
+                  </div>
+                  <div className="opt-tabs" role="tablist">
+                    {opts.map((o, i) => (
+                      <button key={i} type="button" role="tab" aria-selected={i === active} className={'opt-tab' + (i === active ? ' on' : '')} onClick={() => setActive(i)}>
+                        <span>{o.label || `Opción ${LETTERS[i]}`}</span>
+                        <strong>{money(results?.[i]?.total)}</strong>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="row wrap">
+                    <Field label="Nombre de esta opción">
+                      <input
+                        value={cur.label}
+                        maxLength={80}
+                        placeholder="Ej.: Simple, Templado, Premium"
+                        onChange={(e) => {
+                          patchCur((o) => ({ ...o, label: e.target.value }));
+                          touch();
+                        }}
+                      />
+                    </Field>
+                    <button type="button" className="link-btn small danger" onClick={() => removeOption(active)}>
+                      Quitar esta opción
+                    </button>
+                  </div>
+                  <p className="muted small">El cliente las ve una al lado de la otra y acepta la que elige. Flete, urgencia y ajuste son los mismos para todas.</p>
+                </>
+              ) : (
+                <button type="button" className="link-btn" onClick={addOption}>
+                  + Ofrecer otra opción (ej.: simple y premium)
+                </button>
+              )}
+            </section>
+          )}
+
+          {!!q?.photoIds?.length && (
+            <section className="card">
+              <h2>Fotos de la medición</h2>
+              <div className="photos">
+                {q.photoIds.map((pid) => (
+                  <a key={pid} href={`/api/assets/${pid}`} target="_blank" rel="noreferrer">
+                    <img src={`/api/assets/${pid}`} alt="Foto de la medición" />
+                  </a>
+                ))}
+              </div>
+            </section>
+          )}
+
           {items.map((it, i) => (
             <ItemCard
               key={i}
@@ -293,8 +379,25 @@ export default function QuoteEditor() {
                 <strong>Trabajo vacío</strong>
                 <span className="muted small">Cargás los ítems a mano</span>
               </button>
+              <button type="button" className="template-btn paste" onClick={() => setPasting(true)}>
+                <strong>Pegar mensaje</strong>
+                <span className="muted small">Pegás lo que mandó el cliente y armo los trabajos</span>
+              </button>
             </div>
           </section>
+          {pasting && (
+            <PasteModal
+              onClose={() => setPasting(false)}
+              onAdd={(specs) => {
+                const added = specs.map((p) => itemFromSpec(p, templates, catalog));
+                setItems((all) => [...all, ...added]);
+                if (!title && added[0]) setTitle(added.length === 1 ? added[0].title : `${added[0].title} y más`);
+                touch();
+                setPasting(false);
+                toast(added.length === 1 ? 'Agregué 1 trabajo' : `Agregué ${added.length} trabajos`);
+              }}
+            />
+          )}
 
           <section className="card">
             <h2>Cargos del presupuesto</h2>
@@ -328,7 +431,7 @@ export default function QuoteEditor() {
                   }}
                 />
               </Field>
-              <Field label="Descuento ($)">
+              <Field label={opts.length > 1 ? `Descuento ($) · ${cur.label || `Opción ${LETTERS[active]}`}` : 'Descuento ($)'}>
                 <NumInput
                   value={discount}
                   onChange={(v) => {
@@ -367,7 +470,7 @@ export default function QuoteEditor() {
         </div>
 
         <aside className="summary card" id="resumen">
-          <h2>Total</h2>
+          <h2>Total{opts.length > 1 && <span className="muted"> · {cur.label || `Opción ${LETTERS[active]}`}</span>}</h2>
           <dl className="totals">
             <dt>Trabajos</dt>
             <dd>{money(result.subtotal)}</dd>
@@ -423,11 +526,12 @@ export default function QuoteEditor() {
             )}
             {dollar.fallback && <span className="muted block">No se pudo leer el dólar en internet: se usa el que cargaste en Ajustes.</span>}
           </div>
+          <ProfitBox result={result} missingCosts={locked ? 0 : missingCosts} onFillCosts={fillCosts} />
 
           {locked ? (
             <p className="note good">Aceptado el {dateFmt(q!.acceptedAt!)}. Para cambiarlo, duplicalo.</p>
           ) : (
-            <button className="btn primary block" type="button" disabled={save.isPending || (!items.length && !extras.length)} onClick={() => save.mutate()}>
+            <button className="btn primary block" type="button" disabled={save.isPending || emptyOptions} onClick={() => save.mutate()}>
               {save.isPending ? 'Guardando…' : id ? (dirty ? 'Guardar cambios' : 'Guardado ✓') : 'Guardar presupuesto'}
             </button>
           )}
@@ -444,7 +548,7 @@ export default function QuoteEditor() {
             Ver
           </a>
         ) : dirty || !id ? (
-          <button className="btn primary" type="button" disabled={save.isPending || (!items.length && !extras.length)} onClick={() => save.mutate()}>
+          <button className="btn primary" type="button" disabled={save.isPending || emptyOptions} onClick={() => save.mutate()}>
             {save.isPending ? 'Guardando…' : 'Guardar'}
           </button>
         ) : (
@@ -582,6 +686,7 @@ function ItemCard({
           {qty(result.areaM2)} m² · {qty(result.perimeterMl)} ml de canto
           {settings.wastePct > 0 && <span className="muted"> · vidrio +{qty(settings.wastePct)} %</span>}
         </p>
+        {item.widthMm > 0 && item.heightMm > 0 && <PieceSketch widthMm={item.widthMm} heightMm={item.heightMm} quantity={item.quantity} size="sm" />}
       </div>
       <LinesTable lines={result.lines} settings={settings} catalog={catalog} onChange={(lines) => onChange({ lines })} />
       <p className="item-total">
@@ -615,6 +720,7 @@ function LinesTable({
     applyWaste: l.applyWaste,
     qtyOverride: l.qtyOverride ?? null,
     priceOverride: l.priceOverride ?? null,
+    unitCost: l.unitCost ?? null,
   });
   const set = (i: number, patch: Partial<LineInput>) => onChange(lines.map((l, j) => (j === i ? { ...strip(l), ...patch } : strip(l))));
   const byCat = CATEGORIES.map((c) => ({ c, items: catalog.filter((i) => i.category === c) })).filter((g) => g.items.length);
@@ -710,12 +816,21 @@ function ShareBox({ quote, dirty, businessName }: { quote: Quote; dirty: boolean
   };
   const sent = useMutation({ mutationFn: () => api(`/quotes/${quote.id}/sent`, { method: 'POST' }), onSuccess: refresh });
   const setStatus = useMutation({
-    mutationFn: (status: 'ACCEPTED' | 'REJECTED' | 'SENT') => api(`/quotes/${quote.id}/status`, { body: { status } }),
+    mutationFn: ({ status, option }: { status: 'ACCEPTED' | 'REJECTED' | 'SENT'; option?: number }) => api(`/quotes/${quote.id}/status`, { body: { status, option } }),
     onSuccess: () => {
       refresh();
       toast('Estado actualizado');
     },
   });
+  const paid = useMutation({
+    mutationFn: (v: boolean) => api(`/quotes/${quote.id}/deposit-paid`, { body: { paid: v } }),
+    onSuccess: (_r, v) => {
+      refresh();
+      toast(v ? 'Seña cobrada ✓' : 'Listo');
+    },
+    onError: (e) => toast(errMsg(e)),
+  });
+  const pickOptions = quote.options && quote.chosenOption == null ? quote.options : null;
   const dup = useMutation({
     mutationFn: () => api<Quote>(`/quotes/${quote.id}/duplicate`, { method: 'POST' }),
     onSuccess: (q) => {
@@ -732,7 +847,7 @@ function ShareBox({ quote, dirty, businessName }: { quote: Quote; dirty: boolean
     },
     onError: (e) => toast(errMsg(e)),
   });
-  const msg = quoteMessage({ ...quote, customer: quote.customer }, businessName);
+  const msg = quoteMessage({ ...quote, customer: quote.customer }, businessName, pickOptions?.map((o) => ({ label: o.label, total: o.result.total })));
 
   return (
     <div className="share">
@@ -754,14 +869,54 @@ function ShareBox({ quote, dirty, businessName }: { quote: Quote; dirty: boolean
           </div>
         </>
       )}
+      {quote.status === 'ACCEPTED' && (
+        <div className={'deposit ' + (quote.depositPaidAt ? 'good' : quote.depositReportedAt ? 'warn' : '')}>
+          {quote.depositPaidAt ? (
+            <>
+              <strong>Seña cobrada</strong> el {dateFmt(quote.depositPaidAt)} ({money(quote.deposit)}).{' '}
+              <button type="button" className="link-btn small" onClick={() => paid.mutate(false)}>
+                Deshacer
+              </button>
+            </>
+          ) : quote.depositReportedAt ? (
+            <>
+              <strong>El cliente mandó el comprobante</strong> de la seña ({money(quote.deposit)}) el {dateTimeFmt(quote.depositReportedAt)}.
+              <div className="row wrap">
+                {quote.depositProofId && (
+                  <a className="btn small" href={`/api/assets/${quote.depositProofId}`} target="_blank" rel="noreferrer">
+                    Ver comprobante
+                  </a>
+                )}
+                <button type="button" className="btn small primary" disabled={paid.isPending} onClick={() => paid.mutate(true)}>
+                  Confirmar cobro
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              Seña pendiente: {money(quote.deposit)}.{' '}
+              <button type="button" className="link-btn small" disabled={paid.isPending} onClick={() => paid.mutate(true)}>
+                Ya la cobré
+              </button>
+            </>
+          )}
+        </div>
+      )}
       <div className="row wrap">
-        {quote.status !== 'ACCEPTED' && (
-          <button type="button" className="btn small" onClick={() => setStatus.mutate('ACCEPTED')}>
-            Marcar aceptado
-          </button>
-        )}
+        {quote.status !== 'ACCEPTED' &&
+          (pickOptions ? (
+            pickOptions.map((o, i) => (
+              <button key={i} type="button" className="btn small" onClick={() => setStatus.mutate({ status: 'ACCEPTED', option: i })}>
+                Aceptó: {o.label}
+              </button>
+            ))
+          ) : (
+            <button type="button" className="btn small" onClick={() => setStatus.mutate({ status: 'ACCEPTED' })}>
+              Marcar aceptado
+            </button>
+          ))}
         {quote.status !== 'REJECTED' && quote.status !== 'ACCEPTED' && (
-          <button type="button" className="btn small" onClick={() => setStatus.mutate('REJECTED')}>
+          <button type="button" className="btn small" onClick={() => setStatus.mutate({ status: 'REJECTED' })}>
             No lo hizo
           </button>
         )}
@@ -775,8 +930,82 @@ function ShareBox({ quote, dirty, businessName }: { quote: Quote; dirty: boolean
         )}
       </div>
       <p className="muted small">
-        {quote.viewedAt ? `El cliente lo abrió el ${dateFmt(quote.viewedAt)}.` : quote.sentAt ? 'Enviado; todavía no lo abrió.' : 'Todavía no se envió.'} Vence el {dateFmt(quote.validUntil)}.
+        {quote.viewCount
+          ? `El cliente lo abrió ${quote.viewCount === 1 ? '1 vez' : `${quote.viewCount} veces`}${quote.lastViewedAt ? ` (la última, ${dateTimeFmt(quote.lastViewedAt)})` : ''}.`
+          : quote.viewedAt
+            ? `El cliente lo abrió el ${dateFmt(quote.viewedAt)}.`
+            : quote.sentAt
+              ? 'Enviado; todavía no lo abrió.'
+              : 'Todavía no se envió.'}{' '}
+        {quote.chosenOption != null && quote.options?.[quote.chosenOption] && `Eligió: ${quote.options[quote.chosenOption].label}. `}
+        Vence el {dateFmt(quote.validUntil)}.
       </p>
     </div>
+  );
+}
+
+/** Cuánto le queda: costo de los materiales cargados y ganancia estimada (el cliente nunca lo ve). */
+function ProfitBox({ result, missingCosts, onFillCosts }: { result: QuoteResult; missingCosts: number; onFillCosts: () => void }) {
+  const pct = result.total > 0 ? Math.round((result.profit / result.total) * 100) : 0;
+  return (
+    <div className="profit-box small">
+      {result.costedLines ? (
+        <>
+          <span>
+            Costo <strong>{money(result.cost)}</strong>
+          </span>
+          <span>
+            Te quedan <strong className={result.profit < 0 ? 'bad' : 'good'}>{money(result.profit)}</strong> ({qty(pct)} %)
+          </span>
+          {result.costedLines < result.totalLines && (
+            <span className="muted block">
+              Estimada: {result.totalLines - result.costedLines} ítem(s) sin costo en <Link to="/panel/precios">Precios</Link>.
+            </span>
+          )}
+        </>
+      ) : (
+        <span className="muted">
+          Cargá el costo de tus materiales en <Link to="/panel/precios">Precios</Link> y acá vas a ver cuánto te queda.
+        </span>
+      )}
+      {missingCosts > 0 && (
+        <button type="button" className="link-btn small block" onClick={onFillCosts}>
+          Tomar el costo del catálogo ({missingCosts} ítem{missingCosts > 1 ? 's' : ''})
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** Pegar el mensaje del cliente (o lo dictado) y convertirlo en trabajos. */
+function PasteModal({ onClose, onAdd }: { onClose: () => void; onAdd: (specs: (ReturnType<typeof parsePieces>[number] & { title: string })[]) => void }) {
+  const [text, setText] = useState('');
+  const found = useMemo(() => parsePieces(text), [text]);
+  return (
+    <Modal title="Pegar mensaje del cliente" onClose={onClose}>
+      <p className="muted small">Copiá el mensaje de WhatsApp y pegalo acá. Busco medidas, cantidades, tipo de trabajo y espesor.</p>
+      <textarea rows={5} value={text} onChange={(e) => setText(e.target.value)} placeholder="Ej.: Hola! necesito 2 vidrios de 50x70 de 4mm y un espejo de 1x1.5" autoFocus aria-label="Mensaje del cliente" />
+      {text.trim() && !found.length && <p className="note">No encontré medidas. Tienen que estar como «50x70», «1,20 por 1,80» o «1200×1800».</p>}
+      {!!found.length && (
+        <ul className="paste-list">
+          {found.map((p, i) => (
+            <li key={i}>
+              <PieceSketch widthMm={p.widthMm} heightMm={p.heightMm} quantity={p.quantity} size="sm" />
+              <span>
+                <strong>{p.label}</strong>
+                <span className="mono small block">
+                  {qty(p.widthMm)} × {qty(p.heightMm)} mm{p.quantity > 1 ? ` · ${p.quantity} u` : ''}
+                </span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="actions">
+        <button type="button" className="btn primary" disabled={!found.length} onClick={() => onAdd(found.map((p) => ({ ...p, title: p.kind === 'vidrio' ? p.label : '' })))}>
+          {found.length > 1 ? `Agregar ${found.length} trabajos` : 'Agregar trabajo'}
+        </button>
+      </div>
+    </Modal>
   );
 }

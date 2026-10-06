@@ -4,6 +4,8 @@ import { Loading, Toaster } from './components/ui';
 import { PanelLayout } from './components/PanelLayout';
 import { Landing } from './pages/Landing';
 import { Login, Signup } from './pages/Auth';
+// Medir va en el paquete principal: tiene que abrir sin señal aunque nunca se haya entrado antes.
+import Measure from './pages/Measure';
 import { PublicQuotePage } from './pages/PublicQuote';
 import { Site } from './site/Site';
 
@@ -15,6 +17,7 @@ const Customers = lazy(() => import('./pages/Customers'));
 const Prices = lazy(() => import('./pages/Prices'));
 const MySite = lazy(() => import('./pages/MySite'));
 const Settings = lazy(() => import('./pages/Settings'));
+const Purchases = lazy(() => import('./pages/Purchases'));
 
 declare global {
   interface Window {
@@ -43,6 +46,8 @@ export function App() {
             <Route path="presupuestos" element={<Quotes />} />
             <Route path="presupuestos/nuevo" element={<QuoteEditor />} />
             <Route path="presupuestos/:id" element={<QuoteEditor />} />
+            <Route path="medir" element={<Measure />} />
+            <Route path="compras" element={<Purchases />} />
             <Route path="clientes" element={<Customers />} />
             <Route path="precios" element={<Prices />} />
             <Route path="mi-web" element={<MySite />} />

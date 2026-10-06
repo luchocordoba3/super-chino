@@ -1,0 +1,362 @@
+<title>Mapa del software vidriero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;800&family=Figtree:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+  /* Informe largo: una columna de lectura, cada área con su lista de funciones y su estado (ya está / parcial / falta). */
+  :root {
+    --bg: #f3f5f9;
+    --surface: #ffffff;
+    --fg: #121826;
+    --muted: #586174;
+    --line: #dbe1ea;
+    --brand: #1d4ed8;
+    --brand-soft: #e6edfd;
+    --accent: #dc2626;
+    --good: #15803d;
+    --good-soft: #e3f5e9;
+    --warn: #a35a06;
+    --warn-soft: #fcf0dc;
+    --todo: #475569;
+    --todo-soft: #eceff4;
+    --display: 'Archivo', 'Arial Narrow', system-ui, sans-serif;
+    --body: 'Figtree', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --mono: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d1220; --surface: #151c2e; --fg: #e8ecf4; --muted: #9aa5ba; --line: #283350;
+      --brand: #7ea2ff; --brand-soft: #1c2a4f; --accent: #ff7a7a; --good: #5fd28a; --good-soft: #15301f;
+      --warn: #f2b45a; --warn-soft: #362812; --todo: #b6c0d3; --todo-soft: #222b40; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1220; --surface: #151c2e; --fg: #e8ecf4; --muted: #9aa5ba; --line: #283350;
+    --brand: #7ea2ff; --brand-soft: #1c2a4f; --accent: #ff7a7a; --good: #5fd28a; --good-soft: #15301f;
+    --warn: #f2b45a; --warn-soft: #362812; --todo: #b6c0d3; --todo-soft: #222b40; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--fg); font: 16px/1.6 var(--body); }
+  .wrap { max-width: 860px; margin: 0 auto; padding-inline: 18px; padding-block: 28px 64px; display: flex; flex-direction: column; gap: 28px; }
+  h1, h2, h3 { font-family: var(--display); line-height: 1.15; text-wrap: balance; margin: 0; }
+  h1 { font-size: clamp(30px, 6vw, 44px); font-weight: 800; letter-spacing: -0.01em; }
+  h2 { font-size: 26px; font-weight: 800; }
+  h3 { font-size: 18px; font-weight: 600; }
+  p { margin: 0; }
+  a { color: var(--brand); }
+  .eyebrow { font: 500 12px/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+  .lead { font-size: 18px; color: var(--muted); max-width: 64ch; }
+  header { display: flex; flex-direction: column; gap: 12px; }
+  section { display: flex; flex-direction: column; gap: 14px; }
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .muted { color: var(--muted); }
+  .small { font-size: 14px; }
+
+  /* Ciclo de áreas */
+  .cycle { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; list-style: none; margin: 0; padding: 0; }
+  .cycle li { flex: 1 1 140px; min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 4px; position: relative; }
+  .cycle li strong { font-family: var(--display); font-size: 17px; }
+  .cycle li span { font-size: 13px; color: var(--muted); line-height: 1.4; }
+  .cycle .was { font: 500 11px/1.3 var(--mono); color: var(--brand); letter-spacing: 0.04em; }
+  .loop { font-size: 14px; color: var(--muted); }
+
+  /* Hallazgos */
+  .findings { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .findings li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; }
+  .findings .n { font: 500 13px/1.6 var(--mono); color: var(--accent); grid-row: span 2; }
+  .findings strong { font-family: var(--display); font-weight: 600; font-size: 17px; }
+  .findings p { color: var(--muted); font-size: 15px; }
+
+  /* Estado por área */
+  .score { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+  .score div { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+  .score b { font-family: var(--display); font-size: 16px; }
+  .bar { height: 8px; border-radius: 99px; background: var(--todo-soft); overflow: hidden; display: flex; }
+  .bar i { display: block; height: 100%; }
+  .bar .g { background: var(--good); }
+  .bar .w { background: var(--warn); }
+  .score small { font: 500 12px/1.3 var(--mono); color: var(--muted); }
+
+  /* Lista de funciones */
+  .area-head { display: flex; flex-direction: column; gap: 6px; }
+  .feats { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+  .feats li { border-bottom: 1px solid var(--line); padding: 12px 0; display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; }
+  .feats .name { font-weight: 700; }
+  .feats .why { grid-column: 1 / -1; color: var(--muted); font-size: 15px; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; align-items: start; }
+  .chip { font: 500 11px/1 var(--mono); letter-spacing: 0.04em; text-transform: uppercase; padding: 5px 8px; border-radius: 99px; white-space: nowrap; }
+  .done { background: var(--good-soft); color: var(--good); }
+  .part { background: var(--warn-soft); color: var(--warn); }
+  .todo { background: var(--todo-soft); color: var(--todo); }
+  .p-alta { background: var(--accent); color: #fff; }
+  .p-media { background: transparent; color: var(--fg); border: 1px solid var(--line); }
+  .p-baja { background: transparent; color: var(--muted); border: 1px dashed var(--line); }
+  .p-idea { background: var(--brand-soft); color: var(--brand); }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; color: var(--muted); }
+
+  /* Tablas */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 560px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font: 500 11px/1.2 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  tr:last-child td { border-bottom: 0; }
+  td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  /* Etapas */
+  .stages { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; counter-reset: st; }
+  .stages li { counter-increment: st; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px 14px 56px; position: relative; display: flex; flex-direction: column; gap: 4px; }
+  .stages li::before { content: counter(st); position: absolute; left: 16px; top: 13px; width: 28px; height: 28px; border-radius: 8px; background: var(--brand); color: #fff; font: 800 15px/28px var(--display); text-align: center; }
+  .stages p { color: var(--muted); font-size: 15px; }
+
+  .no { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .no li { padding-left: 22px; position: relative; color: var(--muted); }
+  .no li::before { content: "×"; position: absolute; left: 4px; color: var(--accent); font-weight: 700; }
+  .sources { font-size: 13px; color: var(--muted); display: flex; flex-direction: column; gap: 6px; }
+  .sources a { word-break: break-all; }
+  details { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; }
+  summary { cursor: pointer; font-weight: 700; }
+  summary:focus-visible, a:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+  details[open] summary { margin-bottom: 10px; }
+  footer { font: 500 12px/1.4 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); text-align: center; }
+  @media (max-width: 520px) {
+    .feats li { grid-template-columns: 1fr; }
+    .chips { justify-content: flex-start; }
+  }
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Lumina · Investigación para Cristales Ariel · octubre 2026</span>
+    <h1>Qué tiene que tener el software de una vidriería</h1>
+    <p class="lead">Revisamos el software del rubro en el mundo y en Argentina, cómo opera una vidriería chica y qué funciona para vender en oficios. Lo cruzamos con lo que Ariel nos contó y con lo que ya está hecho en su sistema.</p>
+  </header>
+
+  <section>
+    <h2>Tus 4 pilares, con un ajuste</h2>
+    <p>La idea es correcta: Administración, Ventas, Delivery y Marketing cubren el negocio. Proponemos dos cambios.</p>
+    <ul class="cycle" aria-label="Áreas del negocio, en el orden en que pasa un cliente">
+      <li><span class="was">Marketing</span><strong>Atraer</strong><span>Web, Google, redes, carteles de obra, recomendaciones.</span></li>
+      <li><span class="was">Ventas</span><strong>Convertir</strong><span>Responder rápido, medir, presupuestar, seguir y cobrar la seña.</span></li>
+      <li><span class="was">Delivery → Operaciones</span><strong>Hacer</strong><span>Pedir al proveedor, templado, taller, agenda de equipos, colocación.</span></li>
+      <li><span class="was">Administración</span><strong>Cobrar y controlar</strong><span>Caja, facturas, jornales, gastos, ganancia, tope del monotributo.</span></li>
+      <li><span class="was">Nuevo: Postventa</span><strong>Volver a vender</strong><span>Reseñas, garantía, mantenimiento, recomendaciones.</span></li>
+    </ul>
+    <p class="loop small">1. <strong>Delivery queda corto:</strong> en una vidriería, entregar es comprar al proveedor, esperar el templado, cortar y coordinar 3 equipos. Por eso lo llamamos <strong>Operaciones</strong>.<br>2. <strong>Postventa va aparte</strong> porque es el marketing más barato. Una reseña, una garantía bien cumplida o un cliente que recomienda traen el próximo trabajo, y así el ciclo vuelve a empezar.</p>
+    <p class="small">También hay que corregir algo que dijiste: lo que tenemos hoy resuelve sobre todo <strong>Ventas</strong>, no Administración. Administración es justamente lo más flojo: todavía no hay caja, jornales, gastos ni facturas.</p>
+  </section>
+
+  <section>
+    <h2>Dónde estamos hoy</h2>
+    <div class="score" role="list">
+      <div role="listitem"><b>Marketing</b><span class="bar"><i class="g" style="width:11%"></i><i class="w" style="width:22%"></i></span><small>1 hecha · 2 parciales · 6 faltan</small></div>
+      <div role="listitem"><b>Ventas</b><span class="bar"><i class="g" style="width:50%"></i><i class="w" style="width:14%"></i></span><small>7 hechas · 2 parciales · 5 faltan</small></div>
+      <div role="listitem"><b>Operaciones</b><span class="bar"><i class="g" style="width:30%"></i><i class="w" style="width:0%"></i></span><small>3 hechas · 7 faltan</small></div>
+      <div role="listitem"><b>Administración</b><span class="bar"><i class="g" style="width:27%"></i><i class="w" style="width:9%"></i></span><small>3 hechas · 1 parcial · 7 faltan</small></div>
+      <div role="listitem"><b>Postventa</b><span class="bar"><i class="g" style="width:0%"></i></span><small>0 hechas · 5 faltan</small></div>
+    </div>
+    <p class="small muted">Cuenta solo las funciones de las listas de abajo. Verde: ya está. Naranja: está a medias.</p>
+  </section>
+
+  <section>
+    <h2>Lo más importante que encontramos</h2>
+    <ul class="findings">
+      <li><span class="n">01</span><strong>Ariel podría quedar chico para el monotributo</strong><p>El tope anual de la categoría K es de $126,6 millones, unos $10,5 millones por mes. A precios del AMBA, eso son entre 18 y 45 mamparas por mes, y Ariel cuenta que hace 15 a 40 presupuestos por semana y cierra casi todos. Además, ARCA cruza lo que entra en el banco y en las billeteras con lo que se factura. Un tablero de "facturado contra tope" sirve para planificar con su contador. <strong>Ningún software del rubro lo tiene.</strong></p></li>
+      <li><span class="n">02</span><strong>"Cierro casi todos" probablemente quiere decir que cobra poco</strong><p>En oficios, lo normal es cerrar entre el 10 % y el 35 % de los presupuestos. Hay que medir la tasa real (incluidos los que nunca respondieron) y probar subir un 10 % en una parte de los presupuestos. Es la mejora de ganancia más barata que existe.</p></li>
+      <li><span class="n">03</span><strong>El vidrio de seguridad es obligatorio en mamparas, barandas y puertas</strong><p>Lo pide la norma IRAM 12595 para las áreas con riesgo de golpe, y en CABA es ley (Ley 6438 y su reglamento técnico). El presupuestador puede avisar si alguien carga float en una mampara o una baranda, y guardar la conformidad del cliente si igual lo quiere así.</p></li>
+      <li><span class="n">04</span><strong>Google decide quién recibe la llamada</strong><p>Estar entre los 3 primeros del mapa da 126 % más tráfico que estar más abajo. Cuando se le pide la reseña, la deja el 51 % de los clientes. Pedirla por WhatsApp el mismo día de la colocación, a todos, es la función de marketing con más impacto y menos esfuerzo.</p></li>
+      <li><span class="n">05</span><strong>El templado es el cuello de botella</strong><p>El templado se fabrica a medida, tarda de 5 a 20 días hábiles y después no se puede cortar. Seguir cada trabajo por estados con una fecha prometida (pedido → en templado → recibido → colocado) evita reclamos y ordena la agenda de los 3 equipos.</p></li>
+      <li><span class="n">06</span><strong>Lo de Argentina no lo resuelve nadie</strong><p>Los programas de afuera (Smart Glazier, Glazier, GlassManager) son buenos presupuestando y en la app del colocador. Ninguno factura con ARCA, ninguno trabaja en pesos y dólares con inflación y ninguno usa WhatsApp como canal principal. Ahí está la ventaja de Lumina.</p></li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Qué tiene que tener, área por área</h2>
+    <div class="legend"><span class="chip done">Ya está</span><span class="chip part">Parcial</span><span class="chip todo">Falta</span><span class="chip p-alta">Alta</span><span class="chip p-media">Media</span><span class="chip p-baja">Baja</span><span class="chip p-idea">Idea nueva</span></div>
+    <p class="small muted">La prioridad está pensada para un taller de 3 personas con 3 equipos de colocación.</p>
+  </section>
+
+  <section class="panel" aria-labelledby="mkt">
+    <div class="area-head"><span class="eyebrow">Atraer</span><h2 id="mkt">Marketing</h2><p class="muted small">Hoy llegan por WhatsApp, recomendaciones y carteles en obra. Lo que falta es aparecer en Google y medir de dónde viene cada cliente.</p></div>
+    <ul class="feats">
+      <li><span class="name">Web propia con pedido de presupuesto, fotos, preguntas y WhatsApp</span><span class="chips"><span class="chip done">Ya está</span></span><span class="why">Falta el dominio propio y las fotos reales de Ariel.</span></li>
+      <li><span class="name">Kit para el perfil de Google</span><span class="chips"><span class="chip todo">Falta</span><span class="chip p-alta">Alta</span></span><span class="why">Guía para configurarlo como negocio a domicilio (hasta 20 zonas, dirección oculta), link directo para dejar reseña y QR para el presupuesto y la factura. Las fichas con fotos reciben 35 % más clics a la web.</span></li>
+      <li><span class="name">Páginas por servicio (mamparas, escaleras, cambio de vidrio, cerramientos)</span><span class="chips"><span class="chip part">Parcial</span><span class="chip p-media">Media</span></span><span class="why">Hoy hay una sola página con los servicios. Las páginas por barrio solo sirven con obras reales de ese barrio: hechas en serie con plantilla, Google las castiga como spam.</span></li>
+      <li><span class="name">Galería etiquetada por tipo de trabajo, herraje y barrio</span><span class="chips"><span class="chip part">Parcial</span><span class="chip p-media">Media</span></span><span class="why">La galería ya existe; falta etiquetarla. Con las etiquetas, el presupuesto adjunta solo fotos de trabajos parecidos, que es la forma más barata de "visualizar".</span></li>
+      <li><span class="name">Origen de cada cliente</span><span class="chips"><span class="chip todo">Falta</span><span class="chip p-alta">Alta</span></span><span class="why">Web, Google, Instagram, cartel o recomendación. Sin esto no se sabe qué canal conviene.</span></li>
+      <li><span class="name">QR propio en cada cartel de obra</span><span class="chips"><span class="chip todo">Falta</span><span class="chip p-media">Media</span></span><span class="why">Lleva a la página de esa obra y cuenta cuántos clientes trae cada cartel.</span></li>
+      <li><span class="name">Antes y después listo para Instagram</span><span class="chips"><span class="chip todo">Falta</span><span class="chip p-media">Media</span></span><span class="why">Al cerrar un trabajo se piden las fotos y se arma el texto. Los Reels llegan al doble de gente que los carruseles; los carruseles se guardan más.</span></li>
+      <li><span class="name">Alerta de tormenta</span><span class="chips"><span class="chip todo">Falta</span><span class="chip p-idea">Idea nueva</span></span><span class="why">Si el Servicio Meteorológico Nacional avisa granizo en CABA o zona norte, se activa un cartel de "urgencias" en la web y un aviso a los clientes de esos barrios. Las alertas son datos abiertos.</span></li>
+      <li><span class="name">Mercado Libre Servicios y Marketplace</span><span class="chips"><span class="chip todo">Falta</span><span class="chip p-baja">Baja</span></span><span class="why">Son canales secundarios. Mercado Libre Servicios cobra un abono fijo, sin comisión por trabajo.</span></li>
+    </ul>
+  </section>
+
+  <section class="panel" aria-labelledby="ventas">
+    <div class="area-head"><span class="eyebrow">Convertir</span><h2 id="ventas">Ventas</h2><p class="muted small">Es el área más avanzada. La seña online y la medición sin señal ya son funciones que casi ningún competidor chico tiene.</p></div>
+    <ul class="feats">
+      <li><span class="name">Presupuestador con plantillas, m², desperdicio y dólar del día</span><span class="chips"><span class="chip done">Ya está</span></span><span class="why">Pasa de 10–30 minutos en cuaderno a menos de 2 minutos.</span></li>
+      <li><span class="name">Opciones simple / premium que elige el cliente</span><span class="chips"><span class="chip done">Ya está</span></span><span class="why">Se dice que suben el ticket entre 15 % y 25 %. El dato viene de quienes venden software, así que hay que medirlo con los números de Ariel.</span></li>
+      <li><span class="name">Link de presupuesto con aceptación, seña y comprobante</span><span class="chips"><span class="chip done">Ya está</span></span><span class="why">Diferencial: entre los competidores, solo BidClips tiene algo parecido.</span></li>
+      <li><span class="name">Seguimiento y aviso cuando el cliente lo abre</span><span class="chips"><span class="chip done">Ya está</span></span><span class="why">Responder dentro de la primera hora da unas 7 veces más chances que esperar una hora más (Harvard Business Review).</span></li>
+      <li><span class="name">Medición en obra sin señal, con dictado</span><span class="chips"><span class="chip done">Ya está</span></span><span class="why">Casi ningún competidor tiene una app que funcione de verdad sin señal.</span></li>
+      <li><span class="name">Pegar el WhatsApp del cliente y armar los trabajos</span><span class="chips"><span class="chip done">Ya está</span></span><span class="why">Funciona con reglas simples. Más adelante se le puede sumar IA.</span></li>
+      <li><span class="name">Dibujo a escala en el presupuesto</span><span class="chips"><span class="chip done">Ya está</span></span><span class="why">Un croquis en 2D resuelve lo mismo que los diseñadores 3D caros.</span></li>
+      <li><span class="name">Aviso de vidrio de seguridad</span><span class="chips"><span class="chip todo">Falta</span><span class="chip p-alta">Alta</span></span><span class="why">Si se carga float en una mampara, una baranda, una puerta, un paño bajo o un techo, el sistema avisa y propone templado o laminado. Si el cliente igual lo quiere así, queda su conformidad.</span></li>
+      <li><span class="name">Tablero de cierre real</span><span class="chips"><span class="chip todo">Falta</span><span class="chip p-alta">Alta</span></span><span class="why">Muestra la tasa de cierre por origen, el tiempo de respuesta y el ticket promedio, y avisa cuando el precio parece bajo. Con eso se puede hacer la prueba de subir un 10 %.</span></li>
+      <li><span class="name">Cuotas en el presupuesto</span><span class="chips"><span class="chip todo">Falta</span><span class="chip p-alta">Alta</span></span><span class="why">"12 cuotas de $X" calculado con la tabla de Mercado Pago que cargue Ariel. Las fuentes no coinciden en el costo de las cuotas, así que no conviene fijar un número en el sistema.</span></li>
+      <li><span class="name">Respuesta al instante y precalificación</span><span class="chips"><span class="chip part">Parcial</span><span class="chip p-media">Media</span></span><span class="why">El formulario ya pide tipo, medidas, fotos y zona. Falta la respuesta automática por WhatsApp y que un vidrio roto urgente avise al celular como urgencia.</span></li>
+      <li><span class="name">Profesionales: constructoras, arquitectos, consorcios y otras vidrierías</span><span class="chips"><span class="chip part">Parcial</span><span class="chip p-media">Media</span></span><span class="why">Ya existe el ajuste de precio por tipo de cliente. Falta la cuenta corriente con saldo, el historial de obras y la ficha de cada edificio.</span></li>
+      <li><span class="name">Simulación con foto</span><span class="chips"><span class="chip todo">Falta</span><span class="chip p-idea">Idea nueva</span></span><span class="why">El cliente manda una foto de su baño o su escalera y recibe una imagen con la mampara o la baranda propuesta. Se puede hacer con los créditos de Higgsfield.</span></li>
+      <li><span class="name">Presupuesto para la aseguradora</span><span class="chips"><span class="chip todo">Falta</span><span class="chip p-baja">Baja</span></span><span class="why">Muchas pólizas de hogar cubren la rotura de vidrios, y el trámite empieza con un presupuesto formal.</span></li>
+    </ul>
+  </section>
+
+  <section class="panel" aria-labelledby="ops">
+    <div class="area-head"><span class="eyebrow">Hacer · lo que llamaste Delivery</span><h2 id="ops">Operaciones</h2><p class="muted small">Ariel dice que organizar a los colocadores y comprar material le come el tiempo. Hoy un trabajo aceptado no tiene ni fecha ni equipo asignado.</p></div>
+    <ul class="feats">
+      <li><span class="name">Medición en obra</span><span class="chips"><span class="chip done">Ya está</span></span><span class="why">Con fotos y notas por pieza.</span></li>
+      <li><span class="name">Lista de compras al proveedor por WhatsApp</span><span class="chips"><span class="chip done">Ya está</span></span><span class="why">Arma las piezas a cortar por material y suma los herrajes.</span></li>
+      <li><span class="name">Dibujo de cada pieza con sus medidas</span><span class="chips"><span class="chip done">Ya está</span></span><span class="why">Sirve también como orden de corte.</span></li>
+      <li><span class="name">Estados del trabajo y seguimiento del templado</span><span class="chips"><span class="chip todo">Falta</span><span class="chip p-alta">Alta</span></span><span class="why">Señado → pedido → en templado → recibido → colocado → cobrado. La fecha prometida se calcula con el plazo del proveedor (de 5 a 20 días hábiles). No deja pedir el templado sin la medida confirmada ni la seña cobrada. Si se atrasa, avisa al cliente.</span></li>
+      <li><span class="name">Agenda de los 3 equipos</span><span class="chips"><span class="chip todo">Falta</span><span class="chip p-alta">Alta</span></span><span class="why">Calendario por equipo, con confirmación del turno y un "vamos en camino" por WhatsApp.</span></li>
+      <li><span class="name">Ficha de obra para el colocador, en el celular</span><span class="chips"><span class="chip todo">Falta</span><span class="chip p-alta">Alta</span></span><span class="why">Dirección con Maps, dibujo, piezas y peso total. Avisa cuando una pieza necesita 2 personas (el laminado 3+3 pesa unos 15 kg/m²). Tiene checklist de seguridad y foto final.</span></li>
+      <li><span class="name">Roturas y reposiciones</span><span class="chips"><span class="chip todo">Falta</span><span class="chip p-media">Media</span></span><span class="why">Dónde se rompió (taller, traslado, obra o postventa), cuánto costó, quién fue, y el nuevo pedido ligado al trabajo original.</span></li>
+      <li><span class="name">Retazos con foto y sugerencia al presupuestar</span><span class="chips"><span class="chip todo">Falta</span><span class="chip p-media">Media</span></span><span class="why">Hoy los tira. En un caso de estudio, el uso de retazos pasó del 4 % al 25 %. Con un inventario simple alcanza; la optimización industrial es demasiado para 3 personas.</span></li>
+      <li><span class="name">Stock básico de herrajes, perfiles y siliconas</span><span class="chips"><span class="chip todo">Falta</span><span class="chip p-media">Media</span></span><span class="why">"A veces me quedo sin material". Alcanza con un mínimo por ítem y un aviso para reponer.</span></li>
+      <li><span class="name">Garantía con QR en el trabajo</span><span class="chips"><span class="chip todo">Falta</span><span class="chip p-idea">Idea nueva</span></span><span class="why">Una etiqueta en la mampara o el DVH abre la ficha del trabajo (fecha, vidrio, colocador) para reclamos y para volver a comprar. No encontramos ningún producto que gestione garantías.</span></li>
+    </ul>
+  </section>
+
+  <section class="panel" aria-labelledby="adm">
+    <div class="area-head"><span class="eyebrow">Cobrar y controlar</span><h2 id="adm">Administración</h2><p class="muted small">Ariel anota en cuaderno y sabe "más o menos" cuánto gana. Es el área donde Lumina puede diferenciarse más, porque nadie del rubro resuelve lo de Argentina.</p></div>
+    <ul class="feats">
+      <li><span class="name">Catálogo, dólar automático y actualización de precios por %</span><span class="chips"><span class="chip done">Ya está</span></span><span class="why">La inflación interanual es del 33,5 % (agosto 2026): actualizar los precios rápido es imprescindible.</span></li>
+      <li><span class="name">Ganancia estimada por presupuesto y del mes</span><span class="chips"><span class="chip done">Ya está</span></span><span class="why">Hoy solo descuenta el material. Le falta restar los jornales, el combustible y la comisión de cobro.</span></li>
+      <li><span class="name">Comprobante de seña y confirmación del cobro</span><span class="chips"><span class="chip done">Ya está</span></span><span class="why">Se podría leer solo el monto del comprobante para conciliarlo.</span></li>
+      <li><span class="name">Caja y cobros</span><span class="chips"><span class="chip todo">Falta</span><span class="chip p-alta">Alta</span></span><span class="why">Seña y saldo por trabajo, con todos los medios (efectivo, transferencia, Mercado Pago, cheque) y lo que queda neto de comisión. Con un QR que se paga por transferencia, Mercado Pago cobra 0,8 %; con crédito al instante, 5,99 %.</span></li>
+      <li><span class="name">Link de pago de Mercado Pago con aviso automático</span><span class="chips"><span class="chip todo">Falta</span><span class="chip p-alta">Alta</span></span><span class="why">El cliente paga la seña con un toque y el sistema la marca como cobrada sola, sin revisar comprobantes.</span></li>
+      <li><span class="name">Factura C por ARCA y control del tope del monotributo</span><span class="chips"><span class="chip todo">Falta</span><span class="chip p-alta">Alta</span></span><span class="why">Se emite desde el presupuesto aceptado (por la API de ARCA o con un proveedor como TusFacturas). Muestra lo facturado en los últimos 12 meses contra el tope, con alerta al 80 %. Ningún software del rubro lo tiene.</span></li>
+      <li><span class="name">Jornales por equipo</span><span class="chips"><span class="chip todo">Falta</span><span class="chip p-alta">Alta</span></span><span class="why">Ariel paga por día. Hace falta registrar quién trabajó, en qué obra, los adelantos y la liquidación semanal. Con eso, cada trabajo sabe su costo real de colocación.</span></li>
+      <li><span class="name">Gastos fijos y vehículo</span><span class="chips"><span class="chip todo">Falta</span><span class="chip p-media">Media</span></span><span class="why">Alquiler, luz, contador, seguro, VTV, combustible y service. Repartidos por día hábil, permiten saber cuánto cuesta abrir el taller cada día.</span></li>
+      <li><span class="name">Cuentas por cobrar y cuentas corrientes</span><span class="chips"><span class="chip part">Parcial</span><span class="chip p-media">Media</span></span><span class="why">Hoy hay seña y saldo por presupuesto. Faltan los saldos por cliente con su antigüedad, sobre todo para constructoras.</span></li>
+      <li><span class="name">Cheques y echeqs</span><span class="chips"><span class="chip todo">Falta</span><span class="chip p-media">Media</span></span><span class="why">Cartera con la fecha de cobro de cada uno. Un echeq vence a hasta 360 días y se puede endosar.</span></li>
+      <li><span class="name">Indicadores del dueño</span><span class="chips"><span class="chip todo">Falta</span><span class="chip p-media">Media</span></span><span class="why">Caja proyectada a 30 días, rentabilidad por tipo de trabajo (mampara, DVH, baranda, aberturas) y punto de equilibrio (gastos fijos ÷ margen).</span></li>
+    </ul>
+  </section>
+
+  <section class="panel" aria-labelledby="post">
+    <div class="area-head"><span class="eyebrow">Volver a vender</span><h2 id="post">Postventa</h2><p class="muted small">Ariel "nunca vuelve a contactar". Los remodeladores atribuyen el 37 % de sus clientes a recomendaciones, y hoy todo eso queda librado a la suerte.</p></div>
+    <ul class="feats">
+      <li><span class="name">Pedido de reseña de Google automático</span><span class="chips"><span class="chip todo">Falta</span><span class="chip p-alta">Alta</span></span><span class="why">Por WhatsApp el día de la colocación, a todos los clientes. Google prohíbe dar algo a cambio de la reseña y pedírsela solo a los contentos.</span></li>
+      <li><span class="name">Control a los 30 días y mantenimiento a los 6 y 12 meses</span><span class="chips"><span class="chip todo">Falta</span><span class="chip p-media">Media</span></span><span class="why">La ley de defensa del consumidor da 30 días de garantía sobre el servicio. Revisar herrajes y burletes es una excusa para volver a vender.</span></li>
+      <li><span class="name">Link de recomendación con beneficio</span><span class="chips"><span class="chip todo">Falta</span><span class="chip p-media">Media</span></span><span class="why">Dar un beneficio por recomendar está permitido; por una reseña, no. Se mide cuántos clientes trae cada uno.</span></li>
+      <li><span class="name">Vidrios registrados por edificio, para consorcios</span><span class="chips"><span class="chip todo">Falta</span><span class="chip p-idea">Idea nueva</span></span><span class="why">Las medidas y el tipo de cada vidrio quedan cargados. Ante una rotura, el presupuesto sale en minutos. Se puede ofrecer como abono a los administradores.</span></li>
+      <li><span class="name">Garantía visible en el presupuesto</span><span class="chips"><span class="chip todo">Falta</span><span class="chip p-baja">Baja</span></span><span class="why">Lo habitual es dar de 6 a 12 meses de garantía de colocación. El fabricante del DVH garantiza de 5 a 10 años contra el empañamiento.</span></li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Orden que recomendamos para la etapa 2</h2>
+    <ol class="stages">
+      <li><strong>Trabajos y agenda</strong><p>Estados del trabajo con seguimiento del templado, agenda de los 3 equipos, ficha para el colocador y jornales. Resuelve "organizar colocadores", que es uno de sus dolores principales.</p></li>
+      <li><strong>La plata</strong><p>Caja, cobros con su comisión, link de Mercado Pago con aviso automático, gastos fijos y ganancia real (material + jornales + comisión).</p></li>
+      <li><strong>Reseñas y tablero de cierre</strong><p>Pedido de reseña automático, origen de cada cliente, tasa de cierre y prueba de precio. Es lo más barato de hacer y lo que más puede mover la plata.</p></li>
+      <li><strong>ARCA y monotributo</strong><p>Factura C desde el presupuesto y control del tope. Antes hay que hablar con su contador (si factura como bienes o servicios, y cómo factura hoy).</p></li>
+      <li><strong>Lo demás</strong><p>Retazos, roturas, stock, cuentas corrientes de profesionales, simulación con foto y alerta de tormenta.</p></li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Lo que no conviene copiar</h2>
+    <ul class="no">
+      <li>Software de fábrica (LiSEC, A+W, FeneVision): QR por pieza, conexión con máquinas de corte y hornos.</li>
+      <li>Optimización completa del corte de planchas: Ariel compra mucho cortado a medida, y con el inventario de retazos alcanza.</li>
+      <li>Diseñador 3D interactivo: es caro de hacer, y el dibujo 2D con medidas cumple la misma función.</li>
+      <li>Rutas optimizadas y GPS de los colocadores: no se justifica para 3 equipos en una sola zona.</li>
+      <li>Cómputo de aberturas por perfil: Aluar ya lo da gratis (Winmaker Aluar Web). Conviene importar ese resultado.</li>
+      <li>Varias sucursales, permisos complejos y contabilidad completa: para eso está el contador.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Competidores relevados</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Software</th><th>Para quién</th><th>Lo que hace bien</th><th>Precio</th></tr></thead>
+        <tbody>
+          <tr><td>Smart Glazier</td><td>Colocadores de mamparas y barandas (AU, NZ, EE.UU.)</td><td>Diseño 3D, comparación de proveedores, app del colocador (sin modo offline)</td><td class="num">49–230 /mes</td></tr>
+          <tr><td>Glazier</td><td>Vidrierías de EE.UU.</td><td>Cobro y firma en el lugar, horas por GPS, cobranza con IA</td><td class="num">sin publicar</td></tr>
+          <tr><td>GlassManager</td><td>Comercial EE.UU.</td><td>Link de aprobación, tareas de taller y de obra</td><td class="num">US$65–85 /usuario</td></tr>
+          <tr><td>GlassBiller</td><td>Vidrios de auto</td><td>Agenda, cobros y pedido automático de reseñas</td><td class="num">US$19–199 /mes</td></tr>
+          <tr><td>BidClips</td><td>Servicios</td><td>Captación, presupuesto con fotos y seña online</td><td class="num">a pedido</td></tr>
+          <tr><td>Lepton Winmaker</td><td>Aberturas, Argentina</td><td>Optimización de perfiles y vidrios, pesos y dólares</td><td class="num">sin publicar</td></tr>
+          <tr><td>OP 2.1 (Megevand)</td><td>Aberturas, Argentina</td><td>Mano de obra por m², mamparas templadas</td><td class="num">sin publicar</td></tr>
+          <tr><td>Corte Certo</td><td>Talleres, Brasil y Argentina</td><td>Optimización de planchas, etiquetas y retazos</td><td class="num">desde 275 (moneda sin confirmar)</td></tr>
+          <tr><td>Cálculo Certo</td><td>Vidrierías chicas, Brasil</td><td>Proyectos, medidas para templar, stock y finanzas</td><td class="num">R$59 /mes</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Números de referencia</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Dato</th><th>Valor</th><th>Para qué sirve</th></tr></thead>
+        <tbody>
+          <tr><td>Tope monotributo K (desde 1/8/2026)</td><td class="num">$126.610.839 /año</td><td>Alerta de facturación</td></tr>
+          <tr><td>Mampara corrediza colocada, AMBA (jul. 2026)</td><td class="num">$364.000–650.000</td><td>Comparar precios</td></tr>
+          <tr><td>Cambio de vidrio común colocado, AMBA</td><td class="num">$35.000–70.000</td><td>Comparar precios</td></tr>
+          <tr><td>Plazo del templado</td><td class="num">5–20 días hábiles</td><td>Fecha prometida</td></tr>
+          <tr><td>Aprovechamiento de planchas sin y con optimización</td><td class="num">85 % → 89 %</td><td>Desperdicio</td></tr>
+          <tr><td>Mercado Pago: QR por transferencia / crédito al instante</td><td class="num">0,8 % / 5,99 % + IVA</td><td>Neto de cada cobro</td></tr>
+          <tr><td>API de WhatsApp, mensaje de utilidad en Argentina</td><td class="num">US$0,026</td><td>300 recordatorios ≈ US$8 /mes</td></tr>
+          <tr><td>Tasa de cierre normal en oficios</td><td class="num">10–35 %</td><td>Ver si cobra poco</td></tr>
+          <tr><td>Jornal UOCRA zona A, sept. 2026 (oficial / ayudante)</td><td class="num">$6.468 / $5.502 por hora</td><td>Referencia de jornales</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Qué falta confirmar</h2>
+    <ul class="no">
+      <li>Los formatos de plancha y los plazos de templado de Elasic: hay que pedírselos a Ariel o a Elasic.</li>
+      <li>Si hay norma de vidrio de seguridad en Provincia de Buenos Aires o en San Martín: no encontramos ninguna vigente (Ariel está en Villa Ballester). La ley de CABA aplica a los trabajos en CABA.</li>
+      <li>Si la colocación se factura como bienes o como servicios en el monotributo, y cómo factura Ariel hoy: lo tiene que definir su contador.</li>
+      <li>Los precios de TusFacturas y Facturante, y las comisiones vigentes de Mercado Pago.</li>
+      <li>Si se puede usar el mismo número en la app de WhatsApp y en la API a la vez.</li>
+    </ul>
+    <p class="small muted">Varios sitios oficiales estaban bloqueados desde el entorno de investigación, así que muchos datos salen de los resúmenes del buscador. Las cifras que publican las propias empresas de software (subas del ticket, realidad aumentada, recomendaciones) son orientativas.</p>
+  </section>
+
+  <details>
+    <summary>Fuentes principales</summary>
+    <div class="sources">
+      <a href="https://smartglazier.com/nz/pricing" target="_blank" rel="noopener">smartglazier.com/nz/pricing</a>
+      <a href="https://glaziersoftware.com/features/technicians" target="_blank" rel="noopener">glaziersoftware.com/features/technicians</a>
+      <a href="https://www.softwareadvice.com/product/523618-GlassBiller" target="_blank" rel="noopener">softwareadvice.com · GlassBiller</a>
+      <a href="https://lepton.com.ar/web/productos/software-para-carpinteria-de-aluminio-y-pvc" target="_blank" rel="noopener">lepton.com.ar · Winmaker</a>
+      <a href="https://www.aluar.com.ar/novedad-profesional/winmaker-aluar-web-nueva-herramienta-gratuita-para-el-carpintero-de-aluminio" target="_blank" rel="noopener">aluar.com.ar · Winmaker Aluar Web</a>
+      <a href="https://www.cortecerto.com/es/productos/corte-certo-2d/comparar-versiones" target="_blank" rel="noopener">cortecerto.com · versiones</a>
+      <a href="https://vidros.inf.br/doze-softwares-para-vidracarias-em-um-so-lugar" target="_blank" rel="noopener">vidros.inf.br · 12 softwares para vidrierías</a>
+      <a href="https://www.vasa.com.ar/wp-content/uploads/2024/11/VASA_-_BT_27_Donde_y_porque_deben_emplearse_vidrios_de_seguridad_en_un_edificio_FINAL.pdf" target="_blank" rel="noopener">VASA · dónde usar vidrio de seguridad</a>
+      <a href="https://www.caviplan.org.ar/vidrios-de-seguridad/" target="_blank" rel="noopener">caviplan.org.ar · vidrios de seguridad</a>
+      <a href="https://sinigep.bue.edu.ar/docs/adjuntos/2023/DI2_UERESGP2022.pdf" target="_blank" rel="noopener">CABA · reglamento técnico vidrio de seguridad</a>
+      <a href="https://www.lmneuquen.com/pais/arca-actualizo-los-montos-del-monotributo-las-nuevas-escalas-y-topes-facturacion-agosto-2026-n1247656" target="_blank" rel="noopener">Topes del monotributo, agosto 2026</a>
+      <a href="https://www.iprofesional.com/impuestos/448686-arca-excluye-monotributo-por-depositos-billeteras-virtuales" target="_blank" rel="noopener">ARCA cruza depósitos de billeteras</a>
+      <a href="https://developargentina.com/blog/facturacion-electronica-arca-guia-completa-2025" target="_blank" rel="noopener">Factura electrónica ARCA por API</a>
+      <a href="https://www.iproup.com/finanzas/64002-mercado-pago-uala-modo-cual-es-mas-barato-para-cobrar-en-comercios-y-emprendimientos" target="_blank" rel="noopener">Comisiones Mercado Pago 2026</a>
+      <a href="https://servidos.ar/blog/cuanto-cuesta-mampara-ducha-buenos-aires" target="_blank" rel="noopener">servidos.ar · precios de mamparas AMBA</a>
+      <a href="https://www.soci.ai/insights/top-ranking-and-conversion-factors-for-local-search/" target="_blank" rel="noopener">SOCi · top 3 del mapa de Google</a>
+      <a href="https://www.brightlocal.com/research/local-consumer-review-survey/" target="_blank" rel="noopener">BrightLocal · encuesta de reseñas</a>
+      <a href="https://support.google.com/contributionpolicy/answer/7400114" target="_blank" rel="noopener">Google · política de reseñas</a>
+      <a href="https://developers.google.com/search/docs/essentials/spam-policies" target="_blank" rel="noopener">Google · páginas en serie (spam)</a>
+      <a href="https://hbr.org/2011/03/the-short-life-of-online-sales-leads" target="_blank" rel="noopener">HBR · velocidad de respuesta</a>
+      <a href="https://ominiflow.com/whatsapp-api-pricing/argentina" target="_blank" rel="noopener">Precios de la API de WhatsApp en Argentina</a>
+      <a href="https://www.proremodeler.com/getting-right-close-ratio-your-remodeling-sales" target="_blank" rel="noopener">Tasa de cierre en remodelación</a>
+      <a href="https://tesis.pucp.edu.pe/repositorio/bitstream/20.500.12404/14288/1/MONZON_%20DURAND%20_JAVIER%20_ALEXANDER.pdf" target="_blank" rel="noopener">PUCP · optimización de corte y retazos</a>
+      <a href="https://datos.gob.ar/zh_CN/dataset/smn-alertas-meteorologicas-365-dias" target="_blank" rel="noopener">SMN · alertas meteorológicas (datos abiertos)</a>
+    </div>
+  </details>
+
+  <footer>Hecho por Lumina</footer>
+</div>

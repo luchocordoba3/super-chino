@@ -9,6 +9,18 @@ import { createQuote } from '../src/services/quotes';
 import { defaultSite, loadStarterKit } from '../src/services/starter';
 
 const SLUG = 'cristales-ariel';
+
+/** Imágenes ilustrativas generadas con Higgsfield (hasta tener las fotos reales de Ariel). */
+const CDN = 'https://d8j0ntlcm91z4.cloudfront.net/user_3Hq3BUFDflm9iqDmd7XPa8cr6Rw/';
+const IMG = {
+  hero: CDN + 'hf_20261006_005353_e6806973-7d51-4a69-ac82-21e9d2a627b1.png',
+  mampara: CDN + 'hf_20261006_005354_41076835-e2f7-45dd-bb6c-f19b6da0aa66.png',
+  baranda: CDN + 'hf_20261006_005353_3a3ebe5d-5c52-4c82-b5e0-cde6a9170da1.png',
+  cambio: CDN + 'hf_20261006_005413_4befdefa-5f4d-4809-b95d-c9364016923d.png',
+  espejo: CDN + 'hf_20261006_005414_73487843-27d5-40a4-9f62-d4e8d3163a40.png',
+  templado: CDN + 'hf_20261006_005354_dd7247a0-456b-49fb-b304-f95949ab5f57.png',
+  frente: CDN + 'hf_20261006_005413_43be6cc3-5567-48f7-8f59-a2bc0ce74b9b.png',
+};
 const DAY = 86_400_000;
 
 export async function seedDemo({ reset = false } = {}) {
@@ -24,7 +36,7 @@ export async function seedDemo({ reset = false } = {}) {
     ...defaultSite('Cristales Ariel', zones),
     headline: 'Vidrios, mamparas y espejos a medida',
     subheadline: 'Medimos, fabricamos e instalamos en CABA y zona norte, en menos de una semana. Pedí tu presupuesto y te respondemos por WhatsApp.',
-    heroImage: '/demo/hero.jpg',
+    heroImage: IMG.hero,
     illustrativeImages: true,
     faqs: [
       { q: '¿Cuánto tardan en instalar?', a: 'Menos de una semana desde que confirmás el presupuesto.' },
@@ -34,13 +46,13 @@ export async function seedDemo({ reset = false } = {}) {
       { q: '¿Hacen factura?', a: 'Sí, hacemos factura.' },
     ],
   };
-  const images = ['/demo/mampara.jpg', '/demo/baranda.jpg', '/demo/cambio.jpg', '/demo/espejo.jpg', '/demo/templado.jpg', '/demo/frente.jpg'];
+  const images = [IMG.mampara, IMG.baranda, IMG.cambio, IMG.espejo, IMG.templado, IMG.frente];
   site.services = site.services.map((s, i) => ({ ...s, image: images[i] ?? null }));
   site.gallery = [
-    { image: '/demo/mampara.jpg', caption: 'Mampara corrediza en templado 8 mm' },
-    { image: '/demo/baranda.jpg', caption: 'Escalera con baranda de vidrio laminado' },
-    { image: '/demo/espejo.jpg', caption: 'Espejo a medida con cantos pulidos' },
-    { image: '/demo/frente.jpg', caption: 'Frente vidriado para local' },
+    { image: IMG.hero, caption: 'Escalera con baranda de vidrio laminado' },
+    { image: IMG.mampara, caption: 'Mampara corrediza en templado 8 mm' },
+    { image: IMG.baranda, caption: 'Baranda de vidrio en balcón' },
+    { image: IMG.espejo, caption: 'Espejo a medida con cantos pulidos' },
   ];
 
   const passwordHash = await bcrypt.hash('demo1234', 10);

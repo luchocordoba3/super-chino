@@ -52,6 +52,8 @@ pnpm dev               # API en :3000 y web en http://localhost:5173
 
 Web de ejemplo: http://localhost:5173/cristales-ariel
 
+Las imágenes de la demo son ilustrativas, generadas con Higgsfield, y se cargan desde su CDN. Cuando Ariel mande fotos reales, se suben desde **Mi web**.
+
 ## Pruebas
 
 ```bash

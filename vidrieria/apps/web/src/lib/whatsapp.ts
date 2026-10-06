@@ -42,3 +42,34 @@ export function leadReply(l: { name: string; kind: string }, me: string, busines
 }
 
 export { waLink };
+
+type JobMsg = { address: string; scheduledAt: string | null; promisedAt?: string | null; crewToken?: string; quote: { number: number; title: string; customer: { name: string } | null } };
+const hola = (name?: string | null) => (name ? `¡Hola ${firstName(name)}!` : '¡Hola!');
+const when = (d: string) => `${new Intl.DateTimeFormat('es-AR', { weekday: 'long', day: 'numeric', month: 'numeric' }).format(new Date(d))} a las ${new Intl.DateTimeFormat('es-AR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(d))} hs`;
+
+export const crewUrl = (token: string) => `${location.origin}/o/${token}`;
+export const warrantyUrl = (token: string) => `${location.origin}/g/${token}`;
+
+export function confirmTurnMessage(j: JobMsg) {
+  return `${hola(j.quote.customer?.name)} Te confirmamos la colocación${j.quote.title ? ` de ${j.quote.title.toLowerCase()}` : ''} para el ${j.scheduledAt ? when(j.scheduledAt) : '(fecha a confirmar)'}${j.address ? ` en ${j.address}` : ''}. ¿Te queda bien?`;
+}
+
+export function onTheWayMessage(j: JobMsg) {
+  return `${hola(j.quote.customer?.name)} Ya salimos para colocar ${j.quote.title ? j.quote.title.toLowerCase() : 'tu trabajo'}. Llegamos en un rato.`;
+}
+
+export function delayMessage(j: JobMsg) {
+  return `${hola(j.quote.customer?.name)} Te aviso que el vidrio de tu trabajo (N° ${j.quote.number}) se está demorando en fábrica. ${j.promisedAt ? `La nueva fecha estimada es el ${dayMonth(j.promisedAt)}.` : 'Apenas lo tengamos te confirmamos el día.'} Disculpá la demora.`;
+}
+
+/** Al equipo: el trabajo con el link a su ficha. */
+export function crewMessage(j: JobMsg & { crewToken: string }) {
+  return [
+    `Trabajo N° ${j.quote.number}${j.quote.title ? `: ${j.quote.title}` : ''}`,
+    j.scheduledAt ? `Día: ${when(j.scheduledAt)}` : '',
+    j.address ? `Dirección: ${j.address}` : '',
+    `Ficha con medidas, pesos y checklist: ${crewUrl(j.crewToken)}`,
+  ]
+    .filter(Boolean)
+    .join('\n');
+}

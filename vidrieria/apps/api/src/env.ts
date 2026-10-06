@@ -32,6 +32,11 @@ export const env = {
   VAPID_PUBLIC_KEY: process.env.VAPID_PUBLIC_KEY ?? '',
   VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY ?? '',
   PUSH_SUBJECT: process.env.PUSH_SUBJECT ?? 'mailto:avisos@lumina.app',
+  /** Fotos "así quedaría" con IA (Gemini). Sin clave, la función queda lista pero apagada. */
+  IMAGE_API_KEY: process.env.IMAGE_API_KEY ?? '',
+  IMAGE_MODEL: process.env.IMAGE_MODEL ?? 'gemini-2.5-flash-image',
+  /** Dirección pública de la app (links en avisos, Mercado Pago y QR). */
+  PUBLIC_URL: (process.env.PUBLIC_URL ?? process.env.RENDER_EXTERNAL_URL ?? '').replace(/\/$/, ''),
 };
 
 /**

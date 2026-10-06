@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { CUSTOMER_TYPES } from '@vidrieria/shared';
 import { prisma } from '../db';
-import { guard } from '../lib/auth';
+import { guard, requireFeature } from '../lib/auth';
 import { badRequest } from '../lib/http';
 import { dollarFor } from '../services/dollar';
 import { quoteSettings } from '../services/settings';
@@ -58,6 +58,7 @@ export async function businessRoutes(app: FastifyInstance) {
       const other = await prisma.business.findUnique({ where: { slug: body.slug } });
       if (other && other.id !== req.auth.bid) throw badRequest('slug_taken', 'Esa dirección ya la usa otra vidriería');
     }
+    if (body.customDomain) requireFeature(req, 'domain');
     if (body.customDomain) {
       const other = await prisma.business.findUnique({ where: { customDomain: body.customDomain } });
       if (other && other.id !== req.auth.bid) throw badRequest('domain_taken', 'Ese dominio ya está en uso');

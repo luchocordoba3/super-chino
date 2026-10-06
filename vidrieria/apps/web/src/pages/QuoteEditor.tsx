@@ -24,7 +24,8 @@ import { ErrorBox, Field, Loading, Modal, NumInput, StatusChip, copyText, toast 
 import { dateFmt, dateTimeFmt, dollars, money, money2, qty } from '../lib/format';
 import { useMe } from '../lib/me';
 import { itemFromSpec, lineFromCatalog, templateForKind } from '../lib/pieces';
-import type { CatalogItem, Customer, Lead, Quote, QuoteSettingsResponse, Template } from '../lib/types';
+import { useFeature } from '../lib/plan';
+import type { CatalogItem, Customer, Lead, Quote, QuoteSettingsResponse, Remnant, Template } from '../lib/types';
 import { quoteMessage, quoteUrl, waLink } from '../lib/whatsapp';
 
 /** Una opción del presupuesto (simple / mejor / premium). Flete, urgencia y ajuste son comunes. */
@@ -56,6 +57,8 @@ export default function QuoteEditor() {
   const templatesQ = useQuery({ queryKey: ['templates'], queryFn: () => api<Template[]>('/templates') });
   const quoteQ = useQuery({ queryKey: ['quote', id], queryFn: () => api<Quote>(`/quotes/${id}`), enabled: !!id });
   const leadQ = useQuery({ queryKey: ['lead', leadId], queryFn: () => api<Lead>(`/leads/${leadId}`), enabled: !!leadId && !id });
+  const canRemnants = useFeature('materials');
+  const remnantsQ = useQuery({ queryKey: ['remnants', false], queryFn: () => api<Remnant[]>('/remnants'), enabled: canRemnants });
 
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
   const [customer, setCustomer] = useState<Customer | null>(null);
@@ -363,6 +366,13 @@ export default function QuoteEditor() {
                 setItems((all) => [...all.slice(0, i + 1), structuredClone(it), ...all.slice(i + 1)]);
                 touch();
               }}
+              remnants={remnantsQ.data ?? []}
+              onUseRemnant={(r) => {
+                // El vidrio sale de un retazo: el material no cuesta (el precio al cliente no cambia).
+                updateItem(i, { lines: it.lines.map((l) => (l.applyWaste ? { ...l, unitCost: 0 } : l)) });
+                void api(`/remnants/${r.id}/use`, { body: { quoteId: id ?? null } }).then(() => qc.invalidateQueries({ queryKey: ['remnants'] }));
+                toast(`Retazo de ${qty(r.widthMm)} × ${qty(r.heightMm)} reservado para este trabajo`);
+              }}
             />
           ))}
 
@@ -646,6 +656,8 @@ function ItemCard({
   onChange,
   onRemove,
   onDuplicate,
+  remnants,
+  onUseRemnant,
 }: {
   item: ItemInput;
   index: number;
@@ -655,7 +667,15 @@ function ItemCard({
   onChange: (patch: Partial<ItemInput>) => void;
   onRemove: () => void;
   onDuplicate: () => void;
+  remnants: Remnant[];
+  onUseRemnant: (r: Remnant) => void;
 }) {
+  const glass = item.lines.find((l) => l.applyWaste);
+  const fits = (r: Remnant) => (item.widthMm <= r.widthMm && item.heightMm <= r.heightMm) || (item.widthMm <= r.heightMm && item.heightMm <= r.widthMm);
+  const remnant =
+    glass && glass.unitCost !== 0 && item.quantity === 1
+      ? remnants.find((r) => !r.usedAt && (r.catalogItemId ? r.catalogItemId === glass.catalogItemId : r.glassName === glass.name) && fits(r))
+      : undefined;
   return (
     <section className="card item-card" aria-label={`Trabajo ${index + 1}`}>
       <div className="item-head">
@@ -688,6 +708,14 @@ function ItemCard({
         </p>
         {item.widthMm > 0 && item.heightMm > 0 && <PieceSketch widthMm={item.widthMm} heightMm={item.heightMm} quantity={item.quantity} size="sm" />}
       </div>
+      {remnant && (
+        <p className="note good remnant-tip">
+          Tenés un retazo de {glass!.name} de {qty(remnant.widthMm)} × {qty(remnant.heightMm)} mm que sirve.{' '}
+          <button type="button" className="link-btn" onClick={() => onUseRemnant(remnant)}>
+            Usar retazo
+          </button>
+        </p>
+      )}
       <LinesTable lines={result.lines} settings={settings} catalog={catalog} onChange={(lines) => onChange({ lines })} />
       <p className="item-total">
         Subtotal <strong>{money(result.total)}</strong>
@@ -868,6 +896,11 @@ function ShareBox({ quote, dirty, businessName }: { quote: Quote; dirty: boolean
             </a>
           </div>
         </>
+      )}
+      {quote.job && (
+        <Link className="btn small" to={`/panel/trabajos?ver=${quote.job.id}`}>
+          Ver el trabajo (pedido, agenda y colocación)
+        </Link>
       )}
       {quote.status === 'ACCEPTED' && (
         <div className={'deposit ' + (quote.depositPaidAt ? 'good' : quote.depositReportedAt ? 'warn' : '')}>

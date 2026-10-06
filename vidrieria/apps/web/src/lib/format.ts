@@ -30,3 +30,17 @@ export function ago(d: string | Date) {
 export const toNum = (v: string): number | null => (v.trim() === '' ? null : parseNumber(v));
 
 export const firstName = (s: string | null | undefined) => (s ?? '').trim().split(/\s+/)[0] ?? '';
+
+/** "lun 6/10" */
+export const dayName = (d: string | Date) => new Intl.DateTimeFormat('es-AR', { weekday: 'short', day: 'numeric', month: 'numeric' }).format(new Date(d));
+/** "09:30" */
+export const hourFmt = (d: string | Date) => new Intl.DateTimeFormat('es-AR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(d));
+/** Valor para <input type="datetime-local"> en hora local. */
+export const toLocalInput = (d: string | Date | null | undefined) => {
+  if (!d) return '';
+  const x = new Date(d);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${x.getFullYear()}-${p(x.getMonth() + 1)}-${p(x.getDate())}T${p(x.getHours())}:${p(x.getMinutes())}`;
+};
+/** Link de Google Maps para una dirección. */
+export const mapsUrl = (address: string) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;

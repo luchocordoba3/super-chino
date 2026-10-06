@@ -1,4 +1,4 @@
-import type { Basis, Category, Currency, CustomerType, LeadStatus, QuoteInput, QuoteResult, QuoteSettings, QuoteStatus, Unit } from '@vidrieria/shared';
+import type { Basis, Category, Currency, CustomerType, LeadStatus, PlanId, QuoteInput, QuoteResult, QuoteSettings, QuoteStatus, Unit } from '@vidrieria/shared';
 
 export interface User {
   id: string;
@@ -10,7 +10,8 @@ export interface User {
 
 export interface Me {
   user: User;
-  business: { id: string; slug: string; name: string; customDomain: string | null };
+  business: { id: string; slug: string; name: string; customDomain: string | null; plan: PlanId };
+  isAdmin: boolean;
 }
 
 export interface SiteContent {
@@ -93,6 +94,8 @@ export interface CatalogItem {
   cost: number | null;
   isGlass: boolean;
   active: boolean;
+  stockQty: number | null;
+  stockMin: number | null;
   updatedAt: string;
 }
 
@@ -178,6 +181,7 @@ export interface Quote extends Omit<QuoteListItem, 'customer' | 'optionCount'> {
   dollarRate: number;
   customer: Customer | null;
   lead: Lead | null;
+  job: { id: string; status: JobStatus } | null;
 }
 
 export interface QuoteSettingsResponse {
@@ -262,4 +266,113 @@ export interface PublicQuote {
     accentColor: string;
     pay: { alias: string; cbu: string; holder: string; note: string };
   };
+}
+
+export type JobStatus = 'PENDING' | 'ORDERED' | 'MAKING' | 'RECEIVED' | 'SCHEDULED' | 'INSTALLED' | 'CLOSED';
+
+export interface Crew {
+  id: string;
+  name: string;
+  members: string;
+  dayRate: number;
+  color: string;
+  active: boolean;
+}
+
+export interface Job {
+  id: string;
+  status: JobStatus;
+  address: string;
+  needsFactory: boolean;
+  orderedAt: string | null;
+  promisedAt: string | null;
+  receivedAt: string | null;
+  scheduledAt: string | null;
+  crewId: string | null;
+  crew: Pick<Crew, 'id' | 'name' | 'color'> | null;
+  arrivedAt: string | null;
+  installedAt: string | null;
+  closedAt: string | null;
+  checklist: Record<string, boolean>;
+  beforeIds: string[];
+  afterIds: string[];
+  installNotes: string;
+  crewToken: string;
+  warrantyToken: string;
+  warrantyMonths: number;
+  confirmSentAt: string | null;
+  reviewSentAt: string | null;
+  check30SentAt: string | null;
+  maint6SentAt: string | null;
+  maint12SentAt: string | null;
+  createdAt: string;
+  quote: {
+    id: string;
+    number: number;
+    title: string;
+    total: number;
+    deposit: number;
+    depositPaidAt: string | null;
+    publicToken: string;
+    acceptedAt: string | null;
+    customer: { id: string; name: string; phone: string; address: string } | null;
+  };
+}
+
+export interface Breakage {
+  id: string;
+  jobId: string | null;
+  where: 'TALLER' | 'TRASLADO' | 'OBRA' | 'POSTVENTA';
+  description: string;
+  cost: number;
+  responsible: string;
+  reordered: boolean;
+  createdAt: string;
+  job?: { id: string; quote: { number: number; title: string } } | null;
+}
+
+export interface Remnant {
+  id: string;
+  catalogItemId: string | null;
+  glassName: string;
+  thicknessMm: number | null;
+  widthMm: number;
+  heightMm: number;
+  photoId: string | null;
+  notes: string;
+  usedAt: string | null;
+  usedQuoteId: string | null;
+  createdAt: string;
+}
+
+export interface CrewSheet {
+  business: { name: string; whatsapp: string; primaryColor: string };
+  status: JobStatus;
+  number: number;
+  title: string;
+  notes: string;
+  installNotes: string;
+  address: string;
+  scheduledAt: string | null;
+  crew: string | null;
+  customer: { name: string; phone: string } | null;
+  pieces: { title: string; widthMm: number; heightMm: number; quantity: number; glass: string | null; weightKg: number | null; includes: string[] }[];
+  extras: string[];
+  checklist: Record<string, boolean>;
+  arrivedAt: string | null;
+  installedAt: string | null;
+  photos: { before: number; after: number };
+  warrantyToken: string;
+}
+
+export interface WarrantyInfo {
+  business: { name: string; slug: string; whatsapp: string; logo: string | null; primaryColor: string; accentColor: string; reviewUrl: string };
+  number: number;
+  title: string;
+  customer: string | null;
+  installedAt: string | null;
+  warrantyMonths: number;
+  until: string | null;
+  crew: string | null;
+  pieces: { title: string; widthMm: number; heightMm: number; quantity: number; glass: string | null; includes: string[] }[];
 }

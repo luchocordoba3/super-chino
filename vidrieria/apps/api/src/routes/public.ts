@@ -1,12 +1,13 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { JOB_KINDS, leadPublicSchema } from '@vidrieria/shared';
+import { JOB_KINDS, hasFeature, leadPublicSchema } from '@vidrieria/shared';
 import { prisma } from '../db';
 import { env } from '../env';
 import type { FastifyRequest } from 'fastify';
 import { authenticate } from '../lib/auth';
 import { HttpError, badRequest, notFound } from '../lib/http';
 import { money } from '../lib/text';
+import { ensureJob } from '../services/jobs';
 import { notifyLater } from '../services/push';
 import { acceptData, expireIfNeeded, publicQuote, storedOptions } from '../services/quotes';
 import { publicBusiness, siteContent } from '../services/site';
@@ -121,6 +122,8 @@ export async function publicRoutes(app: FastifyInstance) {
         logo: b.logoAssetId ? `/api/assets/${b.logoAssetId}` : null,
         primaryColor: site.primaryColor,
         accentColor: site.accentColor,
+        /** Seña online (con datos y comprobante): según el plan. */
+        deposit: hasFeature(b.plan, 'deposit'),
         pay: { alias: b.payAlias, cbu: b.payCbu, holder: b.payHolder, note: b.payNote },
       },
     };
@@ -137,6 +140,7 @@ export async function publicRoutes(app: FastifyInstance) {
     if (q.status === 'REJECTED') throw new HttpError(409, 'quote_rejected', 'Este presupuesto ya no está disponible.');
     const data = acceptData(q, option);
     await prisma.quote.update({ where: { id: q.id }, data });
+    await ensureJob(q.id);
     const label = storedOptions(q)?.[option ?? 0]?.label;
     const total = 'total' in data ? data.total : Number(q.total);
     notifyLater(q.businessId, {
@@ -154,8 +158,8 @@ export async function publicRoutes(app: FastifyInstance) {
     async (req) => {
       const { token } = req.params as { token: string };
       const { file } = z.object({ file: z.string().max(5 * 1024 * 1024) }).parse(req.body);
-      const q = await prisma.quote.findUnique({ where: { publicToken: token }, include: { customer: { select: { name: true } } } });
-      if (!q) throw notFound();
+      const q = await prisma.quote.findUnique({ where: { publicToken: token }, include: { customer: { select: { name: true } }, business: { select: { plan: true } } } });
+      if (!q || !hasFeature(q.business.plan, 'deposit')) throw notFound();
       if (q.status !== 'ACCEPTED') throw new HttpError(409, 'not_accepted', 'Primero aceptá el presupuesto.');
       if (q.depositPaidAt) return { ok: true };
       const { mime, data } = decodeDataUrl(file, RECEIPT_MIMES);

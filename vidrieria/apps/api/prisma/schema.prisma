@@ -64,6 +64,80 @@ enum DollarSource {
   BLUE
 }
 
+/// Plan de Lumina que contrató la vidriería (qué partes del sistema tiene).
+enum Plan {
+  INICIAL
+  PROFESIONAL
+  COMPLETO
+}
+
+/// Recorrido de un trabajo aceptado, de la seña al cobro final.
+enum JobStatus {
+  PENDING
+  ORDERED
+  MAKING
+  RECEIVED
+  SCHEDULED
+  INSTALLED
+  CLOSED
+}
+
+enum PayKind {
+  SENA
+  SALDO
+  OTRO
+}
+
+enum PayMethod {
+  EFECTIVO
+  TRANSFERENCIA
+  MERCADOPAGO
+  DEBITO
+  CREDITO
+  CHEQUE
+  ECHEQ
+  OTRO
+}
+
+enum ChequeStatus {
+  CARTERA
+  DEPOSITADO
+  COBRADO
+  ENDOSADO
+  RECHAZADO
+}
+
+enum ExpenseCategory {
+  ALQUILER
+  SUELDOS
+  LUZ
+  VEHICULO
+  COMBUSTIBLE
+  IMPUESTOS
+  CONTADOR
+  MANTENIMIENTO
+  MATERIAL
+  OTRO
+}
+
+enum BreakWhere {
+  TALLER
+  TRASLADO
+  OBRA
+  POSTVENTA
+}
+
+/// De dónde llegó el cliente (para saber qué canal conviene).
+enum LeadSource {
+  WEB
+  GOOGLE
+  INSTAGRAM
+  CARTEL
+  RECOMENDACION
+  WHATSAPP
+  OTRO
+}
+
 model Business {
   id           String   @id @default(cuid())
   slug         String   @unique
@@ -113,6 +187,42 @@ model Business {
   supplierName     String @default("")
   supplierWhatsapp String @default("")
 
+  plan Plan @default(COMPLETO)
+
+  // Operaciones
+  /// Días hábiles que tarda el proveedor: templado/laminado a medida y vidrio común cortado.
+  temperDays     Int @default(10)
+  glassDays      Int @default(2)
+  warrantyMonths Int @default(12)
+
+  // Ventas
+  /// Recargo % por cantidad de cuotas, ej. {"3": 10, "6": 18}. Vacío = no se muestran cuotas.
+  installmentRates Json    @default("{}")
+  /// % que se suma a la mitad de los presupuestos nuevos para probar si se puede cobrar más (0 = apagado).
+  priceTestPct     Decimal @default(0) @db.Decimal(6, 2)
+
+  // Plata
+  /// Comisión % por medio de pago, ej. {"CREDITO": 5.99}.
+  payFees             Json     @default("{}")
+  /// Token de Mercado Pago de la vidriería (cifrado).
+  mpAccessToken       String?
+  monotributoCategory String   @default("")
+  /// Tope anual propio (si no, el de la categoría).
+  monotributoCap      Decimal? @db.Decimal(16, 2)
+  arcaCuit            String   @default("")
+  arcaPtoVta          Int      @default(1)
+  arcaProduction      Boolean  @default(false)
+  /// Certificado y clave de ARCA (cifrados).
+  arcaCert            String?
+  arcaKey             String?
+
+  // Marketing
+  /// Link directo para dejar reseña en Google.
+  reviewUrl       String    @default("")
+  referralBenefit String    @default("")
+  stormMode       Boolean   @default(false)
+  stormUntil      DateTime?
+
   users     User[]
   catalog   CatalogItem[]
   templates Template[]
@@ -121,6 +231,17 @@ model Business {
   quotes    Quote[]
   assets    Asset[]
   pushSubs  PushSubscription[]
+  crews     Crew[]
+  jobs      Job[]
+  breakages Breakage[]
+  remnants  Remnant[]
+  payments  Payment[]
+  expenses  Expense[]
+  workDays  WorkDay[]
+  invoices  Invoice[]
+  buildings Building[]
+  signs     Sign[]
+  renders   Render[]
 }
 
 model User {
@@ -150,6 +271,9 @@ model CatalogItem {
   cost        Decimal? @db.Decimal(14, 2)
   /// Vidrios: se les suma el % de desperdicio.
   isGlass     Boolean  @default(false)
+  /// Stock (herrajes, perfiles, insumos). null = no se controla.
+  stockQty    Decimal? @db.Decimal(14, 3)
+  stockMin    Decimal? @db.Decimal(14, 3)
   active      Boolean  @default(true)
   updatedAt   DateTime @updatedAt
   createdAt   DateTime @default(now())
@@ -183,6 +307,10 @@ model Customer {
   address    String       @default("")
   type       CustomerType @default(PARTICULAR)
   notes      String       @default("")
+  source     LeadSource?
+  /// Código para su link de recomendación.
+  referralCode String?    @unique
+  referredById String?
   createdAt  DateTime     @default(now())
   quotes     Quote[]
   leads      Lead[]
@@ -208,6 +336,11 @@ model Lead {
   when       String     @default("")
   photoIds   String[]   @default([])
   status     LeadStatus @default(NEW)
+  source     LeadSource @default(WEB)
+  urgent     Boolean    @default(false)
+  /// Recomendado por (código del cliente) o cartel de obra.
+  refCode    String?
+  signId     String?
   createdAt  DateTime   @default(now())
   quotes     Quote[]
 
@@ -255,6 +388,16 @@ model Quote {
   purchasedAt DateTime?
   /// Fotos de la medición en la obra.
   photoIds    String[]  @default([])
+  /// Prueba de precio: "A" sin recargo, "B" con recargo.
+  priceVariant String?
+  /// El cliente eligió float donde va vidrio de seguridad y lo aceptó.
+  safetyAckAt DateTime?
+  /// Datos del siniestro para la aseguradora.
+  insurance   Json?
+  /// Fotos "así quedaría" (URLs o /api/assets/...).
+  renderUrls  String[]  @default([])
+  job         Job?
+  payments    Payment[]
   createdById String?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
@@ -299,4 +442,233 @@ model DollarRate {
   source    DollarSource @id
   sell      Decimal      @db.Decimal(14, 2)
   fetchedAt DateTime
+}
+
+/// Equipo de colocación.
+model Crew {
+  id         String    @id @default(cuid())
+  businessId String
+  business   Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name       String
+  members    String    @default("")
+  /// Jornal por persona por día.
+  dayRate    Decimal   @default(0) @db.Decimal(14, 2)
+  color      String    @default("#1d4ed8")
+  active     Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  jobs       Job[]
+  workDays   WorkDay[]
+
+  @@index([businessId])
+}
+
+/// Trabajo: un presupuesto aceptado, desde el pedido al proveedor hasta el cobro.
+model Job {
+  id             String    @id @default(cuid())
+  businessId     String
+  business       Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  quoteId        String    @unique
+  quote          Quote     @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  status         JobStatus @default(PENDING)
+  address        String    @default("")
+  /// Lleva vidrio que se fabrica a medida (templado, laminado, DVH).
+  needsFactory   Boolean   @default(false)
+  orderedAt      DateTime?
+  promisedAt     DateTime?
+  receivedAt     DateTime?
+  scheduledAt    DateTime?
+  crewId         String?
+  crew           Crew?     @relation(fields: [crewId], references: [id], onDelete: SetNull)
+  arrivedAt      DateTime?
+  installedAt    DateTime?
+  closedAt       DateTime?
+  checklist      Json      @default("{}")
+  beforeIds      String[]  @default([])
+  afterIds       String[]  @default([])
+  installNotes   String    @default("")
+  crewToken      String    @unique
+  warrantyToken  String    @unique
+  warrantyMonths Int       @default(12)
+  // Mensajes de postventa ya mandados
+  confirmSentAt  DateTime?
+  reviewSentAt   DateTime?
+  check30SentAt  DateTime?
+  maint6SentAt   DateTime?
+  maint12SentAt  DateTime?
+  stockUsedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  breakages      Breakage[]
+  workDays       WorkDay[]
+  expenses       Expense[]
+
+  @@index([businessId, status])
+  @@index([businessId, scheduledAt])
+}
+
+model Breakage {
+  id          String     @id @default(cuid())
+  businessId  String
+  business    Business   @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  jobId       String?
+  job         Job?       @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  where       BreakWhere
+  description String     @default("")
+  cost        Decimal    @default(0) @db.Decimal(14, 2)
+  responsible String     @default("")
+  reordered   Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+
+  @@index([businessId])
+}
+
+/// Sobrante de vidrio que se puede usar en otro trabajo.
+model Remnant {
+  id            String    @id @default(cuid())
+  businessId    String
+  business      Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  catalogItemId String?
+  glassName     String
+  thicknessMm   Decimal?  @db.Decimal(6, 2)
+  widthMm       Int
+  heightMm      Int
+  photoId       String?
+  notes         String    @default("")
+  usedAt        DateTime?
+  usedQuoteId   String?
+  createdAt     DateTime  @default(now())
+
+  @@index([businessId, usedAt])
+}
+
+/// Cobro (caja). Los cheques llevan sus datos.
+model Payment {
+  id           String        @id @default(cuid())
+  businessId   String
+  business     Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  quoteId      String?
+  quote        Quote?        @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+  customerId   String?
+  kind         PayKind       @default(OTRO)
+  method       PayMethod
+  amount       Decimal       @db.Decimal(14, 2)
+  feePct       Decimal       @default(0) @db.Decimal(6, 2)
+  net          Decimal       @db.Decimal(14, 2)
+  date         DateTime      @default(now())
+  note         String        @default("")
+  chequeBank   String?
+  chequeNumber String?
+  chequeDueAt  DateTime?
+  chequeStatus ChequeStatus?
+  mpPaymentId  String?       @unique
+  invoiceId    String?
+  createdAt    DateTime      @default(now())
+
+  @@index([businessId, date])
+}
+
+model Expense {
+  id          String          @id @default(cuid())
+  businessId  String
+  business    Business        @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  category    ExpenseCategory
+  description String          @default("")
+  amount      Decimal         @db.Decimal(14, 2)
+  date        DateTime
+  /// Gasto fijo que se repite todos los meses.
+  recurring   Boolean         @default(false)
+  jobId       String?
+  job         Job?            @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  createdAt   DateTime        @default(now())
+
+  @@index([businessId, date])
+}
+
+/// Jornal de un colocador.
+model WorkDay {
+  id         String    @id @default(cuid())
+  businessId String
+  business   Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  crewId     String?
+  crew       Crew?     @relation(fields: [crewId], references: [id], onDelete: SetNull)
+  worker     String
+  date       DateTime
+  jobId      String?
+  job        Job?      @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  amount     Decimal   @db.Decimal(14, 2)
+  /// Adelanto (se descuenta al liquidar).
+  advance    Boolean   @default(false)
+  paidAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([businessId, date])
+}
+
+/// Factura emitida (por ARCA desde el sistema, o cargada a mano).
+model Invoice {
+  id           String    @id @default(cuid())
+  businessId   String
+  business     Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  quoteId      String?
+  paymentId    String?
+  type         String    @default("C")
+  ptoVta       Int
+  number       Int
+  cae          String?
+  caeDue       DateTime?
+  amount       Decimal   @db.Decimal(14, 2)
+  date         DateTime
+  docType      Int       @default(99)
+  docNumber    String    @default("0")
+  customerName String    @default("")
+  manual       Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+
+  @@index([businessId, date])
+}
+
+/// Edificio de un consorcio con sus vidrios cargados.
+model Building {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customerId String?
+  name       String
+  address    String   @default("")
+  /// [{place, widthMm, heightMm, glass, notes}]
+  glasses    Json     @default("[]")
+  notes      String   @default("")
+  createdAt  DateTime @default(now())
+
+  @@index([businessId])
+}
+
+/// Cartel de obra con QR propio.
+model Sign {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  code       String   @unique
+  name       String
+  address    String   @default("")
+  visits     Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@index([businessId])
+}
+
+/// Foto "así quedaría" generada con IA.
+model Render {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  quoteId    String?
+  sourceUrl  String
+  resultUrl  String?
+  prompt     String
+  status     String   @default("DONE")
+  error      String?
+  createdAt  DateTime @default(now())
+
+  @@index([businessId, createdAt])
 }

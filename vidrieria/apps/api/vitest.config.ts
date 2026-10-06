@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
-  test: { include: ['test/**/*.test.ts'], globalSetup: ['test/global-setup.ts'], fileParallelism: false, testTimeout: 20000, hookTimeout: 60000 },
+  test: { include: ['test/**/*.test.ts'], globalSetup: ['test/global-setup.ts'], fileParallelism: false, testTimeout: 20000, hookTimeout: 60000, env: { AUTH_RATE_LIMIT: '1000', LEAD_RATE_LIMIT: '1000' } },
 });

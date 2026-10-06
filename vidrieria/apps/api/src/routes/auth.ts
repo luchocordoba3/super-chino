@@ -3,7 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../db';
 import { env } from '../env';
-import { SESSION_COOKIE, guard, publicUser, setSession } from '../lib/auth';
+import { SESSION_COOKIE, guard, isAdmin, publicUser, setSession } from '../lib/auth';
 import { HttpError, badRequest } from '../lib/http';
 import { RESERVED_SLUGS, slugify } from '../services/site';
 import { defaultSite, loadStarterKit } from '../services/starter';
@@ -55,9 +55,9 @@ export async function authRoutes(app: FastifyInstance) {
   app.get('/auth/me', guard(), async (req) => {
     const [u, b] = await Promise.all([
       prisma.user.findUniqueOrThrow({ where: { id: req.auth.uid } }),
-      prisma.business.findUniqueOrThrow({ where: { id: req.auth.bid }, select: { id: true, slug: true, name: true, customDomain: true } }),
+      prisma.business.findUniqueOrThrow({ where: { id: req.auth.bid }, select: { id: true, slug: true, name: true, customDomain: true, plan: true } }),
     ]);
-    return { user: publicUser(u), business: b };
+    return { user: publicUser(u), business: b, isAdmin: isAdmin(u.email) };
   });
 
   // Usuarios de la vidriería (dueño y socio)

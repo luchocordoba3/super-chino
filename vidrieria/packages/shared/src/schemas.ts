@@ -108,6 +108,8 @@ export const catalogItemSchema = z.object({
   price: money,
   currency: z.enum(CURRENCIES),
   cost: money.nullish(),
+  stockQty: z.number().finite().min(-1e6).max(1e9).nullish(),
+  stockMin: z.number().finite().min(0).max(1e9).nullish(),
   isGlass: z.boolean().default(false),
   active: z.boolean().default(true),
 });

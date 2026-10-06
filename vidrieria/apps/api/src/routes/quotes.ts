@@ -5,6 +5,7 @@ import { prisma } from '../db';
 import { guard } from '../lib/auth';
 import { badRequest, notFound } from '../lib/http';
 import { dollarFor } from '../services/dollar';
+import { ensureJob } from '../services/jobs';
 import { acceptData, createQuote, expireIfNeeded, expireOld, isEmptyBody, redollarQuote, storedOptions, totalWithDollar, updateQuote } from '../services/quotes';
 
 const DAY = 86_400_000;
@@ -68,7 +69,7 @@ export async function quoteRoutes(app: FastifyInstance) {
 
   app.get('/quotes/:id', guard(), async (req) => {
     const { id } = req.params as { id: string };
-    const q = await prisma.quote.findFirst({ where: { id, businessId: req.auth.bid }, include: { customer: true, lead: true } });
+    const q = await prisma.quote.findFirst({ where: { id, businessId: req.auth.bid }, include: { customer: true, lead: true, job: { select: { id: true, status: true } } } });
     if (!q) throw notFound();
     return expireIfNeeded(q);
   });
@@ -135,7 +136,11 @@ export async function quoteRoutes(app: FastifyInstance) {
     const { status, option } = z.object({ status: z.enum(['ACCEPTED', 'REJECTED', 'SENT']), option: z.number().int().min(0).max(2).nullish() }).parse(req.body);
     const q = await prisma.quote.findFirst({ where: { id, businessId: req.auth.bid } });
     if (!q) throw notFound();
-    if (status === 'ACCEPTED') return prisma.quote.update({ where: { id }, data: acceptData(q, option) });
+    if (status === 'ACCEPTED') {
+      const accepted = await prisma.quote.update({ where: { id }, data: acceptData(q, option) });
+      await ensureJob(id);
+      return accepted;
+    }
     return prisma.quote.update({
       where: { id },
       data: {

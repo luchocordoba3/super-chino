@@ -270,3 +270,91 @@ describe('ideas del panel', () => {
     expect(q.photoIds).toEqual([photo.id]);
   });
 });
+
+describe('planes y trabajos', () => {
+  it('el plan corta lo que no incluye y el admin de Lumina lo cambia', async () => {
+    const a = await signup('Plan Inicial', 'plan@test.com');
+    const me = (await call(a.cookie, 'GET', '/api/auth/me')).json();
+    expect(me.business.plan).toBe('COMPLETO');
+    expect(me.isAdmin).toBe(false);
+    await prisma.business.update({ where: { id: me.business.id }, data: { plan: 'INICIAL' } });
+    const r = await call(a.cookie, 'GET', '/api/jobs');
+    expect(r.statusCode).toBe(403);
+    expect(r.json().message).toBe('Disponible en el plan Profesional');
+    expect((await call(a.cookie, 'GET', '/api/purchases')).statusCode).toBe(403);
+    expect((await call(a.cookie, 'GET', '/api/admin/businesses')).statusCode).toBe(403);
+
+    const admin = await signup('Lumina', 'admin@test.com');
+    const adminEmail = (await call(admin.cookie, 'GET', '/api/auth/me')).json().user.email;
+    process.env.LUMINA_ADMINS = `otro@test.com, ${adminEmail}`;
+    const list = (await call(admin.cookie, 'GET', '/api/admin/businesses')).json();
+    expect(list.some((b: { id: string }) => b.id === me.business.id)).toBe(true);
+    expect((await call(admin.cookie, 'PATCH', `/api/admin/businesses/${me.business.id}`, { plan: 'PROFESIONAL' })).json().plan).toBe('PROFESIONAL');
+    expect((await call(a.cookie, 'GET', '/api/jobs')).statusCode).toBe(200);
+    delete process.env.LUMINA_ADMINS;
+  });
+
+  it('aceptado → trabajo → pedido con fecha prometida → agenda → el colocador termina → stock y garantía', async () => {
+    const { cookie } = await signup('Trabajos', 'trabajos@test.com');
+    await call(cookie, 'PATCH', '/api/business', { dollarSource: 'MANUAL', dollarManual: 1000 });
+    const catalog = (await call(cookie, 'GET', '/api/catalog')).json();
+    const temp8 = catalog.find((c: { name: string }) => c.name === 'Templado 8 mm');
+    const kit = catalog.find((c: { name: string }) => c.name === 'Kit mampara corrediza');
+    await call(cookie, 'PATCH', `/api/stock/${kit.id}`, { stockQty: 5, stockMin: 2 });
+    const customer = (await call(cookie, 'POST', '/api/customers', { name: 'Marta', phone: '1155550101', address: 'Mitre 123, Villa Ballester' })).json();
+    const line = (c: { id: string; name: string; price: number; currency: string }, basis: string, applyWaste: boolean) => ({
+      catalogItemId: c.id,
+      name: c.name,
+      basis,
+      factor: 1,
+      unitPrice: Number(c.price),
+      currency: c.currency,
+      applyWaste,
+    });
+    const q = (
+      await call(cookie, 'POST', '/api/quotes', {
+        customerId: customer.id,
+        title: 'Mampara',
+        items: [{ title: 'Mampara', widthMm: 1200, heightMm: 1800, quantity: 1, lines: [line(temp8, 'm2', true), line(kit, 'unidad', false)] }],
+        extras: [],
+      })
+    ).json();
+    await app.inject({ method: 'POST', url: `/api/public/quotes/${q.publicToken}/accept`, payload: {} });
+
+    const [job] = (await call(cookie, 'GET', '/api/jobs')).json();
+    expect(job).toMatchObject({ status: 'PENDING', needsFactory: true, address: 'Mitre 123, Villa Ballester', quote: { number: q.number } });
+
+    const ordered = (await call(cookie, 'POST', `/api/jobs/${job.id}/status`, { status: 'ORDERED' })).json();
+    const days = (new Date(ordered.promisedAt).getTime() - new Date(ordered.orderedAt).getTime()) / 86_400_000;
+    expect(days).toBeGreaterThanOrEqual(14); // 10 días hábiles = 2 semanas corridas
+    expect(new Date(ordered.promisedAt).getDay()).not.toBe(0);
+
+    const crew = (await call(cookie, 'POST', '/api/crews', { name: 'Equipo 1', members: 'Juan, Pedro', dayRate: 40000 })).json();
+    const when = new Date(Date.now() + 3 * 86_400_000).toISOString();
+    const scheduled = (await call(cookie, 'PATCH', `/api/jobs/${job.id}`, { scheduledAt: when, crewId: crew.id })).json();
+    expect(scheduled.status).toBe('SCHEDULED');
+
+    // Ficha del colocador, sin login
+    const sheet = (await app.inject({ method: 'GET', url: `/api/public/jobs/${job.crewToken}` })).json();
+    expect(sheet.pieces[0]).toMatchObject({ glass: 'Templado 8 mm', weightKg: 43.2 });
+    expect(sheet.crew).toBe('Equipo 1');
+    expect((await app.inject({ method: 'POST', url: `/api/public/jobs/${job.crewToken}/photos`, payload: { kind: 'after', photos: [tiny] } })).json().count).toBe(1);
+    expect((await app.inject({ method: 'POST', url: `/api/public/jobs/${job.crewToken}/done`, payload: { checklist: { medidas: true } } })).statusCode).toBe(200);
+
+    const done = (await call(cookie, 'GET', `/api/jobs/${job.id}`)).json();
+    expect(done.status).toBe('INSTALLED');
+    expect(done.afterIds).toHaveLength(1);
+    expect(Number((await prisma.catalogItem.findUniqueOrThrow({ where: { id: kit.id } })).stockQty)).toBe(4);
+
+    const w = (await app.inject({ method: 'GET', url: `/api/public/warranty/${job.warrantyToken}` })).json();
+    expect(w.warrantyMonths).toBe(12);
+    expect(new Date(w.until).getFullYear()).toBe(new Date(done.installedAt).getFullYear() + 1);
+    expect(JSON.stringify(w)).not.toMatch(/phone|total|price/);
+
+    // Retazo: se carga y se usa
+    const rem = (await call(cookie, 'POST', '/api/remnants', { catalogItemId: temp8.id, glassName: temp8.name, widthMm: 700, heightMm: 900 })).json();
+    expect((await call(cookie, 'GET', '/api/remnants')).json().map((r: { id: string }) => r.id)).toContain(rem.id);
+    await call(cookie, 'POST', `/api/remnants/${rem.id}/use`, { quoteId: q.id });
+    expect((await call(cookie, 'GET', '/api/remnants')).json().map((r: { id: string }) => r.id)).not.toContain(rem.id);
+  });
+});

@@ -13,6 +13,8 @@ const cat = (id: string, name: string, thicknessMm: number | null, isGlass = tru
   currency: 'USD',
   cost: 6,
   isGlass,
+  stockQty: null,
+  stockMin: null,
   active: true,
   updatedAt: '',
 });

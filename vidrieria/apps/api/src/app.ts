@@ -10,13 +10,16 @@ import { prisma } from './db';
 import { env } from './env';
 import { SESSION_COOKIE } from './lib/auth';
 import { HttpError } from './lib/http';
+import { adminRoutes } from './routes/admin';
 import { assetRoutes } from './routes/assets';
 import { authRoutes } from './routes/auth';
 import { businessRoutes } from './routes/business';
 import { catalogRoutes } from './routes/catalog';
 import { customerRoutes } from './routes/customers';
+import { jobRoutes } from './routes/jobs';
 import { leadRoutes } from './routes/leads';
 import { businessByHost, publicRoutes } from './routes/public';
+import { publicJobRoutes } from './routes/publicJobs';
 import { purchaseRoutes } from './routes/purchases';
 import { pushRoutes } from './routes/push';
 import { quoteRoutes } from './routes/quotes';
@@ -62,6 +65,9 @@ export async function buildApp(opts: FastifyServerOptions = {}) {
       await publicRoutes(api);
       await pushRoutes(api);
       await purchaseRoutes(api);
+      await adminRoutes(api);
+      await jobRoutes(api);
+      await publicJobRoutes(api);
     },
     { prefix: '/api' },
   );

@@ -64,11 +64,11 @@ pnpm e2e         # Playwright de punta a punta (base vidrieria_e2e): consulta �
 
 ## Publicar en Render
 
-Mientras esté dentro de `super-chino`:
+Mientras esté dentro de `super-chino` (se hace desde el celular, en unos 10 minutos):
 
-1. **New → PostgreSQL** (plan Free) y copiá la *Internal Database URL*.
-2. **New → Web Service**, elegí el repo y la branch, **Root Directory** `vidrieria` y **Language** Docker.
-3. Variables: `DATABASE_URL` (la del paso 1), `JWT_SECRET` (cualquier texto largo) y `SEED_DEMO=true` para cargar la demo.
+1. **New → Postgres**: nombre `vidrieria-db`, región Virginia, plan Free. Cuando esté lista, copiá la **Internal Database URL**.
+2. **New → Web Service** → repo `super-chino`, Branch `claude/sleepy-dirac-y0lt89`, **Root Directory** `vidrieria`, Language Docker, región Virginia (la misma que la base), plan Free.
+3. **Environment Variables**: `DATABASE_URL` = la URL del paso 1 y `SEED_DEMO` = `true` (carga la demo de Cristales Ariel). `JWT_SECRET` es opcional: si no está, se deriva de `DATABASE_URL`.
 
 Cuando se mude al repo de Lumina, `render.yaml` crea las dos cosas sola (**New → Blueprint**).
 

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 
 const root = path.resolve(import.meta.dirname, '..');
@@ -18,7 +19,7 @@ export const env = {
   DATABASE_URL: isTest
     ? (process.env.TEST_DATABASE_URL ?? 'postgresql://vidrieria:vidrieria@localhost:5432/vidrieria_test')
     : (process.env.DATABASE_URL ?? ''),
-  JWT_SECRET: process.env.JWT_SECRET ?? 'dev-secret-cambiar',
+  JWT_SECRET: jwtSecret(),
   WEB_DIST: path.resolve(root, '../web/dist'),
   /** Carga la demo de Cristales Ariel al arrancar (no duplica). */
   SEED_DEMO: process.env.SEED_DEMO === 'true',
@@ -29,6 +30,15 @@ export const env = {
   LEAD_RATE_LIMIT: Number(process.env.LEAD_RATE_LIMIT) || 10,
 };
 
-if (env.NODE_ENV === 'production' && env.JWT_SECRET === 'dev-secret-cambiar') {
-  throw new Error('Falta JWT_SECRET en producción');
+/**
+ * Secreto de las sesiones. En producción, si no se configuró, se deriva de DATABASE_URL (que ya es secreta):
+ * así alcanza con cargar la base al publicar, y las sesiones sobreviven a los reinicios.
+ */
+function jwtSecret() {
+  if (process.env.JWT_SECRET) return process.env.JWT_SECRET;
+  if (process.env.NODE_ENV === 'production') {
+    if (!process.env.DATABASE_URL) throw new Error('Falta DATABASE_URL en producción');
+    return createHash('sha256').update(process.env.DATABASE_URL + ':jwt').digest('hex');
+  }
+  return 'dev-secret-cambiar';
 }

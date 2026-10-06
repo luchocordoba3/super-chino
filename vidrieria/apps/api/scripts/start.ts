@@ -4,7 +4,7 @@
  *    así puede compartir la base con otra app (ej. Super Chino) sin mezclar tablas.
  * 2. Si un intento anterior sin schema dejó una migración fallida en public._prisma_migrations, la borra
  *    (solo las de esta app, por nombre), para no trabar las migraciones de la otra app.
- * 3. Migraciones, demo si SEED_DEMO=true y servidor.
+ * 3. Migraciones, demo (SEED_DEMO=true, o base sin vidrierías si SEED_DEMO no está; SEED_DEMO=false la apaga) y servidor.
  */
 import { spawnSync } from 'node:child_process';
 import { readdirSync } from 'node:fs';
@@ -44,10 +44,15 @@ if (schema !== 'public') {
 const migrate = spawnSync('npx', ['prisma', 'migrate', 'deploy'], { cwd: root, stdio: 'inherit', env: process.env });
 if (migrate.status !== 0) process.exit(migrate.status ?? 1);
 
-if (process.env.SEED_DEMO === 'true') {
-  const { seedDemo } = await import('../prisma/seed');
-  const r = await seedDemo();
-  console.log(r.created ? 'Demo de Cristales Ariel cargada' : 'La demo ya existía');
+const seedFlag = (process.env.SEED_DEMO ?? '').trim().toLowerCase();
+if (seedFlag !== 'false' && seedFlag !== '0' && seedFlag !== 'no') {
+  const { prisma } = await import('../src/db');
+  const empty = (await prisma.business.count()) === 0;
+  if (['true', '1', 'si', 'sí', 'yes'].includes(seedFlag) || empty) {
+    const { seedDemo } = await import('../prisma/seed');
+    const r = await seedDemo();
+    console.log(r.created ? 'Demo de Cristales Ariel cargada' : 'La demo ya existía');
+  }
 }
 
 await import('../src/index');

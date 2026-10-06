@@ -7,6 +7,6 @@ COPY . .
 RUN pnpm install --frozen-lockfile && pnpm --filter @vidrieria/web build
 ENV NODE_ENV=production PORT=3000
 EXPOSE 3000
-# Schema propio, migraciones, demo si SEED_DEMO=true y arranque (ver apps/api/scripts/start.ts).
+# Schema propio, migraciones, demo (si SEED_DEMO=true o la base está vacía) y arranque (ver apps/api/scripts/start.ts).
 WORKDIR /app/apps/api
 CMD ["node", "--import", "tsx", "scripts/start.ts"]

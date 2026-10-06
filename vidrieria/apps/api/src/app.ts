@@ -12,14 +12,18 @@ import { SESSION_COOKIE } from './lib/auth';
 import { HttpError } from './lib/http';
 import { adminRoutes } from './routes/admin';
 import { assetRoutes } from './routes/assets';
+import { cashRoutes } from './routes/cash';
 import { authRoutes } from './routes/auth';
 import { businessRoutes } from './routes/business';
 import { catalogRoutes } from './routes/catalog';
 import { customerRoutes } from './routes/customers';
+import { invoiceRoutes } from './routes/invoices';
 import { jobRoutes } from './routes/jobs';
 import { leadRoutes } from './routes/leads';
+import { numberRoutes } from './routes/numbers';
 import { businessByHost, publicRoutes } from './routes/public';
 import { publicJobRoutes } from './routes/publicJobs';
+import { publicPayRoutes } from './routes/publicPay';
 import { purchaseRoutes } from './routes/purchases';
 import { pushRoutes } from './routes/push';
 import { quoteRoutes } from './routes/quotes';
@@ -68,6 +72,10 @@ export async function buildApp(opts: FastifyServerOptions = {}) {
       await adminRoutes(api);
       await jobRoutes(api);
       await publicJobRoutes(api);
+      await publicPayRoutes(api);
+      await cashRoutes(api);
+      await invoiceRoutes(api);
+      await numberRoutes(api);
     },
     { prefix: '/api' },
   );

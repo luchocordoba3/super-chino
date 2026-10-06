@@ -39,6 +39,12 @@ export function PublicQuotePage() {
     mutationFn: (option: number | null) => api(`/public/quotes/${token}/accept`, { body: { option } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['public-quote', token] }),
   });
+  const mp = useMutation({
+    mutationFn: () => api<{ url: string }>(`/public/quotes/${token}/mp`, { body: { kind: 'SENA' } }),
+    onSuccess: (r) => {
+      location.href = r.url;
+    },
+  });
   const deposit = useMutation({
     mutationFn: async (f: File) => api(`/public/quotes/${token}/deposit`, { body: { file: await receiptDataUrl(f) } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['public-quote', token] }),
@@ -173,13 +179,20 @@ export function PublicQuotePage() {
         {p.notes && <p className="pq-notes">{p.notes}</p>}
         {p.footer && <p className="pq-small">{p.footer}</p>}
 
-        {accepted && !preview && (
+        {accepted && !preview && b.deposit && (
           <section className="pq-pay no-print">
             {p.depositPaidAt ? (
               <p className="pq-banner good">Recibimos tu seña. ¡Gracias!</p>
             ) : (
               <>
-                <h2>Para confirmar, transferí la seña de {money(p.deposit)}</h2>
+                <h2>Para confirmar, pagá la seña de {money(p.deposit)}</h2>
+                {b.mp && !p.depositReportedAt && (
+                  <button type="button" className="site-btn" disabled={mp.isPending} onClick={() => mp.mutate()}>
+                    {mp.isPending ? 'Abriendo Mercado Pago…' : 'Pagar con Mercado Pago'}
+                  </button>
+                )}
+                {mp.error && <p className="error">{errMsg(mp.error)}</p>}
+                {b.mp && (pay.alias || pay.cbu) && <p className="pq-small">O por transferencia:</p>}
                 {(pay.alias || pay.cbu) && (
                   <dl className="pq-paydata">
                     {pay.alias && (

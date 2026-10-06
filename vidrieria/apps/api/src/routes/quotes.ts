@@ -1,10 +1,11 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { QUOTE_STATUSES, quoteBodySchema, type QuoteResult } from '@vidrieria/shared';
+import { PAY_METHODS, QUOTE_STATUSES, quoteBodySchema, type QuoteResult } from '@vidrieria/shared';
 import { prisma } from '../db';
 import { guard } from '../lib/auth';
 import { badRequest, notFound } from '../lib/http';
 import { dollarFor } from '../services/dollar';
+import { registerPayment } from './cash';
 import { ensureJob } from '../services/jobs';
 import { acceptData, createQuote, expireIfNeeded, expireOld, isEmptyBody, redollarQuote, storedOptions, totalWithDollar, updateQuote } from '../services/quotes';
 
@@ -115,10 +116,15 @@ export async function quoteRoutes(app: FastifyInstance) {
   /** Confirma (o deshace) el cobro de la seña. */
   app.post('/quotes/:id/deposit-paid', guard(), async (req) => {
     const { id } = req.params as { id: string };
-    const { paid } = z.object({ paid: z.boolean() }).parse(req.body);
+    const { paid, method } = z.object({ paid: z.boolean(), method: z.enum(PAY_METHODS).default('TRANSFERENCIA') }).parse(req.body);
     const q = await prisma.quote.findFirst({ where: { id, businessId: req.auth.bid } });
     if (!q) throw notFound();
     if (q.status !== 'ACCEPTED') throw badRequest('not_accepted', 'El presupuesto todavía no fue aceptado');
+    // La seña cobrada entra a la caja (y sale si se deshace).
+    if (paid && !(await prisma.payment.findFirst({ where: { quoteId: id, kind: 'SENA' } }))) {
+      await registerPayment(req.auth.bid, { quoteId: id, kind: 'SENA', method, amount: Number(q.deposit), note: 'Seña' });
+    }
+    if (!paid) await prisma.payment.deleteMany({ where: { quoteId: id, kind: 'SENA', mpPaymentId: null } });
     return prisma.quote.update({ where: { id }, data: { depositPaidAt: paid ? (q.depositPaidAt ?? new Date()) : null } });
   });
 

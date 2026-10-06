@@ -11,7 +11,10 @@ import {
   calcQuote,
   linesFromTemplate,
   parsePieces,
+  PAY_METHODS,
+  PAY_METHOD_LABEL,
   type Basis,
+  type PayMethod,
   type CustomerType,
   type ItemInput,
   type LineInput,
@@ -850,8 +853,9 @@ function ShareBox({ quote, dirty, businessName }: { quote: Quote; dirty: boolean
       toast('Estado actualizado');
     },
   });
+  const [method, setMethod] = useState<PayMethod>('TRANSFERENCIA');
   const paid = useMutation({
-    mutationFn: (v: boolean) => api(`/quotes/${quote.id}/deposit-paid`, { body: { paid: v } }),
+    mutationFn: (v: boolean) => api(`/quotes/${quote.id}/deposit-paid`, { body: { paid: v, method } }),
     onSuccess: (_r, v) => {
       refresh();
       toast(v ? 'Seña cobrada ✓' : 'Listo');
@@ -927,10 +931,19 @@ function ShareBox({ quote, dirty, businessName }: { quote: Quote; dirty: boolean
             </>
           ) : (
             <>
-              Seña pendiente: {money(quote.deposit)}.{' '}
-              <button type="button" className="link-btn small" disabled={paid.isPending} onClick={() => paid.mutate(true)}>
-                Ya la cobré
-              </button>
+              Seña pendiente: {money(quote.deposit)}.
+              <span className="row wrap">
+                <select value={method} onChange={(e) => setMethod(e.target.value as PayMethod)} aria-label="Cómo pagó la seña">
+                  {PAY_METHODS.map((m) => (
+                    <option key={m} value={m}>
+                      {PAY_METHOD_LABEL[m]}
+                    </option>
+                  ))}
+                </select>
+                <button type="button" className="btn small" disabled={paid.isPending} onClick={() => paid.mutate(true)}>
+                  Ya la cobré
+                </button>
+              </span>
             </>
           )}
         </div>

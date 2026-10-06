@@ -358,3 +358,140 @@ describe('planes y trabajos', () => {
     expect((await call(cookie, 'GET', '/api/remnants')).json().map((r: { id: string }) => r.id)).not.toContain(rem.id);
   });
 });
+
+describe('plata', () => {
+  const mampara = (deposit = false) => ({
+    title: 'Mampara',
+    items: [item([kitArs])],
+    extras: [],
+    ...(deposit ? {} : {}),
+  });
+
+  it('caja: neto por medio, seña a la caja, cuentas por cobrar, jornales, gastos y monotributo', async () => {
+    const { cookie } = await signup('Caja', 'caja@test.com');
+    await call(cookie, 'PATCH', '/api/business', { payFees: { CREDITO: 5.99 }, monotributoCategory: 'K' });
+    const customer = (await call(cookie, 'POST', '/api/customers', { name: 'Constructora', phone: '1155550000', type: 'CONSTRUCTORA' })).json();
+    const q = (await call(cookie, 'POST', '/api/quotes', { ...mampara(), customerId: customer.id })).json();
+    await call(cookie, 'POST', `/api/quotes/${q.id}/status`, { status: 'ACCEPTED' });
+    // Seña cobrada por transferencia: entra a la caja.
+    await call(cookie, 'POST', `/api/quotes/${q.id}/deposit-paid`, { paid: true, method: 'TRANSFERENCIA' });
+    // Parte del saldo con crédito: se descuenta la comisión.
+    const credit = (await call(cookie, 'POST', '/api/payments', { quoteId: q.id, kind: 'SALDO', method: 'CREDITO', amount: 10000 })).json();
+    expect(Number(credit.net)).toBe(9401);
+    const pays = (await call(cookie, 'GET', '/api/payments')).json();
+    expect(pays.map((p: { kind: string }) => p.kind).sort()).toEqual(['SALDO', 'SENA']);
+
+    const rec = (await call(cookie, 'GET', '/api/receivables')).json();
+    expect(rec[0].customer.name).toBe('Constructora');
+    expect(rec[0].due).toBe(50000 - 25000 - 10000);
+
+    const crew = (await call(cookie, 'POST', '/api/crews', { name: 'Equipo', members: 'Juan, Yamil y Pedro', dayRate: 40000 })).json();
+    expect((await call(cookie, 'POST', '/api/workdays/crew', { crewId: crew.id, date: new Date().toISOString() })).json().count).toBe(3);
+    await call(cookie, 'POST', '/api/expenses', { category: 'ALQUILER', amount: 300000, date: new Date().toISOString(), recurring: true });
+    await call(cookie, 'POST', '/api/invoices/manual', { ptoVta: 1, number: 15, date: new Date().toISOString(), amount: 1_000_000 });
+
+    const n = (await call(cookie, 'GET', '/api/numbers')).json();
+    expect(n.monotributo).toMatchObject({ category: 'K', cap: 126610838.75, invoiced: 1_000_000, banked: 35000 });
+    expect(n.month).toMatchObject({ income: 35000, wages: 120000, expenses: 300000 });
+    expect(n.cashflow30).toMatchObject({ receivable: 15000, fixed: 300000 });
+  });
+
+  it('Mercado Pago: el cliente paga la seña con el link y el aviso la registra una sola vez', async () => {
+    const { cookie } = await signup('MP', 'mp@test.com');
+    await call(cookie, 'PATCH', '/api/business', { mpAccessToken: 'APP_USR-test' });
+    const biz = (await call(cookie, 'GET', '/api/business')).json();
+    expect(biz.mpConnected).toBe(true);
+    expect(JSON.stringify(biz)).not.toContain('APP_USR');
+    const q = (await call(cookie, 'POST', '/api/quotes', mampara())).json();
+    await app.inject({ method: 'POST', url: `/api/public/quotes/${q.publicToken}/accept`, payload: {} });
+    expect((await app.inject({ method: 'GET', url: `/api/public/quotes/${q.publicToken}` })).json().business.mp).toBe(true);
+
+    const calls: string[] = [];
+    const mpId = String(Date.now()); // los ids de Mercado Pago son únicos: uno por corrida
+    const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+      const u = String(url);
+      calls.push(`${init?.method ?? 'GET'} ${u}`);
+      expect((init?.headers as Record<string, string>).authorization).toBe('Bearer APP_USR-test');
+      if (u.endsWith('/checkout/preferences')) {
+        const body = JSON.parse(String(init?.body));
+        expect(body.items[0].unit_price).toBe(25000);
+        expect(body.external_reference).toBe(`${q.id}:SENA`);
+        return new Response(JSON.stringify({ id: 'pref1', init_point: 'https://mp.test/pagar' }), { status: 201 });
+      }
+      return new Response(JSON.stringify({ id: Number(mpId), status: 'approved', external_reference: `${q.id}:SENA`, transaction_amount: 25000, date_approved: new Date().toISOString(), transaction_details: { net_received_amount: 24000 } }));
+    });
+    try {
+      const link = (await app.inject({ method: 'POST', url: `/api/public/quotes/${q.publicToken}/mp`, payload: { kind: 'SENA' } })).json();
+      expect(link.url).toBe('https://mp.test/pagar');
+      const biz2 = (await call(cookie, 'GET', '/api/auth/me')).json().business;
+      for (let i = 0; i < 2; i++) await app.inject({ method: 'POST', url: `/api/public/mp/${biz2.id}`, payload: { type: 'payment', data: { id: mpId } } });
+    } finally {
+      spy.mockRestore();
+    }
+    const pays = await prisma.payment.findMany({ where: { quoteId: q.id } });
+    expect(pays).toHaveLength(1);
+    expect(pays[0]).toMatchObject({ method: 'MERCADOPAGO', mpPaymentId: mpId });
+    expect(Number(pays[0].net)).toBe(24000);
+    expect((await call(cookie, 'GET', `/api/quotes/${q.id}`)).json().depositPaidAt).not.toBeNull();
+    expect(calls.filter((c) => c.includes(`/v1/payments/${mpId}`))).toHaveLength(1);
+  });
+
+  it('ARCA: firma el pedido con el certificado y emite la factura C con CAE', async () => {
+    const forge = (await import('node-forge')).default;
+    const keys = forge.pki.rsa.generateKeyPair(1024);
+    const cert = forge.pki.createCertificate();
+    cert.publicKey = keys.publicKey;
+    cert.serialNumber = '01';
+    cert.validity.notBefore = new Date(Date.now() - 86_400_000);
+    cert.validity.notAfter = new Date(Date.now() + 86_400_000 * 365);
+    cert.setSubject([{ name: 'commonName', value: 'vidrieria' }]);
+    cert.setIssuer([{ name: 'commonName', value: 'vidrieria' }]);
+    cert.sign(keys.privateKey, forge.md.sha256.create());
+    const certPem = forge.pki.certificateToPem(cert);
+    const keyPem = forge.pki.privateKeyToPem(keys.privateKey);
+
+    const { cookie } = await signup('ARCA', 'arca@test.com');
+    expect((await call(cookie, 'PATCH', '/api/business', { arcaCert: 'basura' })).statusCode).toBe(400);
+    await call(cookie, 'PATCH', '/api/business', { arcaCuit: '20-12345678-9', arcaPtoVta: 3, arcaCert: certPem, arcaKey: keyPem });
+    expect((await call(cookie, 'GET', '/api/business')).json().arcaReady).toBe(true);
+    const { resetArcaTickets } = await import('../src/services/arca');
+    resetArcaTickets();
+
+    let fecae = '';
+    const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+      const body = String(init?.body);
+      if (String(url).includes('LoginCms')) {
+        const cms = body.match(/<wsaa:in0>([^<]+)</)![1];
+        // El CMS es DER válido y lleva adentro el pedido de acceso al servicio de facturas.
+        forge.pkcs7.messageFromAsn1(forge.asn1.fromDer(forge.util.decode64(cms)));
+        expect(forge.util.decode64(cms)).toContain('<service>wsfe</service>');
+        const ret = '<loginTicketResponse><credentials><token>TOK</token><sign>SIG</sign></credentials><header><expirationTime>2099-01-01T00:00:00Z</expirationTime></header></loginTicketResponse>'.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return new Response(`<soapenv:Envelope><soapenv:Body><loginCmsResponse><loginCmsReturn>${ret}</loginCmsReturn></loginCmsResponse></soapenv:Body></soapenv:Envelope>`);
+      }
+      if (body.includes('FECompUltimoAutorizado')) {
+        expect(body).toContain('<ar:Cuit>20123456789</ar:Cuit>');
+        return new Response('<soap:Envelope><soap:Body><FECompUltimoAutorizadoResult><PtoVta>3</PtoVta><CbteTipo>11</CbteTipo><CbteNro>7</CbteNro></FECompUltimoAutorizadoResult></soap:Body></soap:Envelope>');
+      }
+      fecae = body;
+      return new Response('<soap:Envelope><soap:Body><FECAESolicitarResult><FeCabResp><Resultado>A</Resultado></FeCabResp><FeDetResp><FECAEDetResponse><Resultado>A</Resultado><CAE>76123456789012</CAE><CAEFchVto>20261020</CAEFchVto></FECAEDetResponse></FeDetResp></FECAESolicitarResult></soap:Body></soap:Envelope>');
+    });
+    try {
+      const inv = (await call(cookie, 'POST', '/api/invoices/arca', { amount: 491885.5, customerName: 'Laura' })).json();
+      expect(inv).toMatchObject({ ptoVta: 3, number: 8, cae: '76123456789012', type: 'C' });
+      expect(fecae).toContain('<ar:CbteTipo>11</ar:CbteTipo>');
+      expect(fecae).toContain('<ar:ImpTotal>491885.50</ar:ImpTotal>');
+      expect(fecae).toContain('<ar:CondicionIVAReceptorId>5</ar:CondicionIVAReceptorId>');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});
+
+describe('ajustes', () => {
+  it('guarda el ajuste por tipo de cliente aunque no estén todos los tipos', async () => {
+    const { cookie } = await signup('Ajustes', 'ajustes@test.com');
+    const r = await call(cookie, 'PATCH', '/api/business', { customerAdjust: { VIDRIERIA: -10 } });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().customerAdjust).toEqual({ VIDRIERIA: -10 });
+  });
+});

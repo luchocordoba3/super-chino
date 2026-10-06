@@ -22,6 +22,8 @@ const Settings = lazy(() => import('./pages/Settings'));
 const Materials = lazy(() => import('./pages/Materials'));
 const Jobs = lazy(() => import('./pages/Jobs'));
 const LuminaAdmin = lazy(() => import('./pages/LuminaAdmin'));
+const Cash = lazy(() => import('./pages/Cash'));
+const Numbers = lazy(() => import('./pages/Numbers'));
 
 declare global {
   interface Window {
@@ -69,8 +71,8 @@ export function App() {
             <Route path="compras" element={<Navigate to="/panel/materiales/compras" replace />} />
             <Route path="clientes" element={<Customers />} />
             <Route path="lumina" element={<LuminaAdmin />} />
-            <Route path="caja" element={<Soon title="Caja" />} />
-            <Route path="numeros" element={<Soon title="Números" />} />
+            <Route path="caja" element={<Gate feature="cash"><Cash /></Gate>} />
+            <Route path="numeros" element={<Gate feature="numbers"><Numbers /></Gate>} />
             <Route path="marketing" element={<Soon title="Marketing" />} />
             <Route path="mi-web" element={<MySite />} />
             <Route path="ajustes" element={<Settings />} />

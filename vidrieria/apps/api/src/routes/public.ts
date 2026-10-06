@@ -124,6 +124,8 @@ export async function publicRoutes(app: FastifyInstance) {
         accentColor: site.accentColor,
         /** Seña online (con datos y comprobante): según el plan. */
         deposit: hasFeature(b.plan, 'deposit'),
+        /** Pago con Mercado Pago (si la vidriería lo conectó). */
+        mp: hasFeature(b.plan, 'mercadopago') && !!b.mpAccessToken,
         pay: { alias: b.payAlias, cbu: b.payCbu, holder: b.payHolder, note: b.payNote },
       },
     };

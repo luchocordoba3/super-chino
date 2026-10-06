@@ -1,4 +1,4 @@
-import type { Basis, Category, Currency, CustomerType, LeadStatus, PlanId, QuoteInput, QuoteResult, QuoteSettings, QuoteStatus, Unit } from '@vidrieria/shared';
+import type { Basis, Category, Currency, CustomerType, ExpenseCategory, LeadStatus, PayMethod, PlanId, QuoteInput, QuoteResult, QuoteSettings, QuoteStatus, Unit } from '@vidrieria/shared';
 
 export interface User {
   id: string;
@@ -67,6 +67,24 @@ export interface Business {
   payNote: string;
   supplierName: string;
   supplierWhatsapp: string;
+  plan: PlanId;
+  temperDays: number;
+  glassDays: number;
+  warrantyMonths: number;
+  installmentRates: Record<string, number>;
+  priceTestPct: number;
+  payFees: Partial<Record<PayMethod, number>>;
+  monotributoCategory: string;
+  monotributoCap: number | null;
+  arcaCuit: string;
+  arcaPtoVta: number;
+  arcaProduction: boolean;
+  reviewUrl: string;
+  referralBenefit: string;
+  stormMode: boolean;
+  mpConnected: boolean;
+  arcaReady: boolean;
+  arcaCertLoaded: boolean;
   dollar: DollarInfo;
 }
 
@@ -264,6 +282,8 @@ export interface PublicQuote {
     logo: string | null;
     primaryColor: string;
     accentColor: string;
+    deposit: boolean;
+    mp: boolean;
     pay: { alias: string; cbu: string; holder: string; note: string };
   };
 }
@@ -375,4 +395,77 @@ export interface WarrantyInfo {
   until: string | null;
   crew: string | null;
   pieces: { title: string; widthMm: number; heightMm: number; quantity: number; glass: string | null; includes: string[] }[];
+}
+
+export interface Payment {
+  id: string;
+  quoteId: string | null;
+  customerId: string | null;
+  kind: 'SENA' | 'SALDO' | 'OTRO';
+  method: PayMethod;
+  amount: number;
+  feePct: number;
+  net: number;
+  date: string;
+  note: string;
+  chequeBank: string | null;
+  chequeNumber: string | null;
+  chequeDueAt: string | null;
+  chequeStatus: 'CARTERA' | 'DEPOSITADO' | 'COBRADO' | 'ENDOSADO' | 'RECHAZADO' | null;
+  invoiceId: string | null;
+  quote?: { id?: string; number: number; title?: string; customer: { name: string } | null } | null;
+}
+
+export interface Expense {
+  id: string;
+  category: ExpenseCategory;
+  description: string;
+  amount: number;
+  date: string;
+  recurring: boolean;
+  jobId: string | null;
+}
+
+export interface WorkDay {
+  id: string;
+  crewId: string | null;
+  worker: string;
+  date: string;
+  jobId: string | null;
+  amount: number;
+  advance: boolean;
+  paidAt: string | null;
+  crew: { name: string; color: string } | null;
+  job: { quote: { number: number; title: string } } | null;
+}
+
+export interface Invoice {
+  id: string;
+  quoteId: string | null;
+  paymentId: string | null;
+  type: string;
+  ptoVta: number;
+  number: number;
+  cae: string | null;
+  caeDue: string | null;
+  amount: number;
+  date: string;
+  customerName: string;
+  manual: boolean;
+}
+
+export interface Receivable {
+  customer: { id: string; name: string; phone: string; type: CustomerType } | null;
+  due: number;
+  oldest: string | null;
+  quotes: { id: string; number: number; title: string; total: number; paid: number; due: number; acceptedAt: string | null }[];
+}
+
+export interface Numbers {
+  monotributo: { category: string | null; cap: number | null; invoiced: number; banked: number; pct: number | null; projection: number };
+  month: { income: number; net: number; expenses: number; wages: number };
+  cashflow30: { receivable: number; cheques: number; fixed: number; wages: number };
+  breakeven: { fixedMonthly: number; marginPct: number | null; salesNeeded: number | null };
+  byKind: { kind: string; count: number; revenue: number; profit: number; marginPct: number | null }[];
+  jobs: { id: string; number: number; title: string; customer: string | null; price: number; material: number; materialKnown: boolean; wages: number; expenses: number; fees: number; profit: number }[];
 }

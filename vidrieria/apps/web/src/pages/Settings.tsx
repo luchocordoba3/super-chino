@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { CUSTOMER_TYPES, CUSTOMER_TYPE_LABEL } from '@vidrieria/shared';
+import { CUSTOMER_TYPES, CUSTOMER_TYPE_LABEL, MONOTRIBUTO_CAPS, PAY_METHODS, PAY_METHOD_LABEL } from '@vidrieria/shared';
 import { api, errMsg } from '../api';
+import { Gate } from '../components/Locked';
 import { ErrorBox, Field, Loading, NumInput, toast } from '../components/ui';
 import { dateTimeFmt, money2 } from '../lib/format';
 import type { Business, User } from '../lib/types';
@@ -48,6 +49,16 @@ export default function Settings() {
           payNote: b.payNote,
           supplierName: b.supplierName,
           supplierWhatsapp: b.supplierWhatsapp,
+          temperDays: b.temperDays,
+          glassDays: b.glassDays,
+          warrantyMonths: b.warrantyMonths,
+          payFees: b.payFees,
+          monotributoCategory: b.monotributoCategory,
+          monotributoCap: b.monotributoCap,
+          installmentRates: b.installmentRates,
+          priceTestPct: b.priceTestPct,
+          reviewUrl: b.reviewUrl,
+          referralBenefit: b.referralBenefit,
         },
       }),
     onSuccess: (b) => {
@@ -141,6 +152,93 @@ export default function Settings() {
           <textarea rows={2} value={f.quoteFooter} onChange={(e) => set('quoteFooter', e.target.value)} placeholder="Ej.: Seña del 50 % para empezar; el saldo, al terminar." />
         </Field>
       </section>
+
+      <section className="card">
+        <h2>Plazos y garantía</h2>
+        <div className="form-grid">
+          <Field label="Templado, laminado y DVH (días hábiles)" hint="Lo que tarda el proveedor en fabricarlo">
+            <NumInput value={f.temperDays} onChange={(v) => set('temperDays', Math.round(v ?? 0))} />
+          </Field>
+          <Field label="Vidrio común cortado (días hábiles)">
+            <NumInput value={f.glassDays} onChange={(v) => set('glassDays', Math.round(v ?? 0))} />
+          </Field>
+          <Field label="Garantía de colocación (meses)">
+            <NumInput value={f.warrantyMonths} onChange={(v) => set('warrantyMonths', Math.round(v ?? 0))} />
+          </Field>
+        </div>
+      </section>
+
+      <Gate feature="installments" inline>
+        <section className="card">
+          <h2>Cuotas</h2>
+          <p className="muted small">Recargo por cantidad de cuotas (por ejemplo, lo que te cobra Mercado Pago). Si cargás alguno, el cliente ve "o 6 cuotas de $X" en el presupuesto. Vacío = no se muestran.</p>
+          <div className="form-grid">
+            {['3', '6', '12'].map((n) => (
+              <Field key={n} label={`${n} cuotas: recargo %`}>
+                <NumInput
+                  value={f.installmentRates[n] ?? null}
+                  onChange={(v) => {
+                    const r = { ...f.installmentRates };
+                    if (v == null) delete r[n];
+                    else r[n] = v;
+                    set('installmentRates', r);
+                  }}
+                />
+              </Field>
+            ))}
+          </div>
+        </section>
+      </Gate>
+
+      <Gate feature="numbers" inline>
+        <section className="card">
+          <h2>Prueba de precio</h2>
+          <p className="muted small">Si cerrás casi todos los presupuestos, quizás cobrás poco. Con un %, la mitad de los presupuestos nuevos sale con ese recargo y en Números ves si cierran igual. 0 = apagado.</p>
+          <Field label="Recargo de prueba (%)">
+            <NumInput value={f.priceTestPct} onChange={(v) => set('priceTestPct', v ?? 0)} />
+          </Field>
+        </section>
+      </Gate>
+
+      <Gate feature="cash" inline>
+        <section className="card">
+          <h2>Comisiones de cobro</h2>
+          <p className="muted small">Lo que te descuenta cada medio de pago, en %. Sirve para saber cuánto te queda de verdad de cada cobro.</p>
+          <div className="form-grid">
+            {PAY_METHODS.filter((m) => m !== 'EFECTIVO' && m !== 'OTRO').map((m) => (
+              <Field key={m} label={PAY_METHOD_LABEL[m]}>
+                <NumInput value={f.payFees[m] ?? null} onChange={(v) => set('payFees', { ...f.payFees, [m]: v ?? 0 })} />
+              </Field>
+            ))}
+          </div>
+        </section>
+        <section className="card">
+          <h2>Monotributo</h2>
+          <div className="form-grid">
+            <Field label="Categoría" hint="Topes vigentes desde agosto 2026">
+              <select value={f.monotributoCategory} onChange={(e) => set('monotributoCategory', e.target.value)}>
+                <option value="">No soy monotributista / no sé</option>
+                {Object.entries(MONOTRIBUTO_CAPS).map(([k, v]) => (
+                  <option key={k} value={k}>
+                    {k} · hasta {money2(v)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Tope propio (opcional)" hint="Si tu contador te indica otro número">
+              <NumInput value={f.monotributoCap} onChange={(v) => set('monotributoCap', v)} />
+            </Field>
+          </div>
+        </section>
+      </Gate>
+
+      <Gate feature="mercadopago" inline>
+        <MercadoPago connected={f.mpConnected} onSaved={(b) => setF({ ...f, mpConnected: b.mpConnected })} />
+      </Gate>
+
+      <Gate feature="arca" inline>
+        <Arca biz={f} onSaved={(b) => setF({ ...f, arcaReady: b.arcaReady, arcaCertLoaded: b.arcaCertLoaded, arcaCuit: b.arcaCuit, arcaPtoVta: b.arcaPtoVta, arcaProduction: b.arcaProduction })} />
+      </Gate>
 
       <section className="card">
         <h2>Cobro de señas</h2>
@@ -275,6 +373,96 @@ function Users() {
       <button type="button" className="btn" disabled={!f.name || !f.email || f.password.length < 8 || add.isPending} onClick={() => add.mutate()}>
         Agregar
       </button>
+    </section>
+  );
+}
+
+function MercadoPago({ connected, onSaved }: { connected: boolean; onSaved: (b: Business) => void }) {
+  const [token, setToken] = useState('');
+  const m = useMutation({
+    mutationFn: (value: string | null) => api<Business>('/business', { method: 'PATCH', body: { mpAccessToken: value } }),
+    onSuccess: (b) => {
+      onSaved(b);
+      setToken('');
+      toast(b.mpConnected ? 'Mercado Pago conectado' : 'Mercado Pago desconectado');
+    },
+    onError: (e) => toast(errMsg(e)),
+  });
+  return (
+    <section className="card">
+      <h2>Mercado Pago</h2>
+      <p className="muted small">
+        Con Mercado Pago conectado, el cliente paga la seña desde el presupuesto y el cobro entra solo a la caja. La comisión la cobra Mercado Pago, como siempre. El token se saca en Mercado Pago → Tu negocio → Configuración → Credenciales (Access Token de producción).
+      </p>
+      {connected ? (
+        <div className="row wrap">
+          <span className="pill good">Conectado</span>
+          <button type="button" className="btn small" onClick={() => m.mutate(null)}>
+            Desconectar
+          </button>
+        </div>
+      ) : (
+        <div className="row wrap">
+          <input value={token} onChange={(e) => setToken(e.target.value)} placeholder="APP_USR-…" aria-label="Access Token de Mercado Pago" autoComplete="off" />
+          <button type="button" className="btn primary" disabled={!token.trim() || m.isPending} onClick={() => m.mutate(token.trim())}>
+            Conectar
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function Arca({ biz, onSaved }: { biz: Business; onSaved: (b: Business) => void }) {
+  const [f, setF] = useState({ arcaCuit: biz.arcaCuit, arcaPtoVta: biz.arcaPtoVta, arcaProduction: biz.arcaProduction, arcaCert: '', arcaKey: '' });
+  const m = useMutation({
+    mutationFn: () =>
+      api<Business>('/business', {
+        method: 'PATCH',
+        body: { arcaCuit: f.arcaCuit, arcaPtoVta: f.arcaPtoVta, arcaProduction: f.arcaProduction, ...(f.arcaCert ? { arcaCert: f.arcaCert } : {}), ...(f.arcaKey ? { arcaKey: f.arcaKey } : {}) },
+      }),
+    onSuccess: (b) => {
+      onSaved(b);
+      setF({ ...f, arcaCert: '', arcaKey: '' });
+      toast(b.arcaReady ? 'ARCA listo para facturar' : 'Guardado');
+    },
+    onError: (e) => toast(errMsg(e)),
+  });
+  const readFile = (k: 'arcaCert' | 'arcaKey') => async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) setF({ ...f, [k]: await file.text() });
+  };
+  return (
+    <section className="card" id="arca">
+      <h2>Factura electrónica (ARCA)</h2>
+      <p className="muted small">
+        Emití la factura C desde la caja, sin pagar otro sistema. Necesitás un certificado digital de ARCA para "facturación electrónica" (wsfe) y un punto de venta tipo "Web services". Lo puede sacar tu contador en minutos.
+      </p>
+      <div className="form-grid">
+        <Field label="CUIT">
+          <input value={f.arcaCuit} inputMode="numeric" onChange={(e) => setF({ ...f, arcaCuit: e.target.value })} placeholder="20-12345678-9" />
+        </Field>
+        <Field label="Punto de venta">
+          <NumInput value={f.arcaPtoVta} onChange={(v) => setF({ ...f, arcaPtoVta: Math.round(v ?? 1) })} />
+        </Field>
+        <label className="btn small">
+          {f.arcaCert ? 'Certificado listo ✓' : biz.arcaCertLoaded ? 'Cambiar certificado (.crt)' : 'Subir certificado (.crt)'}
+          <input type="file" accept=".crt,.pem,.cer,text/plain" hidden onChange={readFile('arcaCert')} />
+        </label>
+        <label className="btn small">
+          {f.arcaKey ? 'Clave lista ✓' : biz.arcaCertLoaded ? 'Cambiar clave (.key)' : 'Subir clave privada (.key)'}
+          <input type="file" accept=".key,.pem,text/plain" hidden onChange={readFile('arcaKey')} />
+        </label>
+        <label className="check">
+          <input type="checkbox" checked={f.arcaProduction} onChange={(e) => setF({ ...f, arcaProduction: e.target.checked })} /> Facturar de verdad (sacalo para probar en homologación)
+        </label>
+        <div className="actions wide">
+          {biz.arcaReady && <span className="pill good">Listo para facturar</span>}
+          <button type="button" className="btn primary" disabled={m.isPending} onClick={() => m.mutate()}>
+            Guardar datos de ARCA
+          </button>
+        </div>
+      </div>
     </section>
   );
 }

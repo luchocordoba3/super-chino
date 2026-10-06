@@ -2659,3 +2659,77 @@ html {
 .remnant-tip .link-btn {
   display: inline;
 }
+
+/* ---------- Caja y Números ---------- */
+.strong {
+  font-weight: 700;
+}
+.good-text {
+  color: var(--good);
+}
+.bad-text {
+  color: var(--bad);
+}
+.month-nav {
+  align-items: center;
+  gap: 8px;
+}
+.month-label {
+  text-transform: capitalize;
+  min-width: 140px;
+  text-align: center;
+}
+.receivable {
+  padding: 10px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.receivable-q {
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 6px 10px;
+  align-items: center;
+}
+.meter {
+  height: 12px;
+  border-radius: 99px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.meter i {
+  display: block;
+  height: 100%;
+  background: var(--good);
+}
+.meter i.warn {
+  background: var(--warn);
+}
+.mini-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+.mini-stats div {
+  background: var(--bg);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.mini-stats strong {
+  font-family: var(--display);
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+}
+.mini-stats span {
+  font-size: 13px;
+  color: var(--muted);
+}
+details summary {
+  cursor: pointer;
+  color: var(--brand);
+  padding: 6px 0;
+}

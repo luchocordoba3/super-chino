@@ -7,6 +7,6 @@ COPY . .
 RUN pnpm install --frozen-lockfile && pnpm --filter @vidrieria/web build
 ENV NODE_ENV=production PORT=3000
 EXPOSE 3000
-# Migraciones, demo de Cristales Ariel si SEED_DEMO=true (no duplica) y arranque.
+# Schema propio, migraciones, demo si SEED_DEMO=true y arranque (ver apps/api/scripts/start.ts).
 WORKDIR /app/apps/api
-CMD ["sh", "-c", "npx prisma migrate deploy && ( [ \"$SEED_DEMO\" = \"true\" ] && npx tsx prisma/seed.ts || true ) && exec node --import tsx src/index.ts"]
+CMD ["node", "--import", "tsx", "scripts/start.ts"]

@@ -1,0 +1,262 @@
+// Modelo de datos de la vidriería. Todo cuelga de Business (cada vidriería = un cliente de Lumina).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  PARTNER
+}
+
+enum Unit {
+  M2
+  ML
+  UNIT
+  FIXED
+}
+
+enum Currency {
+  ARS
+  USD
+}
+
+enum Category {
+  VIDRIO
+  HERRAJE
+  PERFIL
+  PROCESO
+  SERVICIO
+  OTRO
+}
+
+enum CustomerType {
+  PARTICULAR
+  CONSTRUCTORA
+  ARQUITECTO
+  VIDRIERIA
+  OTRO
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  VIEWED
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+enum LeadStatus {
+  NEW
+  QUOTED
+  CLOSED
+}
+
+enum DollarSource {
+  MANUAL
+  OFICIAL
+  BLUE
+}
+
+model Business {
+  id           String   @id @default(cuid())
+  slug         String   @unique
+  name         String
+  /// Rubro: hoy "vidrieria"; queda abierto para otros rubros de la construcción.
+  trade        String   @default("vidrieria")
+  customDomain String?  @unique
+  createdAt    DateTime @default(now())
+
+  // Contacto y web pública
+  whatsapp    String  @default("")
+  email       String  @default("")
+  address     String  @default("")
+  zones       String  @default("")
+  hours       String  @default("")
+  instagram   String  @default("")
+  /// Textos, colores, servicios y preguntas frecuentes de la web (ver services/site.ts).
+  site        Json    @default("{}")
+  logoAssetId String?
+
+  // Presupuestos
+  dollarSource    DollarSource @default(OFICIAL)
+  dollarManual    Decimal      @default(1000) @db.Decimal(14, 2)
+  wastePct        Decimal      @default(15) @db.Decimal(6, 2)
+  depositPct      Decimal      @default(50) @db.Decimal(6, 2)
+  urgencyPct      Decimal      @default(20) @db.Decimal(6, 2)
+  freightPerKm    Decimal      @default(0) @db.Decimal(14, 2)
+  pricesIncludeVat Boolean     @default(true)
+  vatPct          Decimal      @default(21) @db.Decimal(6, 2)
+  roundToCm       Int          @default(0)
+  minAreaM2       Decimal      @default(0) @db.Decimal(8, 3)
+  validDays       Int          @default(10)
+  /// Ajuste % por tipo de cliente, ej. {"VIDRIERIA": -10}
+  customerAdjust  Json         @default("{}")
+  quoteFooter     String       @default("")
+  nextQuoteNumber Int          @default(1)
+
+  users     User[]
+  catalog   CatalogItem[]
+  templates Template[]
+  customers Customer[]
+  leads     Lead[]
+  quotes    Quote[]
+  assets    Asset[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  businessId   String
+  business     Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(OWNER)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  @@index([businessId])
+}
+
+model CatalogItem {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  category    Category
+  name        String
+  thicknessMm Decimal? @db.Decimal(6, 2)
+  unit        Unit
+  price       Decimal  @db.Decimal(14, 2)
+  currency    Currency @default(ARS)
+  cost        Decimal? @db.Decimal(14, 2)
+  /// Vidrios: se les suma el % de desperdicio.
+  isGlass     Boolean  @default(false)
+  active      Boolean  @default(true)
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  @@index([businessId, category])
+}
+
+model Template {
+  id              String   @id @default(cuid())
+  businessId      String
+  business        Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name            String
+  description     String   @default("")
+  defaultWidthMm  Int      @default(1000)
+  defaultHeightMm Int      @default(1000)
+  /// [{ catalogItemId, basis, factor }]
+  lines           Json     @default("[]")
+  sort            Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  @@index([businessId])
+}
+
+model Customer {
+  id         String       @id @default(cuid())
+  businessId String
+  business   Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name       String
+  phone      String       @default("")
+  email      String       @default("")
+  address    String       @default("")
+  type       CustomerType @default(PARTICULAR)
+  notes      String       @default("")
+  createdAt  DateTime     @default(now())
+  quotes     Quote[]
+  leads      Lead[]
+
+  @@index([businessId])
+}
+
+/// Consulta que deja un visitante en la web.
+model Lead {
+  id         String     @id @default(cuid())
+  businessId String
+  business   Business   @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customerId String?
+  customer   Customer?  @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  kind       String
+  widthCm    Decimal?   @db.Decimal(10, 1)
+  heightCm   Decimal?   @db.Decimal(10, 1)
+  quantity   Int?
+  details    String     @default("")
+  zone       String     @default("")
+  name       String
+  phone      String
+  when       String     @default("")
+  photoIds   String[]   @default([])
+  status     LeadStatus @default(NEW)
+  createdAt  DateTime   @default(now())
+  quotes     Quote[]
+
+  @@index([businessId, status, createdAt])
+}
+
+model Quote {
+  id          String      @id @default(cuid())
+  businessId  String
+  business    Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  number      Int
+  customerId  String?
+  customer    Customer?   @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  leadId      String?
+  lead        Lead?       @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  title       String      @default("")
+  notes       String      @default("")
+  status      QuoteStatus @default(DRAFT)
+  /// Lo que cargó el dueño (QuoteInput sin calcular).
+  input       Json
+  /// Configuración congelada al calcular (dólar, desperdicio, seña...).
+  settings    Json
+  /// Resultado del cálculo (QuoteResult).
+  result      Json
+  total       Decimal     @db.Decimal(14, 2)
+  deposit     Decimal     @db.Decimal(14, 2)
+  dollarRate  Decimal     @db.Decimal(14, 2)
+  validUntil  DateTime
+  publicToken String      @unique
+  sentAt      DateTime?
+  viewedAt    DateTime?
+  acceptedAt  DateTime?
+  rejectedAt  DateTime?
+  followUpAt  DateTime?
+  createdById String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@unique([businessId, number])
+  @@index([businessId, status, createdAt])
+}
+
+/// Fotos guardadas en la base (ya achicadas): en hosting gratis los archivos sueltos se pierden.
+model Asset {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  mime       String
+  data       Bytes
+  size       Int
+  /// "site" (web), "lead" (foto de una consulta), "logo"
+  kind       String
+  /// true: se puede ver sin login (fotos de la web).
+  public     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([businessId, kind])
+}
+
+/// Última cotización del dólar leída de internet (una fila por fuente).
+model DollarRate {
+  source    DollarSource @id
+  sell      Decimal      @db.Decimal(14, 2)
+  fetchedAt DateTime
+}

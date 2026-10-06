@@ -1,0 +1,9 @@
+{
+  "name": "Lumina · Vidriería",
+  "short_name": "Vidriería",
+  "start_url": "/panel",
+  "display": "standalone",
+  "background_color": "#f5f7fb",
+  "theme_color": "#1d4ed8",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

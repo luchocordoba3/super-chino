@@ -97,6 +97,8 @@ export async function buildApp(opts: FastifyServerOptions = {}) {
         else if (path.includes('/assets/')) res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
       },
     });
+    // Oferta de Lumina para otras vidrierías: se imprime en A4 (Ctrl + P) o se manda el link.
+    app.get('/oferta', (_req, reply) => reply.header('Cache-Control', 'no-cache').sendFile('oferta.html'));
     app.setNotFoundHandler(async (req, reply) => {
       if (req.method !== 'GET' || req.url.startsWith('/api/')) return reply.status(404).send({ error: 'not_found' });
       const html = await withMeta(indexHtml, req);

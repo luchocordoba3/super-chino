@@ -72,7 +72,7 @@ function JobCard({ j, onOpen }: { j: Job; onOpen: (id: string) => void }) {
     <button type="button" className="card job-card" onClick={() => onOpen(j.id)} style={j.crew ? { borderLeftColor: j.crew.color } : undefined}>
       <span className="row between">
         <strong>{j.quote.customer?.name ?? 'Sin cliente'}</strong>
-        <span className="mono muted small">N° {j.quote.number}</span>
+        <span className="mono muted small nowrap">N° {j.quote.number}</span>
       </span>
       <span className="muted small">{j.quote.title || 'Trabajo'}</span>
       <span className="row wrap job-flags">

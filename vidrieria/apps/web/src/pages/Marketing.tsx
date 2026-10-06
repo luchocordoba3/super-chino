@@ -123,7 +123,7 @@ export default function Marketing() {
       <section className="card">
         <h2>Carteles de obra</h2>
         <p className="muted small">Cada cartel con su QR: sabés cuántos lo escanearon y cuántas consultas trajo.</p>
-        <div className="row wrap">
+        <div className="row wrap sign-form">
           <input value={sign.name} onChange={(e) => setSign({ ...sign, name: e.target.value })} placeholder="Ej.: Obra Mitre 1200" aria-label="Nombre del cartel" />
           <input value={sign.address} onChange={(e) => setSign({ ...sign, address: e.target.value })} placeholder="Dirección (opcional)" aria-label="Dirección" />
           <button type="button" className="btn small primary" disabled={!sign.name.trim() || addSign.isPending} onClick={() => addSign.mutate()}>
@@ -139,7 +139,7 @@ export default function Marketing() {
                 <span className="grow">
                   <strong>{s.name}</strong>
                   <span className="muted small block">
-                    {s.visits} escaneos · {s.leads} consultas{s.address && ` · ${s.address}`}
+                    {s.visits} escaneo{s.visits === 1 ? '' : 's'} · {s.leads} consulta{s.leads === 1 ? '' : 's'}{s.address && ` · ${s.address}`}
                   </span>
                 </span>
                 <a className="btn small" href={qrPage(url, name, 'Escaneá y pedí tu presupuesto')} target="_blank" rel="noreferrer">

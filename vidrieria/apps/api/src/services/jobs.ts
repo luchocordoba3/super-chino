@@ -71,6 +71,8 @@ export async function setJobStatus(jobId: string, status: JobStatus) {
   if (status === 'INSTALLED' && !job.installedAt) data.installedAt = now;
   if (status === 'CLOSED' && !job.closedAt) data.closedAt = now;
   const updated = await prisma.job.update({ where: { id: jobId }, data });
+  // Con el material pedido, el presupuesto sale de "Compras" (y del aviso de Inicio).
+  if (status !== 'PENDING') await prisma.quote.updateMany({ where: { id: job.quoteId, purchasedAt: null }, data: { purchasedAt: now } });
   if (status === 'INSTALLED' || status === 'CLOSED') await useStock(jobId);
   return updated;
 }

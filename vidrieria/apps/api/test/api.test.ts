@@ -621,4 +621,24 @@ describe('atraer y postventa', () => {
     const q2 = (await call(cookie, 'POST', '/api/quotes', { title: 'Mampara', items: [item([vidrioUsd])], extras: [] })).json();
     expect((await app.inject({ method: 'GET', url: `/api/public/quotes/${q2.publicToken}?preview=1` })).json().similar[0].image).toBe(`/api/assets/${photoId}`);
   });
+
+  it('compras y trabajos van juntos: pedir el material pasa el trabajo a pedido, y al revés', async () => {
+    const { cookie } = await signup('Compras', 'compras@test.com');
+    const accepted = async () => {
+      const q = (await call(cookie, 'POST', '/api/quotes', { title: 'Mampara', items: [item([vidrioUsd])], extras: [] })).json();
+      await call(cookie, 'POST', `/api/quotes/${q.id}/status`, { status: 'ACCEPTED' });
+      return q;
+    };
+    const [q1, q2] = [await accepted(), await accepted()];
+    const jobOf = async (quoteId: string) => (await call(cookie, 'GET', '/api/jobs')).json().find((j: { quoteId: string }) => j.quoteId === quoteId);
+    const toBuy = async () => (await call(cookie, 'GET', '/api/purchases')).json().map((q: { id: string }) => q.id);
+    expect((await toBuy()).sort()).toEqual([q1.id, q2.id].sort());
+
+    await call(cookie, 'POST', '/api/purchases/mark', { ids: [q1.id] });
+    expect(await jobOf(q1.id)).toMatchObject({ status: 'ORDERED' });
+    expect((await jobOf(q1.id)).promisedAt).toBeTruthy();
+
+    await call(cookie, 'POST', `/api/jobs/${(await jobOf(q2.id)).id}/status`, { status: 'ORDERED' });
+    expect(await toBuy()).toEqual([]);
+  });
 });

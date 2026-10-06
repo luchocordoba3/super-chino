@@ -1,6 +1,6 @@
 # Lumina · Vidriería
 
-Web + presupuestador para vidrierías. Multi-cliente: cada vidriería tiene su cuenta, su panel y su página pública. Primer cliente: **Cristales Ariel** (Villa Ballester).
+Web + software de gestión para vidrierías (atraer, vender, hacer la obra, la plata y la postventa). Multi-cliente: cada vidriería tiene su cuenta, su panel y su página pública. Primer cliente: **Cristales Ariel** (Villa Ballester).
 
 Proyecto independiente: vive en `vidrieria/` dentro de este repo, pero se puede mover tal cual al repo de Lumina.
 
@@ -41,11 +41,48 @@ Proyecto independiente: vive en `vidrieria/` dentro de este repo, pero se puede 
   - suba o baja por %;
   - importar la lista del proveedor desde Excel o CSV, que adivina columnas, categoría, unidad, moneda y espesor;
   - plantillas de trabajo editables.
-- **Compras:** junta el material de los trabajos aceptados (vidrios cortados a medida con cada pieza, herrajes sumados) y arma el pedido al proveedor por WhatsApp. Después se marcan como comprados.
+- **Compras** (en **Materiales**, junto con Precios, Retazos y Stock): junta el material de los trabajos aceptados (vidrios cortados a medida con cada pieza, herrajes sumados) y arma el pedido al proveedor por WhatsApp. Al marcarlos como pedidos, los trabajos pasan a "Pedido al proveedor".
 - **Mi web:** textos, colores, logo, fotos de trabajos, servicios y preguntas.
 - **Ajustes:** dólar y % de alerta, desperdicio, seña, urgencia, flete, validez, redondeo de medidas, mínimo por pieza, IVA, ajuste por tipo de cliente, datos para cobrar la seña, proveedor, avisos y usuarios (dueño y socio).
 
+**Hacer (la obra)**
+- **Trabajos** (`/panel/trabajos`): cada presupuesto aceptado es un trabajo, con tablero por estado (por pedir, pedido, en fabricación, listo para colocar, agendado, colocado, cerrado), fecha prometida según el plazo del proveedor y aviso cuando se atrasa. Agenda semanal por equipo, equipos con jornal y roturas.
+- **Ficha del colocador** (`/o/…`, sin login): dirección con Maps, WhatsApp del cliente, piezas con dibujo y peso ("necesita 2 personas"), checklist, "Llegamos", fotos de antes y después y "Terminado" (avisa al dueño).
+- **Garantía con QR** (`/g/…`): fecha, vidrio, colocador y vencimiento; etiqueta para imprimir y pegar en el trabajo.
+- **Retazos** (el editor avisa "tenés un retazo que sirve") y **stock** de herrajes con mínimo (se descuenta al colocar).
+
+**Plata**
+- **Caja** (`/panel/caja`): cobros por medio de pago con su comisión, por cobrar (cuentas corrientes), gastos fijos y de obra, jornales con liquidación semanal, cheques y echeqs, facturas.
+- **Mercado Pago** (opcional, con el token de la vidriería guardado cifrado): botón de pago en el presupuesto; el pago se registra solo.
+- **Factura C directo con ARCA** (WSAA + WSFEv1, sin proveedor pago): certificado y clave de cada vidriería, cifrados; homologación o producción. También se cargan facturas hechas por fuera.
+- **Números** (`/panel/numeros`): monotributo contra el tope de la categoría, caja del mes, próximos 30 días, punto de equilibrio, tasa de cierre por origen y tipo de trabajo, prueba de precio, margen por tipo de trabajo y ganancia real de cada trabajo.
+
+**Vender (además del presupuestador)**
+- Aviso de **vidrio de seguridad** (IRAM 12595) con conformidad del cliente, **cuotas** con recargo, origen de cada consulta (web, Google, cartel, recomendación…), **edificios** de consorcios con sus vidrios y **formato para la aseguradora**.
+- **Foto con IA "Así quedaría"**: desde la foto del cliente arma la imagen con el trabajo puesto y la suma al link del presupuesto. Se activa con `IMAGE_API_KEY` (Gemini); sin clave muestra "Se activa pronto". Cupo por mes según el plan.
+
+**Atraer y postventa**
+- **Marketing** (`/panel/marketing`): de dónde llegan los clientes, guía de Google y QR de reseñas, carteles de obra con QR (escaneos y consultas), links de recomendación con beneficio, modo tormenta (cartel de urgencias en la web por 48 horas y clientes por barrio) y fotos de antes y después con el texto para redes.
+- **Web:** una página por servicio (`/cristales-ariel/servicios/…`) con sus fotos y el formulario ya elegido; galería con tipo de trabajo y barrio; el presupuesto muestra trabajos parecidos.
+- **"Para mandar hoy"** en Inicio: confirmar turnos de mañana, pedir reseña, control a los 30 días, service a los 6 y 12 meses, avisar demoras, pedir material y reponer stock. Cada uno con su mensaje de WhatsApp.
+
+Todo sale por links de WhatsApp (`wa.me`), sin la API paga.
+
 Cada vidriería nueva arranca con catálogo y plantillas **de ejemplo** (precios orientativos) para reemplazar por los suyos.
+
+## Planes
+
+Definidos en `packages/shared/src/plans.ts` (la API y el panel los respetan; lo que no incluye se ve con candado).
+
+| Plan | Alta (pago único) | Abono | Fotos con IA por mes |
+| --- | --- | --- | --- |
+| Inicial · Presupuestá y vendé | US$ 300 | US$ 35 | 10 |
+| Profesional · Organizá la obra | US$ 800 | US$ 65 | 40 |
+| Completo · Controlá la plata | US$ 1.800 | US$ 99 | 100 |
+
+El plan de cada vidriería se cambia en **Lumina** (`/panel/lumina`), que solo ven los emails de `LUMINA_ADMINS` (por defecto, lucianocordoba3@gmail.com).
+
+**Oferta para otras vidrierías:** https://lumina-vidrieria.onrender.com/oferta (5 hojas A4; Ctrl + P → Guardar como PDF). Con `/oferta?editar=1` aparece el recuadro para escribir la frase de Ariel antes de imprimir. El HTML está en `apps/web/public/oferta.html` y las capturas en `apps/web/public/oferta/`.
 
 ## Cómo levantarlo
 
@@ -87,6 +124,8 @@ Mientras esté dentro de `super-chino` (se hace desde el celular, en unos 10 min
 2. **New → Web Service** → repo `super-chino`, Branch `claude/sleepy-dirac-y0lt89`, **Root Directory** `vidrieria`, Language Docker, región Virginia (la misma que la base), plan Free.
 3. **Environment Variables**: `DATABASE_URL` = la URL del paso 1 y `SEED_DEMO` = `true` (carga la demo de Cristales Ariel). `JWT_SECRET` es opcional: si no está, se deriva de `DATABASE_URL`. Las claves de los avisos (`VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY`) también son opcionales: si no están, se derivan del secreto.
 
+Variables opcionales: `IMAGE_API_KEY` (foto con IA), `LUMINA_ADMINS` (emails que ven el admin de Lumina, separados por coma) y `PUBLIC_URL` (si no está, usa la de Render).
+
 Cuando la demo cambia (`DEMO_VERSION` en `prisma/seed.ts`), al publicar se vuelve a crear sola. Solo toca la cuenta de demo (`ariel@demo.com`), nunca una cuenta real.
 
 Cuando se mude al repo de Lumina, `render.yaml` crea las dos cosas sola (**New → Blueprint**).
@@ -103,13 +142,10 @@ cuestionario/    Cuestionario para relevar a cada vidriería nueva
 docs/            Respuestas de cada cliente
 ```
 
-## Próxima etapa
+## Falta probar afuera de este entorno
 
-- Trabajos y agenda de mediciones e instalaciones por equipo, con órdenes de trabajo para los colocadores en el celular.
-- Jornales de colocadores.
-- Compras al proveedor por WhatsApp.
-- Stock de perfiles, herrajes y **retazos**: que el presupuestador avise "tenés un retazo de 8 mm que sirve", y optimización del corte de planchas.
-- Ficha de obra para el colocador (dirección, dibujo, materiales y checklist); la foto del trabajo terminado pasa a la web y se le pide reseña de Google al cliente.
-- Leer el mensaje del cliente con IA (hoy son reglas simples).
-- Caja, cobros, señas, cuentas corrientes, gastos fijos y ganancia por trabajo y por mes.
-- Factura ARCA.
+- Avisos push en celulares reales.
+- Mercado Pago con una cuenta real (token de la vidriería).
+- ARCA en homologación: hace falta el certificado de la vidriería, que lo saca su contador.
+- Foto con IA con una clave real (`IMAGE_API_KEY`).
+- El modo tormenta se activa a mano; el aviso automático del Servicio Meteorológico no está hecho (su API no se pudo verificar).

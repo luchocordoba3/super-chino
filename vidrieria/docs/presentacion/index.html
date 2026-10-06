@@ -55,6 +55,14 @@ section { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 .pane svg { width: 100%; height: auto; display: block; }
 .pane text { font-family: var(--mono); font-size: 13px; fill: var(--muted); }
 
+.try { background: var(--surface); border: 2px solid var(--blue); border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+.try-links { display: flex; flex-wrap: wrap; gap: 10px; }
+.btn { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 12px 20px; border-radius: 999px; font-weight: 700; text-decoration: none; border: 2px solid var(--blue); color: var(--blue); }
+.btn.primary { background: var(--red); border-color: var(--red); color: #fff; }
+.btn:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+.cred { font-family: var(--mono); font-size: 14px; color: var(--muted); }
+.cred b { color: var(--fg); font-weight: 500; user-select: all; }
+
 /* Lo que nos contaste */
 .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
 .fact { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 6px; }
@@ -139,6 +147,17 @@ section { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
       </svg>
     </figure>
   </header>
+
+  <section class="try" aria-labelledby="probala">
+    <h2 id="probala">Probala vos</h2>
+    <p class="muted">Está funcionando con datos de ejemplo. Podés pedir un presupuesto como si fueras un cliente y después verlo en tu panel.</p>
+    <div class="try-links">
+      <a class="btn primary" href="https://lumina-vidrieria.onrender.com/cristales-ariel" target="_blank" rel="noopener">Ver tu web</a>
+      <a class="btn" href="https://lumina-vidrieria.onrender.com/login" target="_blank" rel="noopener">Entrar a tu panel</a>
+    </div>
+    <p class="cred">Usuario <b>ariel@demo.com</b> · Clave <b>demo1234</b></p>
+    <p class="muted" style="font-size:14px">Si tarda en abrir, esperá un minuto: la versión de prueba se duerme cuando nadie la usa.</p>
+  </section>
 
   <section aria-labelledby="contaste">
     <p class="eyebrow">Lo que nos contaste</p>

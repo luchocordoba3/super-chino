@@ -64,6 +64,8 @@ pnpm e2e         # Playwright de punta a punta (base vidrieria_e2e): consulta �
 
 ## Publicar en Render
 
+Publicada en https://lumina-vidrieria.onrender.com (web de ejemplo: `/cristales-ariel`, panel: `/login`). Comparte la base de Super Chino en el schema `vidrieria`.
+
 Mientras esté dentro de `super-chino` (se hace desde el celular, en unos 10 minutos):
 
 1. **New → Postgres**: nombre `vidrieria-db`, región Virginia, plan Free. Cuando esté lista, copiá la **Internal Database URL**.

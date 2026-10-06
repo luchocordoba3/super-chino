@@ -1,0 +1,281 @@
+<title>Propuesta Cristales Ariel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Figtree:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: una columna de lectura; en pantallas anchas, texto a la izquierda y celulares a la derecha. Detalle del rubro: cotas de medida como en un plano de vidriería. */
+:root {
+  --bg: #f4f6fa;
+  --surface: #ffffff;
+  --fg: #0f172a;
+  --muted: #55607a;
+  --line: #dbe1ec;
+  --blue: #1d4ed8;
+  --blue-soft: #e5ecfd;
+  --red: #dc2626;
+  --glass: #d8e9f3;
+  --glass-edge: #8fbcd4;
+  --display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b1220; --surface: #111a2e; --fg: #e6ebf5; --muted: #9aa6bd; --line: #223049;
+    --blue: #7c9dff; --blue-soft: #1a2647; --red: #f26b6b; --glass: #16324a; --glass-edge: #3f7799;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0b1220; --surface: #111a2e; --fg: #e6ebf5; --muted: #9aa6bd; --line: #223049;
+  --blue: #7c9dff; --blue-soft: #1a2647; --red: #f26b6b; --glass: #16324a; --glass-edge: #3f7799;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 17px; line-height: 1.55; }
+.page { max-width: 1040px; margin: 0 auto; padding-inline: 16px; padding-block: 0 48px; display: flex; flex-direction: column; gap: 64px; }
+h1, h2, h3 { font-family: var(--display); margin: 0; line-height: 1.08; text-wrap: balance; }
+h1 { font-size: clamp(34px, 7.5vw, 60px); font-weight: 800; letter-spacing: -0.015em; }
+h2 { font-size: clamp(26px, 4.6vw, 38px); font-weight: 800; letter-spacing: -0.01em; }
+h3 { font-size: 20px; font-weight: 700; }
+p { margin: 0; }
+.eyebrow { font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--red); }
+.muted { color: var(--muted); }
+.lead { font-size: 19px; color: var(--muted); max-width: 58ch; }
+section { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+
+/* Portada */
+.hero { padding-top: 40px; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr); gap: 32px; align-items: center; }
+.hero-text { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.hero h1 .brand { color: var(--blue); }
+.hero-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.tag { font-size: 14px; font-weight: 600; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 4px 12px; }
+.pane { width: 100%; max-width: 300px; justify-self: center; }
+.pane svg { width: 100%; height: auto; display: block; }
+.pane text { font-family: var(--mono); font-size: 13px; fill: var(--muted); }
+
+/* Lo que nos contaste */
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+.fact { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 6px; }
+.fact strong { font-family: var(--display); font-size: 28px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.fact span { color: var(--muted); font-size: 15px; }
+.quote-note { font-size: 15px; color: var(--muted); }
+
+/* Bloques con celulares */
+.block { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 28px; align-items: start; }
+.block-text { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.block > div { min-width: 0; }
+.block-n { font-family: var(--mono); font-size: 13px; color: var(--blue); letter-spacing: 0.06em; }
+.checks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.checks li { padding-left: 28px; position: relative; }
+.checks li::before { content: ""; position: absolute; left: 0; top: 7px; width: 14px; height: 14px; border-radius: 4px; background: var(--blue-soft); border: 2px solid var(--blue); }
+.phones { display: flex; gap: 14px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 8px; min-width: 0; }
+.phone { flex: 0 0 auto; width: min(230px, 62vw); scroll-snap-align: start; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.phone img { width: 100%; height: auto; border-radius: 22px; border: 6px solid var(--fg); background: var(--surface); display: block; }
+.phone figcaption { font-size: 14px; color: var(--muted); text-align: center; }
+.swipe { font-size: 13px; color: var(--muted); display: none; }
+
+/* Pasos */
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; }
+.steps li { border-top: 3px solid var(--blue); padding-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+.steps .n { font-family: var(--mono); font-size: 13px; color: var(--red); }
+.steps p { color: var(--muted); font-size: 16px; }
+
+/* Presupuesto en números */
+.calc { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.calc-head { padding: 16px 18px; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; align-items: baseline; }
+.calc-head .mono { font-family: var(--mono); font-size: 14px; color: var(--muted); }
+.calc-rows { margin: 0; padding: 4px 18px 8px; display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+.calc-rows dt, .calc-rows dd { padding: 10px 0; border-bottom: 1px solid var(--line); margin: 0; }
+.calc-rows dt span { display: block; font-family: var(--mono); font-size: 13px; color: var(--muted); }
+.calc-rows dd { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; padding-left: 12px; }
+.calc-rows .total { font-family: var(--display); font-size: 26px; font-weight: 800; border-bottom: 0; padding-top: 14px; }
+.calc-rows .soft { color: var(--muted); font-weight: 500; border-bottom: 0; padding-top: 2px; }
+.calc-foot { padding: 12px 18px 16px; font-size: 14px; color: var(--muted); background: var(--bg); }
+
+/* Etapa 2 y pedidos */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 6px; }
+.card p { color: var(--muted); font-size: 15px; }
+.need { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; }
+.need li { padding: 14px 16px 14px 48px; border-bottom: 1px solid var(--line); position: relative; }
+.need li:last-child { border-bottom: 0; }
+.need li::before { content: ""; position: absolute; left: 16px; top: 17px; width: 18px; height: 18px; border: 2px solid var(--muted); border-radius: 5px; }
+.need small { display: block; color: var(--muted); font-size: 14px; }
+.foot { text-align: center; font-family: var(--mono); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); border-top: 1px solid var(--line); padding-top: 20px; }
+
+@media (max-width: 760px) {
+  .page { gap: 52px; }
+  .hero { grid-template-columns: 1fr; padding-top: 28px; }
+  .pane { max-width: 240px; justify-self: start; }
+  .block { grid-template-columns: 1fr; }
+  .swipe { display: block; }
+}
+</style>
+
+<div class="page">
+  <header class="hero">
+    <div class="hero-text">
+      <p class="eyebrow">Propuesta de Lumina · Octubre 2026</p>
+      <h1><span class="brand">Cristales Ariel</span>, con web propia y presupuestos en 2 minutos</h1>
+      <p class="lead">Armamos tu página para que te pidan presupuesto con medidas y fotos, y un panel para presupuestar con tus precios en dólares, mandarlo por WhatsApp y que el cliente lo acepte con un toque.</p>
+      <div class="hero-tags">
+        <span class="tag">Mamparas</span>
+        <span class="tag">Escaleras y barandas</span>
+        <span class="tag">Cambio de vidrio</span>
+        <span class="tag">Espejos</span>
+      </div>
+    </div>
+    <figure class="pane" aria-label="Vidrio de 1200 por 1800 milímetros con sus cotas">
+      <svg viewBox="0 0 260 330" role="img" aria-hidden="true">
+        <rect x="40" y="20" width="180" height="270" rx="3" fill="var(--glass)" stroke="var(--glass-edge)" stroke-width="3"/>
+        <path d="M70 60 L120 30 M70 100 L170 40 M150 270 L210 230" stroke="var(--surface)" stroke-width="6" stroke-linecap="round" opacity="0.8"/>
+        <path d="M40 310 L220 310 M40 304 L40 316 M220 304 L220 316" stroke="var(--muted)" stroke-width="1.5" fill="none"/>
+        <text x="130" y="326" text-anchor="middle">1200 mm</text>
+        <path d="M14 20 L14 290 M8 20 L20 20 M8 290 L20 290" stroke="var(--muted)" stroke-width="1.5" fill="none"/>
+        <text x="0" y="0" transform="translate(10 155) rotate(-90)" text-anchor="middle">1800 mm</text>
+        <text x="130" y="160" text-anchor="middle" fill="var(--blue)" style="fill: var(--blue)">2,16 m²</text>
+      </svg>
+    </figure>
+  </header>
+
+  <section aria-labelledby="contaste">
+    <p class="eyebrow">Lo que nos contaste</p>
+    <h2 id="contaste">Hoy el negocio anda, pero el cuaderno no da abasto</h2>
+    <div class="facts">
+      <div class="fact"><strong>15 a 40</strong><span>presupuestos por semana, en papel o cuaderno</span></div>
+      <div class="fact"><strong>10 a 30 min</strong><span>para armar cada uno</span></div>
+      <div class="fact"><strong>US$ → $</strong><span>pensás los precios en dólares y los pasás a pesos a mano</span></div>
+      <div class="fact"><strong>Nunca</strong><span>volvés a escribir a los que no contestan: no da el tiempo</span></div>
+    </div>
+    <p class="quote-note">También nos dijiste que te come tiempo contestar WhatsApp, ir a medir, comprar material y organizar a los colocadores. Con esto armamos lo que sigue.</p>
+  </section>
+
+  <section aria-labelledby="web">
+    <div class="block">
+      <div class="block-text">
+        <p class="block-n">PARTE 1 DE 3</p>
+        <h2 id="web">Tu página web</h2>
+        <p class="muted">Moderna y simple, en azul y rojo. No muestra precios: lleva a pedir presupuesto.</p>
+        <ul class="checks">
+          <li>Tus servicios y fotos de tus trabajos.</li>
+          <li>Formulario para pedir presupuesto con tipo de trabajo, medidas aproximadas, zona y hasta 3 fotos del lugar.</li>
+          <li>La consulta te llega al panel con todo cargado.</li>
+          <li>Botón de WhatsApp siempre a mano.</li>
+          <li>Lista para tener tu dominio, por ejemplo cristalesariel.com.ar.</li>
+        </ul>
+      </div>
+      <div>
+        <div class="phones">
+          <figure class="phone"><img src="img/1-web-portada.jpg" alt="Portada de la web de Cristales Ariel en el celular" loading="lazy"><figcaption>Portada</figcaption></figure>
+          <figure class="phone"><img src="img/2-web-pedir-presupuesto.jpg" alt="Formulario para pedir presupuesto con medidas y fotos" loading="lazy"><figcaption>Pedido de presupuesto</figcaption></figure>
+        </div>
+        <p class="swipe">Deslizá para ver más →</p>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="panel">
+    <div class="block">
+      <div class="block-text">
+        <p class="block-n">PARTE 2 DE 3</p>
+        <h2 id="panel">Tu panel y presupuestador</h2>
+        <p class="muted">Lo usás desde la PC del local o el celular, vos y tu socio.</p>
+        <ul class="checks">
+          <li>Elegís el trabajo (mampara, box, espejo, cambio de vidrio, baranda o escalera, DVH), ponés ancho × alto y sale el precio.</li>
+          <li>Tus precios en dólares se pasan solos a pesos con el dólar del día.</li>
+          <li>Suma el 15 % de desperdicio, los cantos por metro, herrajes, colocación, flete por km y urgencia.</li>
+          <li>Calcula la seña del 50 % y el saldo.</li>
+          <li>Te avisa qué presupuestos no respondieron y les escribís con un toque.</li>
+          <li>Importás la lista de precios del proveedor desde Excel y subís todo por % cuando aumenta.</li>
+        </ul>
+      </div>
+      <div>
+        <div class="phones">
+          <figure class="phone"><img src="img/3-panel-inicio.jpg" alt="Inicio del panel con consultas nuevas y presupuestos para seguir" loading="lazy"><figcaption>Inicio</figcaption></figure>
+          <figure class="phone"><img src="img/4-presupuestador.jpg" alt="Presupuestador con medidas de una mampara" loading="lazy"><figcaption>Presupuestador</figcaption></figure>
+          <figure class="phone"><img src="img/5-enviar-por-whatsapp.jpg" alt="Total, seña y botón para enviar por WhatsApp" loading="lazy"><figcaption>Enviar por WhatsApp</figcaption></figure>
+        </div>
+        <p class="swipe">Deslizá para ver más →</p>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="cliente">
+    <div class="block">
+      <div class="block-text">
+        <p class="block-n">PARTE 3 DE 3</p>
+        <h2 id="cliente">Lo que recibe tu cliente</h2>
+        <p class="muted">Un link prolijo con tu marca, en vez de una foto del cuaderno.</p>
+        <ul class="checks">
+          <li>Detalle de cada trabajo con sus medidas, total, seña y saldo.</li>
+          <li>Botón "Acepto el presupuesto": te enterás al instante.</li>
+          <li>Lo puede guardar en PDF.</li>
+          <li>Ves si lo abrió y cuándo vence.</li>
+        </ul>
+      </div>
+      <div class="phones">
+        <figure class="phone"><img src="img/6-presupuesto-que-ve-el-cliente.jpg" alt="Presupuesto que ve el cliente con el botón para aceptarlo" loading="lazy"><figcaption>Presupuesto del cliente</figcaption></figure>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="como">
+    <p class="eyebrow">Así funciona</p>
+    <h2 id="como">De la consulta al trabajo aceptado</h2>
+    <ol class="steps">
+      <li><span class="n">1</span><h3>Te piden presupuesto</h3><p>Desde tu web, con medidas y fotos. Te llega al panel.</p></li>
+      <li><span class="n">2</span><h3>Presupuestás</h3><p>Elegís la plantilla, ponés las medidas y ajustás lo que haga falta.</p></li>
+      <li><span class="n">3</span><h3>Lo mandás por WhatsApp</h3><p>Con el mensaje ya escrito y el link al detalle.</p></li>
+      <li><span class="n">4</span><h3>El cliente acepta</h3><p>Queda registrado con la seña a cobrar. Si no contesta, el panel te lo recuerda.</p></li>
+    </ol>
+  </section>
+
+  <section aria-labelledby="numeros">
+    <p class="eyebrow">Un presupuesto en números</p>
+    <h2 id="numeros">Mampara corrediza en templado 8 mm</h2>
+    <div class="calc">
+      <div class="calc-head">
+        <strong>1200 × 1800 mm · 1 unidad</strong>
+        <span class="mono">2,16 m² · 6 ml de canto · dólar $1.450</span>
+      </div>
+      <dl class="calc-rows">
+        <dt>Templado 8 mm<span>2,16 m² + 15 % desperdicio = 2,484 m² × US$ 75</span></dt><dd>$ 270.135</dd>
+        <dt>Pulido de cantos<span>6 ml × $ 2.500</span></dt><dd>$ 15.000</dd>
+        <dt>Kit mampara corrediza<span>1 × US$ 95</span></dt><dd>$ 137.750</dd>
+        <dt>Silicona<span>1 cartucho</span></dt><dd>$ 9.000</dd>
+        <dt>Colocación<span>precio cerrado</span></dt><dd>$ 60.000</dd>
+        <dt class="total">Total</dt><dd class="total">$ 491.885</dd>
+        <dt class="soft">Seña 50 %</dt><dd class="soft">$ 245.943</dd>
+        <dt class="soft">Saldo</dt><dd class="soft">$ 245.942</dd>
+      </dl>
+      <p class="calc-foot">Precios de ejemplo para mostrar el cálculo. Se reemplazan por los tuyos o por la lista de tu proveedor, y todo se puede tocar a mano.</p>
+    </div>
+  </section>
+
+  <section aria-labelledby="despues">
+    <p class="eyebrow">Lo que viene después</p>
+    <h2 id="despues">Etapa 2: manejar todo el negocio</h2>
+    <div class="cards">
+      <div class="card"><h3>Trabajos y agenda</h3><p>Mediciones e instalaciones por equipo, con la orden de trabajo en el celular de cada colocador.</p></div>
+      <div class="card"><h3>Stock y retazos</h3><p>Perfiles, herrajes y sobrantes de vidrio que hoy se tiran, con aviso antes de quedarte sin material.</p></div>
+      <div class="card"><h3>Compras al proveedor</h3><p>El pedido de cada trabajo armado para mandar por WhatsApp.</p></div>
+      <div class="card"><h3>Caja y ganancia</h3><p>Cobros, señas, cuentas corrientes, gastos fijos, jornales y cuánto ganaste en el mes.</p></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="necesitamos">
+    <p class="eyebrow">Para arrancar</p>
+    <h2 id="necesitamos">Lo que necesitamos de vos</h2>
+    <ul class="need">
+      <li>Tu WhatsApp completo<small>Nos llegó 113364056 y le falta un número.</small></li>
+      <li>La lista de precios de tu proveedor<small>En Excel o una foto, y lo que cobrás de colocación.</small></li>
+      <li>Fotos de trabajos terminados<small>Las que tengas en el celular: mamparas, escaleras, espejos.</small></li>
+      <li>Tu logo<small>Si no tenés, lo armamos.</small></li>
+      <li>Si querés dominio propio<small>Por ejemplo cristalesariel.com.ar.</small></li>
+    </ul>
+  </section>
+
+  <footer class="foot">Hecho por Lumina</footer>
+</div>

@@ -1080,6 +1080,7 @@ a.list-row:hover strong {
   font-size: 15px;
 }
 .site-nav .site-cta-sm {
+  white-space: nowrap;
   background: var(--brand-accent);
   color: #fff;
   padding: 8px 14px;
@@ -1592,6 +1593,10 @@ a.list-row:hover strong {
   }
   .site-nav a:not(.site-cta-sm) {
     display: none;
+  }
+  .site-brand {
+    font-size: 17px;
+    min-width: 0;
   }
 }
 @media (max-width: 600px) {

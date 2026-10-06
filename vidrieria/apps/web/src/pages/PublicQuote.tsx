@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type CSSProperties, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { waLink } from '@vidrieria/shared';
+import { installments, safetyIssues, waLink } from '@vidrieria/shared';
 import { api, errMsg } from '../api';
 import { PieceSketch } from '../components/PieceSketch';
 import { Loading, copyText } from '../components/ui';
@@ -30,13 +30,14 @@ export function PublicQuotePage() {
   const qc = useQueryClient();
   const [confirming, setConfirming] = useState(false);
   const [sel, setSel] = useState(0);
+  const [ack, setAck] = useState(false);
   const q = useQuery({
     queryKey: ['public-quote', token],
     queryFn: () => api<PublicQuote>(`/public/quotes/${token}${preview ? '?preview=1' : ''}`),
     refetchOnWindowFocus: false,
   });
   const accept = useMutation({
-    mutationFn: (option: number | null) => api(`/public/quotes/${token}/accept`, { body: { option } }),
+    mutationFn: (option: number | null) => api(`/public/quotes/${token}/accept`, { body: { option, safetyAck: ack } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['public-quote', token] }),
   });
   const mp = useMutation({
@@ -59,6 +60,7 @@ export function PublicQuotePage() {
         </div>
       </div>
     );
+  if (q.data.insurance) return <InsuranceDoc data={q.data} />;
   const { quote: p, business: b } = q.data;
   const style = { '--brand': b.primaryColor, '--brand-accent': b.accentColor } as CSSProperties;
   const ask = waLink(b.whatsapp, `¡Hola! Tengo una consulta sobre el presupuesto N° ${p.number}.`);
@@ -68,6 +70,9 @@ export function PublicQuotePage() {
   // Lo que se muestra: la opción elegida en pantalla o el presupuesto único.
   const view: PublicResult = options ? (options[sel] ?? options[0]) : p;
   const pay = b.pay;
+  const issues = safetyIssues(view.items);
+  const needsAck = !!issues.length && !p.safetyAckAt;
+  const cuotas = installments(view.total, b.installments ?? {});
 
   return (
     <div className="pq" style={style}>
@@ -141,6 +146,18 @@ export function PublicQuotePage() {
           ))}
         </ul>
 
+        {!!p.renders.length && (
+          <section className="pq-renders" aria-label="Así quedaría">
+            <h2>Así quedaría</h2>
+            <div className="pq-render-grid">
+              {p.renders.map((u) => (
+                <img key={u} src={u} alt="Cómo quedaría el trabajo" />
+              ))}
+            </div>
+            <p className="pq-small">Imagen ilustrativa generada a partir de tu foto.</p>
+          </section>
+        )}
+
         <dl className="pq-totals">
           {!!view.adjust && (
             <>
@@ -173,6 +190,16 @@ export function PublicQuotePage() {
           <dt>Saldo</dt>
           <dd>{money(view.balance)}</dd>
         </dl>
+        {!!cuotas.length && !accepted && (
+          <p className="pq-cuotas">
+            O en cuotas: {cuotas.map((c) => `${c.n} de ${money(c.each)}`).join(' · ')} <span className="pq-small">(con recargo)</span>
+          </p>
+        )}
+        {needsAck && !accepted && (
+          <p className="pq-banner warn">
+            Para {issues.map((i) => i.title.toLowerCase()).join(' y ')} recomendamos vidrio de seguridad (templado o laminado, norma IRAM 12595). Este presupuesto lleva {issues[0].glass.toLowerCase()}. Si lo querés así, lo confirmás al aceptar.
+          </p>
+        )}
         <p className="pq-small">
           {p.pricesIncludeVat ? 'Precios con IVA incluido.' : `Incluye IVA (${money(view.vat)}).`} Válido hasta el {dateFmt(p.validUntil)}.
         </p>
@@ -257,8 +284,13 @@ export function PublicQuotePage() {
                   <p>
                     ¿Confirmás que aceptás {options ? <strong>{options[sel]?.label}</strong> : 'el presupuesto'} por {money(view.total)}?
                   </p>
+                  {needsAck && (
+                    <label className="check">
+                      <input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} /> Entiendo que no es vidrio de seguridad y lo quiero así.
+                    </label>
+                  )}
                   <div className="row wrap">
-                    <button className="site-btn" type="button" disabled={accept.isPending} onClick={() => accept.mutate(options ? sel : null)}>
+                    <button className="site-btn" type="button" disabled={accept.isPending || (needsAck && !ack)} onClick={() => accept.mutate(options ? sel : null)}>
                       Sí, acepto
                     </button>
                     <button className="site-btn ghost" type="button" onClick={() => setConfirming(false)}>
@@ -288,6 +320,109 @@ export function PublicQuotePage() {
         </footer>
       </article>
       <p className="site-credit no-print">Hecho por Lumina</p>
+    </div>
+  );
+}
+
+/** Formato para la aseguradora: datos del siniestro y detalle con cantidades y precios unitarios. */
+function InsuranceDoc({ data }: { data: PublicQuote }) {
+  const { quote: p, business: b, insurance } = data;
+  const ins = insurance!;
+  const style = { '--brand': b.primaryColor, '--brand-accent': b.accentColor } as CSSProperties;
+  const rows = [...ins.items.flatMap((i) => i.lines.map((l, k) => ({ ...l, group: k === 0 ? `${i.title} · ${qty(i.widthMm)} × ${qty(i.heightMm)} mm${i.quantity > 1 ? ` × ${i.quantity}` : ''}` : '' }))), ...ins.extras.map((l) => ({ ...l, group: '' }))];
+  return (
+    <div className="pq" style={style}>
+      <article className="pq-doc insurance-doc">
+        <header className="pq-head">
+          <div className="site-brand">
+            {b.logo ? <img src={b.logo} alt="" /> : <span className="site-mark" aria-hidden="true" />}
+            <span>{b.name}</span>
+          </div>
+          <div className="pq-meta">
+            <strong>Presupuesto N° {p.number}</strong>
+            <span>{dateFmt(p.createdAt)}</span>
+          </div>
+        </header>
+        <h1>Presupuesto para la aseguradora</h1>
+        <dl className="pq-claim">
+          {ins.claim.company && (
+            <>
+              <dt>Aseguradora</dt>
+              <dd>{ins.claim.company}</dd>
+            </>
+          )}
+          {ins.claim.policy && (
+            <>
+              <dt>Póliza</dt>
+              <dd>{ins.claim.policy}</dd>
+            </>
+          )}
+          {ins.claim.claim && (
+            <>
+              <dt>Siniestro</dt>
+              <dd>{ins.claim.claim}</dd>
+            </>
+          )}
+          {ins.claim.incidentDate && (
+            <>
+              <dt>Fecha</dt>
+              <dd>{dateFmt(`${ins.claim.incidentDate}T12:00:00`)}</dd>
+            </>
+          )}
+          {p.customerName && (
+            <>
+              <dt>Asegurado</dt>
+              <dd>{p.customerName}</dd>
+            </>
+          )}
+        </dl>
+        {ins.claim.description && <p className="pq-notes">{ins.claim.description}</p>}
+        <div className="pq-table-wrap">
+          <table className="pq-table">
+            <thead>
+              <tr>
+                <th>Detalle</th>
+                <th className="num">Cant.</th>
+                <th className="num">Unitario</th>
+                <th className="num">Importe</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => (
+                <tr key={i}>
+                  <td>
+                    {r.group && <strong className="block">{r.group}</strong>}
+                    {r.name}
+                  </td>
+                  <td className="num">
+                    {qty(r.qty)} {r.unit}
+                  </td>
+                  <td className="num">{money(r.unitPrice)}</td>
+                  <td className="num">{money(r.total)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <dl className="pq-totals">
+          <dt className="grand">Total</dt>
+          <dd className="grand">{money(p.total)}</dd>
+        </dl>
+        <p className="pq-small">
+          {p.pricesIncludeVat ? 'Precios con IVA incluido.' : `Incluye IVA (${money(p.vat)}).`} Válido hasta el {dateFmt(p.validUntil)}.
+        </p>
+        <div className="pq-actions no-print">
+          <button className="site-btn" type="button" onClick={() => window.print()}>
+            Guardar PDF
+          </button>
+        </div>
+        <footer className="pq-foot">
+          {b.name}
+          {b.address && ` · ${b.address}`}
+          {b.whatsapp && ` · WhatsApp ${b.whatsapp}`}
+          {b.email && ` · ${b.email}`}
+        </footer>
+      </article>
     </div>
   );
 }

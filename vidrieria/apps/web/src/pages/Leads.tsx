@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { LEAD_SOURCE_LABEL } from '@vidrieria/shared';
 import { api, errMsg } from '../api';
 import { Empty, ErrorBox, Loading, Modal, toast } from '../components/ui';
 import { ago, dateTimeFmt, qty } from '../lib/format';
@@ -45,10 +46,14 @@ export default function Leads() {
         <ul className="cards">
           {q.data.map((l) => (
             <li key={l.id}>
-              <button type="button" className="card lead-card" onClick={() => setOpen(l)}>
+              <button type="button" className={'card lead-card' + (l.urgent ? ' urgent' : '')} onClick={() => setOpen(l)}>
                 <span className="row between">
                   <strong>{l.kind}</strong>
                   <span className="muted small">{ago(l.createdAt)}</span>
+                </span>
+                <span className="row wrap">
+                  {l.urgent && <span className="pill">Urgente</span>}
+                  {l.source !== 'WEB' && <span className="pill neutral">{LEAD_SOURCE_LABEL[l.source]}</span>}
                 </span>
                 <span className="mono small">{leadSize(l)}</span>
                 <span>
@@ -110,7 +115,9 @@ function LeadModal({ lead, onClose }: { lead: Lead; onClose: () => void }) {
           </>
         )}
         <dt>Llegó</dt>
-        <dd>{dateTimeFmt(lead.createdAt)}</dd>
+        <dd>
+          {dateTimeFmt(lead.createdAt)} · {LEAD_SOURCE_LABEL[lead.source]}
+        </dd>
       </dl>
       {!!lead.photoIds.length && (
         <div className="photos">

@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { JOB_KINDS, hasFeature, leadPublicSchema } from '@vidrieria/shared';
+import { JOB_KINDS, hasFeature, leadPublicSchema, safetyIssues, type QuoteInput } from '@vidrieria/shared';
 import { prisma } from '../db';
 import { env } from '../env';
 import type { FastifyRequest } from 'fastify';
@@ -9,7 +9,7 @@ import { HttpError, badRequest, notFound } from '../lib/http';
 import { money } from '../lib/text';
 import { ensureJob } from '../services/jobs';
 import { notifyLater } from '../services/push';
-import { acceptData, expireIfNeeded, publicQuote, storedOptions } from '../services/quotes';
+import { acceptData, expireIfNeeded, insuranceDetail, publicQuote, storedOptions } from '../services/quotes';
 import { publicBusiness, siteContent } from '../services/site';
 import { RECEIPT_MIMES, decodeDataUrl } from './assets';
 
@@ -59,6 +59,12 @@ export async function publicRoutes(app: FastifyInstance) {
       const body = leadPublicSchema.extend({ photos: z.array(z.string().max(5 * 1024 * 1024)).max(3).default([]) }).parse(req.body);
       if (body.website) throw badRequest('spam');
       const photos = body.photos.map((p) => decodeDataUrl(p));
+      // De dónde vino: cartel con QR, link de recomendación o el sitio que lo trajo.
+      const sign = body.sign ? await prisma.sign.findFirst({ where: { code: body.sign, businessId: b.id } }) : null;
+      const referrer = body.ref ? await prisma.customer.findFirst({ where: { referralCode: body.ref, businessId: b.id } }) : null;
+      const ref = (body.referrer ?? '').toLowerCase();
+      const source = sign ? 'CARTEL' : referrer ? 'RECOMENDACION' : /google\./.test(ref) ? 'GOOGLE' : /instagram|facebook|fb\.|l\.instagram/.test(ref) ? 'INSTAGRAM' : 'WEB';
+      const urgent = /urgent|hoy|ya mismo/i.test(body.when) || /roto|rotura|urgenc/i.test(`${body.kind} ${body.details}`);
       const lead = await prisma.$transaction(async (tx) => {
         const ids: string[] = [];
         for (const p of photos) {
@@ -78,13 +84,29 @@ export async function publicRoutes(app: FastifyInstance) {
             phone: body.phone,
             when: body.when,
             photoIds: ids,
+            source,
+            urgent,
+            refCode: referrer?.referralCode ?? null,
+            signId: sign?.id ?? null,
           },
         });
       });
-      notifyLater(b.id, { title: 'Consulta nueva desde tu web', body: `${body.kind} · ${body.name}${body.zone ? ` · ${body.zone}` : ''}`, url: '/panel/consultas' });
+      notifyLater(b.id, {
+        title: urgent ? 'Consulta URGENTE desde tu web' : referrer ? `Consulta recomendada por ${referrer.name}` : 'Consulta nueva desde tu web',
+        body: `${body.kind} · ${body.name}${body.zone ? ` · ${body.zone}` : ''}`,
+        url: '/panel/consultas',
+      });
       return { ok: true, id: lead.id };
     },
   );
+
+  /** Alguien escaneó el QR de un cartel de obra. */
+  app.post('/public/site/:slug/signs/:code/visit', { config: { rateLimit: { max: 60, timeWindow: '1 hour' } } }, async (req) => {
+    const { slug, code } = req.params as { slug: string; code: string };
+    const b = await prisma.business.findUnique({ where: { slug } });
+    if (b) await prisma.sign.updateMany({ where: { code, businessId: b.id }, data: { visits: { increment: 1 } } });
+    return { ok: true };
+  });
 
   app.get('/public/quotes/:token', async (req) => {
     const { token } = req.params as { token: string };
@@ -113,6 +135,7 @@ export async function publicRoutes(app: FastifyInstance) {
     const site = siteContent(b);
     return {
       quote: publicQuote(q, b),
+      insurance: req.query && (req.query as { seguro?: string }).seguro === '1' ? insuranceDetail(q) : null,
       business: {
         name: b.name,
         slug: b.slug,
@@ -126,6 +149,7 @@ export async function publicRoutes(app: FastifyInstance) {
         deposit: hasFeature(b.plan, 'deposit'),
         /** Pago con Mercado Pago (si la vidriería lo conectó). */
         mp: hasFeature(b.plan, 'mercadopago') && !!b.mpAccessToken,
+        installments: hasFeature(b.plan, 'installments') ? (b.installmentRates as Record<string, number>) : {},
         pay: { alias: b.payAlias, cbu: b.payCbu, holder: b.payHolder, note: b.payNote },
       },
     };
@@ -133,7 +157,7 @@ export async function publicRoutes(app: FastifyInstance) {
 
   app.post('/public/quotes/:token/accept', async (req) => {
     const { token } = req.params as { token: string };
-    const { option } = z.object({ option: z.number().int().min(0).max(2).nullish() }).parse(req.body ?? {});
+    const { option, safetyAck } = z.object({ option: z.number().int().min(0).max(2).nullish(), safetyAck: z.boolean().default(false) }).parse(req.body ?? {});
     let q = await prisma.quote.findUnique({ where: { publicToken: token }, include: { customer: { select: { name: true } } } });
     if (!q) throw notFound();
     q = await expireIfNeeded(q);
@@ -141,7 +165,11 @@ export async function publicRoutes(app: FastifyInstance) {
     if (q.status === 'EXPIRED') throw new HttpError(409, 'quote_expired', 'El presupuesto venció. Pedí uno actualizado.');
     if (q.status === 'REJECTED') throw new HttpError(409, 'quote_rejected', 'Este presupuesto ya no está disponible.');
     const data = acceptData(q, option);
-    await prisma.quote.update({ where: { id: q.id }, data });
+    // Vidrio común donde va de seguridad: el cliente tiene que confirmar que lo quiere igual.
+    const chosen = ('input' in data ? data.input : q.input) as unknown as QuoteInput;
+    if (safetyIssues(chosen.items).length && !safetyAck && !q.safetyAckAt)
+      throw new HttpError(409, 'safety_ack_required', 'Confirmá que entendés que no es vidrio de seguridad.');
+    await prisma.quote.update({ where: { id: q.id }, data: { ...data, ...(safetyAck && !q.safetyAckAt ? { safetyAckAt: new Date() } : {}) } });
     await ensureJob(q.id);
     const label = storedOptions(q)?.[option ?? 0]?.label;
     const total = 'total' in data ? data.total : Number(q.total);

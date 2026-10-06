@@ -59,8 +59,12 @@ export async function compute(b: Business, body: QuoteBody) {
   return { settings, ...calcAll(toInputs(body), settings) };
 }
 
-export async function createQuote(b: Business, uid: string, body: QuoteBody, extra: { photoIds?: string[] } = {}) {
+export async function createQuote(b: Business, uid: string, body: QuoteBody, extra: { photoIds?: string[]; noPriceTest?: boolean } = {}) {
   await checkRefs(b.id, body);
+  // Prueba de precio: la mitad de los presupuestos nuevos sale con el recargo de prueba.
+  const testPct = num(b.priceTestPct);
+  const priceVariant = testPct > 0 && !extra.noPriceTest ? (Math.random() < 0.5 ? 'A' : 'B') : null;
+  if (priceVariant === 'B') body = { ...body, adjustPct: body.adjustPct + testPct };
   const { input, settings, result, options } = await compute(b, body);
   const validDays = body.validDays ?? b.validDays;
   return prisma.$transaction(async (tx) => {
@@ -83,6 +87,7 @@ export async function createQuote(b: Business, uid: string, body: QuoteBody, ext
         validUntil: new Date(Date.now() + validDays * DAY),
         publicToken: randomBytes(18).toString('base64url'),
         photoIds: extra.photoIds ?? [],
+        priceVariant,
         createdById: uid,
       },
     });
@@ -189,6 +194,7 @@ function publicResult(r: QuoteResult) {
   return {
     items: r.items.map((i) => ({
       title: i.title,
+      ...(i.riskZone ? { riskZone: true } : {}),
       widthMm: i.widthMm,
       heightMm: i.heightMm,
       quantity: i.quantity,
@@ -228,6 +234,26 @@ export function publicQuote(q: Quote & { customer: { name: string } | null }, b:
     depositPct: s.depositPct,
     depositReportedAt: q.depositReportedAt,
     depositPaidAt: q.depositPaidAt,
+    safetyAckAt: q.safetyAckAt,
+    renders: q.renderUrls,
     footer: b.quoteFooter,
+  };
+}
+
+/** Formato para la aseguradora: el detalle con cantidades y precios unitarios, más los datos del siniestro. */
+export function insuranceDetail(q: Quote) {
+  if (!q.insurance) return null;
+  const r = q.result as unknown as QuoteResult;
+  return {
+    claim: q.insurance,
+    items: r.items.map((i) => ({
+      title: i.title,
+      widthMm: i.widthMm,
+      heightMm: i.heightMm,
+      quantity: i.quantity,
+      lines: i.lines.map((l) => ({ name: l.name, qty: l.qty, unit: l.unit, unitPrice: l.unitPriceArs, total: l.total })),
+      total: i.total,
+    })),
+    extras: r.extras.map((l) => ({ name: l.name, qty: l.qty, unit: l.unit, unitPrice: l.unitPriceArs, total: l.total })),
   };
 }

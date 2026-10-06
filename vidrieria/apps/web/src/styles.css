@@ -2733,3 +2733,87 @@ details summary {
   color: var(--brand);
   padding: 6px 0;
 }
+
+/* ---------- Vender: seguridad, foto IA, seguro, cuotas ---------- */
+.safety-tip .link-btn,
+.note .link-btn {
+  display: inline;
+}
+.risk-zone {
+  color: var(--muted);
+}
+.render-thumb {
+  position: relative;
+  display: inline-block;
+}
+.render-thumb .icon-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: var(--surface);
+  border-radius: 50%;
+}
+.pq-renders h2 {
+  font-family: var(--display);
+  font-size: 19px;
+  margin: 0 0 8px;
+}
+.pq-render-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+.pq-render-grid img {
+  width: 100%;
+  border-radius: 12px;
+  display: block;
+}
+.pq-cuotas {
+  font-weight: 600;
+  color: var(--brand);
+}
+.pq-claim {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px;
+  margin: 0;
+}
+.pq-claim dt {
+  color: var(--muted);
+}
+.pq-claim dd {
+  margin: 0;
+  font-weight: 600;
+}
+.pq-table-wrap {
+  overflow-x: auto;
+}
+.pq-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  min-width: 480px;
+}
+.pq-table th,
+.pq-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 6px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+.pq-table .num {
+  text-align: right;
+  white-space: nowrap;
+}
+.lead-card.urgent {
+  border-color: var(--bad);
+  box-shadow: inset 4px 0 0 var(--bad);
+}
+.building {
+  background: var(--bg);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}

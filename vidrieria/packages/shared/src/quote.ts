@@ -81,6 +81,8 @@ export interface ItemInput {
   heightMm: number;
   quantity: number;
   lines: LineInput[];
+  /** Zona de riesgo marcada a mano: puerta, paño bajo, techo (va vidrio de seguridad). */
+  riskZone?: boolean;
 }
 
 export interface QuoteInput {
@@ -106,6 +108,7 @@ export interface LineResult extends LineInput {
 
 export interface ItemResult {
   title: string;
+  riskZone?: boolean;
   widthMm: number;
   heightMm: number;
   quantity: number;
@@ -204,6 +207,7 @@ export function calcQuote(input: QuoteInput, s: QuoteSettings): QuoteResult {
     const lines = it.lines.map((l) => calcLine(l, s, g));
     return {
       title: it.title,
+      ...(it.riskZone ? { riskZone: true } : {}),
       widthMm: it.widthMm,
       heightMm: it.heightMm,
       quantity: it.quantity,

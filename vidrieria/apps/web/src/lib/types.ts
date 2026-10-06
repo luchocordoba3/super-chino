@@ -1,4 +1,4 @@
-import type { Basis, Category, Currency, CustomerType, ExpenseCategory, LeadStatus, PayMethod, PlanId, QuoteInput, QuoteResult, QuoteSettings, QuoteStatus, Unit } from '@vidrieria/shared';
+import type { Basis, Category, Currency, CustomerType, ExpenseCategory, LeadSource, LeadStatus, PayMethod, PlanId, QuoteInput, QuoteResult, QuoteSettings, QuoteStatus, Unit } from '@vidrieria/shared';
 
 export interface User {
   id: string;
@@ -135,6 +135,8 @@ export interface Customer {
   address: string;
   type: CustomerType;
   notes: string;
+  source: LeadSource | null;
+  referralCode: string | null;
   createdAt: string;
 }
 
@@ -151,6 +153,9 @@ export interface Lead {
   when: string;
   photoIds: string[];
   status: LeadStatus;
+  source: LeadSource;
+  urgent: boolean;
+  refCode: string | null;
   customerId: string | null;
   createdAt: string;
   quotes: { id: string; number: number; status: QuoteStatus }[];
@@ -191,6 +196,10 @@ export interface Quote extends Omit<QuoteListItem, 'customer' | 'optionCount'> {
   depositProofId: string | null;
   purchasedAt: string | null;
   photoIds: string[];
+  priceVariant: 'A' | 'B' | null;
+  safetyAckAt: string | null;
+  insurance: Insurance | null;
+  renderUrls: string[];
   customerId: string | null;
   leadId: string | null;
   input: QuoteInput;
@@ -242,8 +251,23 @@ export interface PurchaseQuote {
   customer: { id: string; name: string } | null;
 }
 
+export interface Insurance {
+  company: string;
+  policy: string;
+  claim: string;
+  incidentDate: string;
+  description: string;
+}
+export interface InsuranceLine {
+  name: string;
+  qty: number;
+  unit: string;
+  unitPrice: number;
+  total: number;
+}
+
 export interface PublicResult {
-  items: { title: string; widthMm: number; heightMm: number; quantity: number; lines: { name: string; qty: number; unit: string }[]; total: number }[];
+  items: { title: string; riskZone?: boolean; widthMm: number; heightMm: number; quantity: number; lines: { name: string; qty: number; unit: string }[]; total: number }[];
   extras: { name: string; total: number }[];
   adjust: number;
   urgency: number;
@@ -271,8 +295,15 @@ export interface PublicQuote {
     depositPct: number;
     depositReportedAt: string | null;
     depositPaidAt: string | null;
+    safetyAckAt: string | null;
+    renders: string[];
     footer: string;
   };
+  insurance: {
+    claim: Insurance;
+    items: { title: string; widthMm: number; heightMm: number; quantity: number; lines: InsuranceLine[]; total: number }[];
+    extras: InsuranceLine[];
+  } | null;
   business: {
     name: string;
     slug: string;
@@ -284,6 +315,7 @@ export interface PublicQuote {
     accentColor: string;
     deposit: boolean;
     mp: boolean;
+    installments: Record<string, number>;
     pay: { alias: string; cbu: string; holder: string; note: string };
   };
 }

@@ -12,13 +12,27 @@ export const CATEGORY_LABEL: Record<Category, string> = {
   OTRO: 'Otros',
 };
 
-export const CUSTOMER_TYPES = ['PARTICULAR', 'CONSTRUCTORA', 'ARQUITECTO', 'VIDRIERIA', 'OTRO'] as const;
+export const CUSTOMER_TYPES = ['PARTICULAR', 'CONSTRUCTORA', 'ARQUITECTO', 'CONSORCIO', 'VIDRIERIA', 'OTRO'] as const;
 export type CustomerType = (typeof CUSTOMER_TYPES)[number];
 export const CUSTOMER_TYPE_LABEL: Record<CustomerType, string> = {
   PARTICULAR: 'Particular',
   CONSTRUCTORA: 'Constructora',
   ARQUITECTO: 'Arquitecto/a',
+  CONSORCIO: 'Administración de consorcios',
   VIDRIERIA: 'Otra vidriería',
+  OTRO: 'Otro',
+};
+
+/** De dónde llegó el cliente. */
+export const LEAD_SOURCES = ['WEB', 'GOOGLE', 'INSTAGRAM', 'CARTEL', 'RECOMENDACION', 'WHATSAPP', 'OTRO'] as const;
+export type LeadSource = (typeof LEAD_SOURCES)[number];
+export const LEAD_SOURCE_LABEL: Record<LeadSource, string> = {
+  WEB: 'Web',
+  GOOGLE: 'Google',
+  INSTAGRAM: 'Instagram / Facebook',
+  CARTEL: 'Cartel de obra',
+  RECOMENDACION: 'Recomendación',
+  WHATSAPP: 'WhatsApp directo',
   OTRO: 'Otro',
 };
 
@@ -73,6 +87,8 @@ export const itemSchema = z.object({
   heightMm: mm,
   quantity: z.number().int().min(1).max(10_000),
   lines: z.array(lineSchema).max(100),
+  /** Zona de riesgo marcada a mano: puerta, paño bajo (menos de 80 cm del piso), techo. */
+  riskZone: z.boolean().optional(),
 });
 
 export const quoteOptionSchema = z.object({
@@ -130,6 +146,7 @@ export const customerSchema = z.object({
   email: z.string().trim().max(120).default(''),
   address: z.string().trim().max(200).default(''),
   type: z.enum(CUSTOMER_TYPES).default('PARTICULAR'),
+  source: z.enum(LEAD_SOURCES).nullish(),
   notes: z.string().trim().max(2000).default(''),
 });
 
@@ -143,6 +160,10 @@ export const leadPublicSchema = z.object({
   name: z.string().trim().min(1, 'Escribí tu nombre').max(120),
   phone: z.string().trim().min(6, 'Escribí un WhatsApp para responderte').max(40),
   when: z.string().trim().max(60).default(''),
+  /** Origen: link de recomendación (?ref=), cartel de obra (?c=) o de dónde vino (referrer). */
+  ref: z.string().trim().max(40).nullish(),
+  sign: z.string().trim().max(40).nullish(),
+  referrer: z.string().trim().max(300).nullish(),
   /** Campo trampa para bots: debe venir vacío. */
   website: z.string().max(0).optional(),
 });

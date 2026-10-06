@@ -177,12 +177,36 @@ export function Site({ slug }: { slug: string }) {
   );
 }
 
+/** De dónde llegó el visitante: cartel con QR (?c=), link de recomendación (?ref=) o el sitio que lo trajo. Se recuerda en la visita. */
+function visitOrigin(slug: string) {
+  const KEY = 'vd_origin';
+  try {
+    const params = new URLSearchParams(location.search);
+    const ref = params.get('ref');
+    const sign = params.get('c');
+    const referrer = document.referrer && !document.referrer.startsWith(location.origin) ? document.referrer : '';
+    if (ref || sign || referrer) {
+      const o = { ref, sign, referrer };
+      sessionStorage.setItem(KEY, JSON.stringify(o));
+      if (sign && !sessionStorage.getItem(`${KEY}:visit:${sign}`)) {
+        sessionStorage.setItem(`${KEY}:visit:${sign}`, '1');
+        void fetch(`/api/public/site/${encodeURIComponent(slug)}/signs/${encodeURIComponent(sign)}/visit`, { method: 'POST' }).catch(() => {});
+      }
+      return o;
+    }
+    return JSON.parse(sessionStorage.getItem(KEY) ?? 'null') as { ref: string | null; sign: string | null; referrer: string } | null;
+  } catch {
+    return null;
+  }
+}
+
 function LeadForm({ slug, kinds, businessName, whatsapp }: { slug: string; kinds: string[]; businessName: string; whatsapp: string }) {
   const [f, setF] = useState({ kind: '', widthCm: '', heightCm: '', quantity: '1', details: '', zone: '', name: '', phone: '', when: '', website: '' });
   const [photos, setPhotos] = useState<string[]>([]);
   const [busyPhoto, setBusyPhoto] = useState(false);
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });
   const n = (v: string) => (v.trim() ? Number(v.replace(',', '.')) || null : null);
+  const [origin] = useState(() => visitOrigin(slug));
   const m = useMutation({
     mutationFn: () =>
       api(`/public/site/${encodeURIComponent(slug)}/leads`, {
@@ -198,6 +222,9 @@ function LeadForm({ slug, kinds, businessName, whatsapp }: { slug: string; kinds
           when: f.when,
           website: f.website,
           photos,
+          ref: origin?.ref ?? null,
+          sign: origin?.sign ?? null,
+          referrer: origin?.referrer ?? null,
         },
       }),
   });

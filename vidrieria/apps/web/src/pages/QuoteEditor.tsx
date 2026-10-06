@@ -11,6 +11,7 @@ import {
   calcQuote,
   linesFromTemplate,
   parsePieces,
+  safetyIssues,
   PAY_METHODS,
   PAY_METHOD_LABEL,
   type Basis,
@@ -27,6 +28,7 @@ import { ErrorBox, Field, Loading, Modal, NumInput, StatusChip, copyText, toast 
 import { dateFmt, dateTimeFmt, dollars, money, money2, qty } from '../lib/format';
 import { useMe } from '../lib/me';
 import { itemFromSpec, lineFromCatalog, templateForKind } from '../lib/pieces';
+import { shrinkToDataUrl } from '../lib/image';
 import { useFeature } from '../lib/plan';
 import type { CatalogItem, Customer, Lead, Quote, QuoteSettingsResponse, Remnant, Template } from '../lib/types';
 import { quoteMessage, quoteUrl, waLink } from '../lib/whatsapp';
@@ -144,6 +146,35 @@ export default function QuoteEditor() {
     }
   }, [id, leadId, leadQ.data, templatesQ.data, catalogQ.data, loadedFor]);
 
+  // Presupuesto armado desde un edificio de consorcio (Clientes → Edificios → Presupuestar).
+  useEffect(() => {
+    if (id || params.get('prefill') !== '1' || !templatesQ.data || !catalogQ.data || loadedFor === 'prefill') return;
+    setLoadedFor('prefill');
+    let data: { customerId: string; title: string; pieces: { title: string; widthMm: number; heightMm: number; glass?: string }[] } | null = null;
+    try {
+      data = JSON.parse(sessionStorage.getItem('vd_prefill') ?? 'null');
+      sessionStorage.removeItem('vd_prefill');
+    } catch {
+      data = null;
+    }
+    if (!data) return;
+    const cat = catalogQ.data;
+    setTitle(data.title);
+    setActive(0);
+    setOpts([
+      {
+        ...emptyOpt(),
+        items: data.pieces.map((p) => {
+          const it = itemFromSpec({ kind: 'vidrio', title: p.title, widthMm: p.widthMm, heightMm: p.heightMm, quantity: 1 }, templatesQ.data!, cat);
+          const g = p.glass && cat.find((c) => c.isGlass && c.name.toLowerCase().replace(/\s/g, '') === p.glass!.toLowerCase().replace(/\s/g, ''));
+          return g ? { ...it, lines: it.lines.map((l) => (l.applyWaste ? { ...lineFromCatalog(g), basis: l.basis, factor: l.factor } : l)) } : it;
+        }),
+      },
+    ]);
+    void api<Customer>(`/customers/${data.customerId}`).then((c) => setCustomer(c));
+    setDirty(true);
+  }, [id, params, templatesQ.data, catalogQ.data, loadedFor]);
+
   const settings: QuoteSettings | null = useMemo(() => {
     if (!settingsQ.data) return null;
     if (quoteQ.data && !useTodayDollar) return { ...settingsQ.data.settings, dollarRate: quoteQ.data.settings.dollarRate };
@@ -165,7 +196,7 @@ export default function QuoteEditor() {
     mutationFn: async () => {
       let customerId = customer?.id ?? null;
       if (!customerId && newCustomer?.name.trim()) {
-        const c = await api<Customer>('/customers', { body: { name: newCustomer.name, phone: newCustomer.phone, type: newCustomer.type } });
+        const c = await api<Customer>('/customers', { body: { name: newCustomer.name, phone: newCustomer.phone, type: newCustomer.type, source: leadQ.data?.source ?? null } });
         customerId = c.id;
         setCustomer(c);
         setNewCustomer(null);
@@ -548,7 +579,9 @@ export default function QuoteEditor() {
               {save.isPending ? 'Guardando…' : id ? (dirty ? 'Guardar cambios' : 'Guardado ✓') : 'Guardar presupuesto'}
             </button>
           )}
+          {q?.priceVariant === 'B' && <p className="note small">Este presupuesto salió con el recargo de la prueba de precio (está incluido en el ajuste).</p>}
           {q && <ShareBox quote={q} dirty={dirty} businessName={me.data?.business.name ?? ''} />}
+          {q && <RenderBox quote={q} />}
         </aside>
       </div>
       <div className="mobilebar">
@@ -674,6 +707,8 @@ function ItemCard({
   onUseRemnant: (r: Remnant) => void;
 }) {
   const glass = item.lines.find((l) => l.applyWaste);
+  const unsafe = safetyIssues([item]).length > 0;
+  const safeGlass = catalog.find((c) => c.isGlass && /templad/i.test(c.name) && Number(c.thicknessMm) >= Math.max(8, Number(glass ? (catalog.find((x) => x.id === glass.catalogItemId)?.thicknessMm ?? 0) : 0)));
   const fits = (r: Remnant) => (item.widthMm <= r.widthMm && item.heightMm <= r.heightMm) || (item.widthMm <= r.heightMm && item.heightMm <= r.widthMm);
   const remnant =
     glass && glass.unitCost !== 0 && item.quantity === 1
@@ -711,6 +746,24 @@ function ItemCard({
         </p>
         {item.widthMm > 0 && item.heightMm > 0 && <PieceSketch widthMm={item.widthMm} heightMm={item.heightMm} quantity={item.quantity} size="sm" />}
       </div>
+      {unsafe && (
+        <p className="note safety-tip">
+          Acá va vidrio de seguridad (templado o laminado, norma IRAM 12595){glass ? ` y está cargado ${glass.name}` : ''}.{' '}
+          {safeGlass && (
+            <button
+              type="button"
+              className="link-btn"
+              onClick={() => onChange({ lines: item.lines.map((l) => (l.applyWaste ? { ...lineFromCatalog(safeGlass), basis: l.basis, factor: l.factor } : l)) })}
+            >
+              Cambiar a {safeGlass.name}
+            </button>
+          )}{' '}
+          Si el cliente igual lo quiere así, se le pide que lo confirme al aceptar.
+        </p>
+      )}
+      <label className="check small risk-zone">
+        <input type="checkbox" checked={!!item.riskZone} onChange={(e) => onChange({ riskZone: e.target.checked || undefined })} /> Zona de riesgo (puerta, paño a menos de 80 cm del piso, techo)
+      </label>
       {remnant && (
         <p className="note good remnant-tip">
           Tenés un retazo de {glass!.name} de {qty(remnant.widthMm)} × {qty(remnant.heightMm)} mm que sirve.{' '}
@@ -863,6 +916,7 @@ function ShareBox({ quote, dirty, businessName }: { quote: Quote; dirty: boolean
     onError: (e) => toast(errMsg(e)),
   });
   const pickOptions = quote.options && quote.chosenOption == null ? quote.options : null;
+  const [insuring, setInsuring] = useState(false);
   const dup = useMutation({
     mutationFn: () => api<Quote>(`/quotes/${quote.id}/duplicate`, { method: 'POST' }),
     onSuccess: (q) => {
@@ -969,12 +1023,16 @@ function ShareBox({ quote, dirty, businessName }: { quote: Quote; dirty: boolean
         <button type="button" className="btn small" onClick={() => dup.mutate()}>
           Duplicar
         </button>
+        <button type="button" className="btn small" onClick={() => setInsuring(true)}>
+          Formato para el seguro
+        </button>
         {quote.status === 'DRAFT' && (
           <button type="button" className="btn small danger" onClick={() => del.mutate()}>
             Borrar
           </button>
         )}
       </div>
+      {insuring && <InsuranceModal quote={quote} onClose={() => setInsuring(false)} />}
       <p className="muted small">
         {quote.viewCount
           ? `El cliente lo abrió ${quote.viewCount === 1 ? '1 vez' : `${quote.viewCount} veces`}${quote.lastViewedAt ? ` (la última, ${dateTimeFmt(quote.lastViewedAt)})` : ''}.`
@@ -1053,5 +1111,110 @@ function PasteModal({ onClose, onAdd }: { onClose: () => void; onAdd: (specs: (R
         </button>
       </div>
     </Modal>
+  );
+}
+
+/** Datos del siniestro para presentar el presupuesto en la aseguradora (con precios unitarios). */
+function InsuranceModal({ quote, onClose }: { quote: Quote; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [f, setF] = useState(quote.insurance ?? { company: '', policy: '', claim: '', incidentDate: '', description: '' });
+  const m = useMutation({
+    mutationFn: () => api(`/quotes/${quote.id}/insurance`, { method: 'PUT', body: f }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['quote', quote.id] });
+      window.open(`/p/${quote.publicToken}?seguro=1&preview=1`, '_blank');
+      onClose();
+    },
+    onError: (e) => toast(errMsg(e)),
+  });
+  return (
+    <Modal title="Formato para la aseguradora" onClose={onClose}>
+      <p className="muted small">Muchos seguros de hogar cubren la rotura de vidrios. Con estos datos se arma el presupuesto detallado (con precios unitarios) para presentar en el seguro.</p>
+      <div className="form-grid">
+        <Field label="Aseguradora">
+          <input value={f.company} onChange={(e) => setF({ ...f, company: e.target.value })} />
+        </Field>
+        <Field label="Póliza">
+          <input value={f.policy} onChange={(e) => setF({ ...f, policy: e.target.value })} />
+        </Field>
+        <Field label="N° de siniestro">
+          <input value={f.claim} onChange={(e) => setF({ ...f, claim: e.target.value })} />
+        </Field>
+        <Field label="Fecha del siniestro">
+          <input type="date" value={f.incidentDate} onChange={(e) => setF({ ...f, incidentDate: e.target.value })} />
+        </Field>
+        <Field label="Qué pasó" wide>
+          <textarea rows={2} value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} placeholder="Ej.: rotura de vidrio de ventana por granizo" />
+        </Field>
+        <div className="actions wide">
+          <button type="button" className="btn primary" disabled={m.isPending} onClick={() => m.mutate()}>
+            Guardar y abrir el formato
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/** Foto "así quedaría": el cliente ve su baño o su escalera con el trabajo puesto. */
+function RenderBox({ quote }: { quote: Quote }) {
+  const qc = useQueryClient();
+  const can = useFeature('render');
+  const status = useQuery({ queryKey: ['render-status'], queryFn: () => api<{ enabled: boolean; used: number; quota: number }>('/render/status'), enabled: can });
+  const [item, setItem] = useState(0);
+  const gen = useMutation({
+    mutationFn: async (file: File) => api<{ url: string }>(`/quotes/${quote.id}/render`, { body: { photo: await shrinkToDataUrl(file, 1600, 0.85), item } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['quote', quote.id] });
+      qc.invalidateQueries({ queryKey: ['render-status'] });
+      toast('Listo: la foto ya aparece en el presupuesto del cliente');
+    },
+    onError: (e) => toast(errMsg(e)),
+  });
+  const del = useMutation({
+    mutationFn: (url: string) => api(`/quotes/${quote.id}/render`, { method: 'DELETE', body: { url } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['quote', quote.id] }),
+  });
+  if (!can) return null;
+  const st = status.data;
+  return (
+    <div className="share render-box">
+      <h3>Así quedaría (foto con IA)</h3>
+      <p className="muted small">Subí una foto del lugar (el baño, la escalera) y se genera cómo queda con el trabajo puesto. El cliente la ve en el presupuesto.</p>
+      {!!quote.renderUrls.length && (
+        <div className="photos">
+          {quote.renderUrls.map((u) => (
+            <span key={u} className="render-thumb">
+              <a href={u} target="_blank" rel="noreferrer">
+                <img src={u} alt="Así quedaría" />
+              </a>
+              <button type="button" className="icon-btn" aria-label="Quitar foto" onClick={() => del.mutate(u)}>
+                ✕
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      {st && !st.enabled ? (
+        <p className="note small">Se activa pronto. Viene incluida en tu plan ({st.quota} fotos por mes).</p>
+      ) : (
+        <>
+          {quote.input.items.length > 1 && (
+            <select value={item} onChange={(e) => setItem(Number(e.target.value))} aria-label="Trabajo a dibujar">
+              {quote.input.items.map((it, i) => (
+                <option key={i} value={i}>
+                  {it.title}
+                </option>
+              ))}
+            </select>
+          )}
+          <label className={'btn small' + (gen.isPending ? ' busy' : '')}>
+            {gen.isPending ? 'Generando… (unos segundos)' : 'Subir foto del lugar'}
+            <input type="file" accept="image/*" hidden disabled={gen.isPending} onChange={(e) => e.target.files?.[0] && gen.mutate(e.target.files[0])} />
+          </label>
+          {st && <span className="muted small">Usaste {st.used} de {st.quota} este mes.</span>}
+        </>
+      )}
+    </div>
   );
 }

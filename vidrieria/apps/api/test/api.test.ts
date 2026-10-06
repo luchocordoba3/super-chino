@@ -1,6 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
-const sent = vi.hoisted(() => [] as { endpoint: string; payload: string }[]);
+const sent = vi.hoisted(() => {
+  process.env.IMAGE_API_KEY ||= 'test-image-key';
+  return [] as { endpoint: string; payload: string }[];
+});
 vi.mock('web-push', () => ({
   default: {
     setVapidDetails: () => {},
@@ -493,5 +496,84 @@ describe('ajustes', () => {
     const r = await call(cookie, 'PATCH', '/api/business', { customerAdjust: { VIDRIERIA: -10 } });
     expect(r.statusCode).toBe(200);
     expect(r.json().customerAdjust).toEqual({ VIDRIERIA: -10 });
+  });
+});
+
+describe('vender', () => {
+  const floatMampara = { title: 'Mampara corrediza', widthMm: 1200, heightMm: 1800, quantity: 1, lines: [{ name: 'Float incoloro 6 mm', basis: 'm2', factor: 1, unitPrice: 30000, currency: 'ARS', applyWaste: true }] };
+
+  it('vidrio común en una mampara: el cliente tiene que confirmar antes de aceptar', async () => {
+    const { cookie } = await signup('Seguridad', 'seguridad@test.com');
+    const q = (await call(cookie, 'POST', '/api/quotes', { title: 'Mampara', items: [floatMampara], extras: [] })).json();
+    const url = `/api/public/quotes/${q.publicToken}/accept`;
+    const no = await app.inject({ method: 'POST', url, payload: {} });
+    expect(no.statusCode).toBe(409);
+    expect(no.json().error).toBe('safety_ack_required');
+    expect((await app.inject({ method: 'POST', url, payload: { safetyAck: true } })).statusCode).toBe(200);
+    expect((await call(cookie, 'GET', `/api/quotes/${q.id}`)).json().safetyAckAt).not.toBeNull();
+  });
+
+  it('prueba de precio: la mitad sale con recargo y queda marcada', async () => {
+    const { cookie } = await signup('Precio', 'precio@test.com');
+    await call(cookie, 'PATCH', '/api/business', { priceTestPct: 10 });
+    const qs = [];
+    for (let i = 0; i < 12; i++) qs.push((await call(cookie, 'POST', '/api/quotes', { title: 'Espejo', items: [item([kitArs])], extras: [] })).json());
+    const b = qs.filter((q) => q.priceVariant === 'B');
+    const a = qs.filter((q) => q.priceVariant === 'A');
+    expect(a.length + b.length).toBe(12);
+    for (const q of b) expect(Number(q.total)).toBe(55000);
+    for (const q of a) expect(Number(q.total)).toBe(50000);
+  });
+
+  it('origen de la consulta: cartel, recomendación, Google y urgencias', async () => {
+    const { cookie, slug } = await signup('Origen', 'origen@test.com');
+    const me = (await call(cookie, 'GET', '/api/auth/me')).json();
+    const sign = await prisma.sign.create({ data: { businessId: me.business.id, code: `c${run}`, name: 'Obra Mitre' } });
+    const referrer = await prisma.customer.create({ data: { businessId: me.business.id, name: 'Laura', referralCode: `r${run}` } });
+    const lead = (p: object) => app.inject({ method: 'POST', url: `/api/public/site/${slug}/leads`, payload: { kind: 'Espejo', name: 'Ana', phone: '1155551111', ...p } });
+    await lead({ sign: sign.code });
+    await lead({ ref: referrer.referralCode });
+    await lead({ referrer: 'https://www.google.com/' });
+    await lead({ kind: 'Cambio de vidrio roto', when: 'Urgente' });
+    const leads = await prisma.lead.findMany({ where: { businessId: me.business.id }, orderBy: { createdAt: 'asc' } });
+    expect(leads.map((l) => l.source)).toEqual(['CARTEL', 'RECOMENDACION', 'GOOGLE', 'WEB']);
+    expect(leads[0].signId).toBe(sign.id);
+    expect(leads[1].refCode).toBe(referrer.referralCode);
+    expect(leads.map((l) => l.urgent)).toEqual([false, false, false, true]);
+  });
+
+  it('formato para la aseguradora, cuotas en el link y foto "así quedaría"', async () => {
+    const { cookie } = await signup('Seguro', 'seguro@test.com');
+    await call(cookie, 'PATCH', '/api/business', { installmentRates: { '3': 10 } });
+    const q = (await call(cookie, 'POST', '/api/quotes', { title: 'Mampara', items: [item([vidrioUsd, kitArs])], extras: [] })).json();
+    await call(cookie, 'PUT', `/api/quotes/${q.id}/insurance`, { company: 'La Segunda', claim: 'S-123' });
+    const pub = (await app.inject({ method: 'GET', url: `/api/public/quotes/${q.publicToken}?seguro=1&preview=1` })).json();
+    expect(pub.insurance.claim).toMatchObject({ company: 'La Segunda', claim: 'S-123' });
+    expect(pub.insurance.items[0].lines[1]).toMatchObject({ name: 'Kit', unitPrice: 50000 });
+    expect(pub.business.installments).toEqual({ '3': 10 });
+    expect((await app.inject({ method: 'GET', url: `/api/public/quotes/${q.publicToken}?preview=1` })).json().insurance).toBeNull();
+
+    const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+      expect(String(url)).toContain('generativelanguage.googleapis.com');
+      expect(JSON.parse(String(init?.body)).contents[0].parts[0].text).toContain('mampara');
+      return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ inlineData: { mimeType: 'image/png', data: tiny.split(',')[1] } }] } }] }));
+    });
+    try {
+      const r = (await call(cookie, 'POST', `/api/quotes/${q.id}/render`, { photo: tiny })).json();
+      expect(r.url).toMatch(/^\/api\/assets\//);
+      expect((await app.inject({ method: 'GET', url: r.url })).statusCode).toBe(200);
+      expect((await app.inject({ method: 'GET', url: `/api/public/quotes/${q.publicToken}?preview=1` })).json().quote.renders).toEqual([r.url]);
+      expect((await call(cookie, 'GET', '/api/render/status')).json()).toMatchObject({ enabled: true, used: 1, quota: 100 });
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('edificios de un consorcio con sus vidrios', async () => {
+    const { cookie } = await signup('Consorcio', 'consorcio@test.com');
+    const c = (await call(cookie, 'POST', '/api/customers', { name: 'Adm. Pérez', type: 'CONSORCIO' })).json();
+    const bld = (await call(cookie, 'POST', '/api/buildings', { customerId: c.id, name: 'Edificio Mitre 1200', glasses: [{ place: 'Puerta de entrada', widthMm: 900, heightMm: 2100, glass: 'Laminado 5+5' }] })).json();
+    expect(bld.glasses).toHaveLength(1);
+    expect((await call(cookie, 'GET', `/api/buildings?customerId=${c.id}`)).json()[0].name).toBe('Edificio Mitre 1200');
   });
 });

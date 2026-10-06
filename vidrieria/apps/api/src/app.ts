@@ -27,6 +27,7 @@ import { publicPayRoutes } from './routes/publicPay';
 import { purchaseRoutes } from './routes/purchases';
 import { pushRoutes } from './routes/push';
 import { quoteRoutes } from './routes/quotes';
+import { salesRoutes } from './routes/sales';
 import { RESERVED_SLUGS, siteContent } from './services/site';
 
 export async function buildApp(opts: FastifyServerOptions = {}) {
@@ -76,6 +77,7 @@ export async function buildApp(opts: FastifyServerOptions = {}) {
       await cashRoutes(api);
       await invoiceRoutes(api);
       await numberRoutes(api);
+      await salesRoutes(api);
     },
     { prefix: '/api' },
   );

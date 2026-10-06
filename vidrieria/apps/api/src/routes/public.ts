@@ -3,10 +3,29 @@ import { z } from 'zod';
 import { JOB_KINDS, leadPublicSchema } from '@vidrieria/shared';
 import { prisma } from '../db';
 import { env } from '../env';
+import type { FastifyRequest } from 'fastify';
+import { authenticate } from '../lib/auth';
 import { HttpError, badRequest, notFound } from '../lib/http';
-import { expireIfNeeded, publicQuote } from '../services/quotes';
+import { money } from '../lib/text';
+import { notifyLater } from '../services/push';
+import { acceptData, expireIfNeeded, publicQuote, storedOptions } from '../services/quotes';
 import { publicBusiness, siteContent } from '../services/site';
-import { decodeDataUrl } from './assets';
+import { RECEIPT_MIMES, decodeDataUrl } from './assets';
+
+/** Una vista cuenta si pasaron 30 minutos de la anterior (recargar o volver a la pestaña no suma). */
+const VIEW_GAP = 30 * 60_000;
+
+/** ¿Lo está mirando alguien de la vidriería con la sesión abierta? Entonces no cuenta como vista del cliente. */
+async function isStaff(req: FastifyRequest, businessId: string) {
+  try {
+    await authenticate(req);
+    return req.auth.bid === businessId;
+  } catch {
+    return false;
+  }
+}
+
+const who = (q: { customer: { name: string } | null }) => q.customer?.name ?? 'El cliente';
 
 /** Vidriería por dominio propio (con o sin www). */
 export async function businessByHost(host: string | undefined) {
@@ -38,7 +57,7 @@ export async function publicRoutes(app: FastifyInstance) {
       if (!b) throw notFound();
       const body = leadPublicSchema.extend({ photos: z.array(z.string().max(5 * 1024 * 1024)).max(3).default([]) }).parse(req.body);
       if (body.website) throw badRequest('spam');
-      const photos = body.photos.map(decodeDataUrl);
+      const photos = body.photos.map((p) => decodeDataUrl(p));
       const lead = await prisma.$transaction(async (tx) => {
         const ids: string[] = [];
         for (const p of photos) {
@@ -61,6 +80,7 @@ export async function publicRoutes(app: FastifyInstance) {
           },
         });
       });
+      notifyLater(b.id, { title: 'Consulta nueva desde tu web', body: `${body.kind} · ${body.name}${body.zone ? ` · ${body.zone}` : ''}`, url: '/panel/consultas' });
       return { ok: true, id: lead.id };
     },
   );
@@ -71,8 +91,22 @@ export async function publicRoutes(app: FastifyInstance) {
     let q = await prisma.quote.findUnique({ where: { publicToken: token }, include: { customer: { select: { name: true } }, business: true } });
     if (!q) throw notFound();
     q = await expireIfNeeded(q);
-    if (q.status === 'SENT' && preview !== '1') {
-      q = { ...q, ...(await prisma.quote.update({ where: { id: q.id }, data: { status: 'VIEWED', viewedAt: new Date() } })) };
+    const now = new Date();
+    const counts = preview !== '1' && (!q.lastViewedAt || now.getTime() - q.lastViewedAt.getTime() > VIEW_GAP) && !(await isStaff(req, q.businessId));
+    if (counts) {
+      const updated = await prisma.quote.update({
+        where: { id: q.id },
+        data: { viewCount: { increment: 1 }, lastViewedAt: now, ...(q.status === 'SENT' ? { status: 'VIEWED', viewedAt: now } : {}) },
+      });
+      q = { ...q, ...updated };
+      if (q.status === 'VIEWED' || q.status === 'SENT' || q.status === 'DRAFT') {
+        const again = updated.viewCount > 1 ? ` (${updated.viewCount}ª vez)` : '';
+        notifyLater(q.businessId, {
+          title: `${who(q)} está mirando tu presupuesto`,
+          body: `N° ${q.number}${q.title ? ` · ${q.title}` : ''}${again}. Buen momento para escribirle.`,
+          url: `/panel/presupuestos/${q.id}`,
+        });
+      }
     }
     const b = q.business;
     const site = siteContent(b);
@@ -87,19 +121,54 @@ export async function publicRoutes(app: FastifyInstance) {
         logo: b.logoAssetId ? `/api/assets/${b.logoAssetId}` : null,
         primaryColor: site.primaryColor,
         accentColor: site.accentColor,
+        pay: { alias: b.payAlias, cbu: b.payCbu, holder: b.payHolder, note: b.payNote },
       },
     };
   });
 
   app.post('/public/quotes/:token/accept', async (req) => {
     const { token } = req.params as { token: string };
-    let q = await prisma.quote.findUnique({ where: { publicToken: token } });
+    const { option } = z.object({ option: z.number().int().min(0).max(2).nullish() }).parse(req.body ?? {});
+    let q = await prisma.quote.findUnique({ where: { publicToken: token }, include: { customer: { select: { name: true } } } });
     if (!q) throw notFound();
     q = await expireIfNeeded(q);
     if (q.status === 'ACCEPTED') return { ok: true };
     if (q.status === 'EXPIRED') throw new HttpError(409, 'quote_expired', 'El presupuesto venció. Pedí uno actualizado.');
     if (q.status === 'REJECTED') throw new HttpError(409, 'quote_rejected', 'Este presupuesto ya no está disponible.');
-    await prisma.quote.update({ where: { id: q.id }, data: { status: 'ACCEPTED', acceptedAt: new Date(), sentAt: q.sentAt ?? new Date() } });
+    const data = acceptData(q, option);
+    await prisma.quote.update({ where: { id: q.id }, data });
+    const label = storedOptions(q)?.[option ?? 0]?.label;
+    const total = 'total' in data ? data.total : Number(q.total);
+    notifyLater(q.businessId, {
+      title: `¡${who(q)} aceptó el presupuesto!`,
+      body: `N° ${q.number}${label ? ` · ${label}` : ''} · ${money(total)}`,
+      url: `/panel/presupuestos/${q.id}`,
+    });
     return { ok: true };
   });
+
+  /** El cliente sube el comprobante de la seña (foto o PDF). */
+  app.post(
+    '/public/quotes/:token/deposit',
+    { config: { rateLimit: { max: 10, timeWindow: '1 hour' } } },
+    async (req) => {
+      const { token } = req.params as { token: string };
+      const { file } = z.object({ file: z.string().max(5 * 1024 * 1024) }).parse(req.body);
+      const q = await prisma.quote.findUnique({ where: { publicToken: token }, include: { customer: { select: { name: true } } } });
+      if (!q) throw notFound();
+      if (q.status !== 'ACCEPTED') throw new HttpError(409, 'not_accepted', 'Primero aceptá el presupuesto.');
+      if (q.depositPaidAt) return { ok: true };
+      const { mime, data } = decodeDataUrl(file, RECEIPT_MIMES);
+      await prisma.$transaction(async (tx) => {
+        const a = await tx.asset.create({ data: { businessId: q.businessId, mime, data, size: data.length, kind: 'receipt', public: false } });
+        await tx.quote.update({ where: { id: q.id }, data: { depositProofId: a.id, depositReportedAt: new Date() } });
+      });
+      notifyLater(q.businessId, {
+        title: `${who(q)} mandó el comprobante de la seña`,
+        body: `N° ${q.number} · seña ${money(Number(q.deposit))}. Revisalo y confirmá el cobro.`,
+        url: `/panel/presupuestos/${q.id}`,
+      });
+      return { ok: true };
+    },
+  );
 }

@@ -43,6 +43,13 @@ export async function businessRoutes(app: FastifyInstance) {
         validDays: z.number().int().min(1).max(365),
         customerAdjust: z.record(z.enum(CUSTOMER_TYPES), pct),
         quoteFooter: z.string().trim().max(1000),
+        dollarAlertPct: z.number().finite().min(0).max(100),
+        payAlias: z.string().trim().max(60),
+        payCbu: z.string().trim().max(40),
+        payHolder: z.string().trim().max(120),
+        payNote: z.string().trim().max(300),
+        supplierName: z.string().trim().max(120),
+        supplierWhatsapp: z.string().trim().max(40),
       })
       .partial()
       .parse(req.body);
@@ -56,7 +63,7 @@ export async function businessRoutes(app: FastifyInstance) {
       if (other && other.id !== req.auth.bid) throw badRequest('domain_taken', 'Ese dominio ya está en uso');
     }
     if (body.logoAssetId && !(await prisma.asset.findFirst({ where: { id: body.logoAssetId, businessId: req.auth.bid } }))) throw badRequest('asset_not_found');
-    const b = await prisma.business.update({ where: { id: req.auth.bid }, data: { ...body, customDomain: body.customDomain || null } });
+    const b = await prisma.business.update({ where: { id: req.auth.bid }, data: { ...body, ...(body.customDomain !== undefined ? { customDomain: body.customDomain || null } : {}) } });
     return { ...b, site: siteContent(b), dollar: await dollarFor(b) };
   });
 

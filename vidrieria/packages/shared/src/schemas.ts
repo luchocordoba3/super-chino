@@ -64,6 +64,7 @@ export const lineSchema = z.object({
   applyWaste: z.boolean(),
   qtyOverride: z.number().finite().min(0).max(1e6).nullish(),
   priceOverride: money.nullish(),
+  unitCost: money.nullish(),
 });
 
 export const itemSchema = z.object({
@@ -73,6 +74,14 @@ export const itemSchema = z.object({
   quantity: z.number().int().min(1).max(10_000),
   lines: z.array(lineSchema).max(100),
 });
+
+export const quoteOptionSchema = z.object({
+  label: z.string().trim().max(80).default(''),
+  items: z.array(itemSchema).max(100),
+  extras: z.array(lineSchema).max(100),
+  discount: money.default(0),
+});
+export type QuoteOptionBody = z.infer<typeof quoteOptionSchema>;
 
 export const quoteBodySchema = z.object({
   customerId: z.string().nullish(),
@@ -86,6 +95,8 @@ export const quoteBodySchema = z.object({
   adjustPct: z.number().finite().min(-100).max(500).default(0),
   discount: money.default(0),
   validDays: z.number().int().min(1).max(365).optional(),
+  /** 2 o 3 opciones para que el cliente elija (simple / mejor / premium). Si vienen, mandan sobre items/extras/discount. */
+  options: z.array(quoteOptionSchema).min(2).max(3).nullish(),
 });
 export type QuoteBody = z.infer<typeof quoteBodySchema>;
 

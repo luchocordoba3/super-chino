@@ -119,3 +119,38 @@ describe('waNumber', () => {
     expect(waLink('', 'hola')).toBe('https://wa.me/?text=hola');
   });
 });
+
+describe('costo y ganancia', () => {
+  it('suma el costo de las líneas con costo (con desperdicio y dólar) y calcula la ganancia', () => {
+    const input = mampara({
+      items: [
+        {
+          title: 'Mampara',
+          widthMm: 1200,
+          heightMm: 1800,
+          quantity: 1,
+          lines: [{ ...vidrio, unitCost: 40 }, cantos, { ...kit, unitCost: 50 }, colocacion],
+        },
+      ],
+    });
+    const r = calcQuote(input, s);
+    // Vidrio: 2,484 m² × US$40 × 1000 = 99.360; kit: US$50 × 1000 = 50.000
+    expect(r.items[0].lines[0].costArs).toBe(99360);
+    expect(r.items[0].lines[1].costArs).toBeNull();
+    expect(r.cost).toBe(149360);
+    expect(r.costedLines).toBe(2);
+    expect(r.totalLines).toBe(4);
+    expect(r.profit).toBe(306040 - 149360);
+  });
+
+  it('si el IVA se suma aparte, no cuenta como ganancia', () => {
+    const r = calcQuote(mampara(), { ...s, pricesIncludeVat: false });
+    expect(r.cost).toBe(0);
+    expect(r.profit).toBeCloseTo(r.total - r.vat, 2);
+  });
+
+  it('linesFromTemplate copia el costo del catálogo', () => {
+    const [l] = linesFromTemplate([{ catalogItemId: 'a', basis: 'm2', factor: 1 }], [{ id: 'a', name: 'Float 4', price: 20, currency: 'USD', isGlass: true, cost: 12 }]);
+    expect(l.unitCost).toBe(12);
+  });
+});

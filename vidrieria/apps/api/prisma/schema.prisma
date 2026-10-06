@@ -100,6 +100,18 @@ model Business {
   customerAdjust  Json         @default("{}")
   quoteFooter     String       @default("")
   nextQuoteNumber Int          @default(1)
+  /// Avisa en Inicio si el dólar subió más de este % desde que se mandó un presupuesto.
+  dollarAlertPct  Decimal      @default(3) @db.Decimal(6, 2)
+
+  // Cobro de señas (se muestran al cliente cuando acepta)
+  payAlias  String @default("")
+  payCbu    String @default("")
+  payHolder String @default("")
+  payNote   String @default("")
+
+  // Proveedor (lista de compras)
+  supplierName     String @default("")
+  supplierWhatsapp String @default("")
 
   users     User[]
   catalog   CatalogItem[]
@@ -108,6 +120,7 @@ model Business {
   leads     Lead[]
   quotes    Quote[]
   assets    Asset[]
+  pushSubs  PushSubscription[]
 }
 
 model User {
@@ -229,12 +242,39 @@ model Quote {
   acceptedAt  DateTime?
   rejectedAt  DateTime?
   followUpAt  DateTime?
+  /// Opciones para que el cliente elija ([{label, input, result}]); null si hay una sola.
+  options      Json?
+  chosenOption Int?
+  viewCount    Int       @default(0)
+  lastViewedAt DateTime?
+  /// Comprobante de la seña que subió el cliente (Asset privado).
+  depositProofId    String?
+  depositReportedAt DateTime?
+  depositPaidAt     DateTime?
+  /// Material ya pedido al proveedor.
+  purchasedAt DateTime?
+  /// Fotos de la medición en la obra.
+  photoIds    String[]  @default([])
   createdById String?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
   @@unique([businessId, number])
   @@index([businessId, status, createdAt])
+}
+
+/// Celulares que reciben avisos (notificaciones push).
+model PushSubscription {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  userId     String
+  endpoint   String   @unique
+  p256dh     String
+  auth       String
+  createdAt  DateTime @default(now())
+
+  @@index([businessId])
 }
 
 /// Fotos guardadas en la base (ya achicadas): en hosting gratis los archivos sueltos se pierden.
@@ -245,7 +285,7 @@ model Asset {
   mime       String
   data       Bytes
   size       Int
-  /// "site" (web), "lead" (foto de una consulta), "logo"
+  /// "site" (web), "lead" (foto de una consulta), "logo", "quote" (medición), "receipt" (comprobante de seña)
   kind       String
   /// true: se puede ver sin login (fotos de la web).
   public     Boolean  @default(false)

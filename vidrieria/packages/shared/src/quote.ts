@@ -71,6 +71,8 @@ export interface LineInput {
   qtyOverride?: number | null;
   /** Precio unitario en pesos puesto a mano (reemplaza el del catálogo). */
   priceOverride?: number | null;
+  /** Costo unitario, en la misma moneda que unitPrice (para calcular la ganancia; el cliente no lo ve). */
+  unitCost?: number | null;
 }
 
 export interface ItemInput {
@@ -98,6 +100,8 @@ export interface LineResult extends LineInput {
   unit: string;
   unitPriceArs: number;
   total: number;
+  /** Costo de la línea en pesos (null si no tiene costo cargado). */
+  costArs: number | null;
 }
 
 export interface ItemResult {
@@ -126,6 +130,12 @@ export interface QuoteResult {
   deposit: number;
   balance: number;
   totalUsd: number;
+  /** Costo de las líneas que tienen costo cargado, en pesos. */
+  cost: number;
+  costedLines: number;
+  totalLines: number;
+  /** Ganancia estimada: lo que cobra (sin el IVA que se suma aparte) menos el costo cargado. */
+  profit: number;
 }
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -177,7 +187,15 @@ function calcLine(line: LineInput, s: QuoteSettings, g: ReturnType<typeof pieceG
   if (line.qtyOverride != null) qty = pos(line.qtyOverride);
   qty = round3(qty);
   const price = unitPriceArs(line, s.dollarRate);
-  return { ...line, qty, unit: BASIS_UNIT[basis], unitPriceArs: price, total: round2(qty * price) };
+  const unitCost = line.unitCost != null ? (line.currency === 'USD' ? line.unitCost * s.dollarRate : line.unitCost) : null;
+  return {
+    ...line,
+    qty,
+    unit: BASIS_UNIT[basis],
+    unitPriceArs: price,
+    total: round2(qty * price),
+    costArs: unitCost != null ? round2(qty * unitCost) : null,
+  };
 }
 
 export function calcQuote(input: QuoteInput, s: QuoteSettings): QuoteResult {
@@ -206,6 +224,9 @@ export function calcQuote(input: QuoteInput, s: QuoteSettings): QuoteResult {
   const total = Math.round(s.pricesIncludeVat ? net : net * (1 + vatRate));
   const vat = round2(s.pricesIncludeVat ? total - total / (1 + vatRate) : total - net);
   const deposit = Math.round((total * pos(s.depositPct)) / 100);
+  const all = [...items.flatMap((i) => i.lines), ...extras];
+  const costed = all.filter((l) => l.costArs != null);
+  const cost = round2(costed.reduce((a, l) => a + (l.costArs ?? 0), 0));
   return {
     items,
     extras,
@@ -219,6 +240,10 @@ export function calcQuote(input: QuoteInput, s: QuoteSettings): QuoteResult {
     deposit,
     balance: total - deposit,
     totalUsd: s.dollarRate > 0 ? round2(total / s.dollarRate) : 0,
+    cost,
+    costedLines: costed.length,
+    totalLines: all.length,
+    profit: round2(total - (s.pricesIncludeVat ? 0 : vat) - cost),
   };
 }
 
@@ -235,6 +260,7 @@ export interface CatalogLike {
   price: number;
   currency: Currency;
   isGlass: boolean;
+  cost?: number | null;
 }
 
 /** Arma las líneas de un trabajo a partir de una plantilla y el catálogo actual (ignora ítems borrados). */
@@ -243,6 +269,8 @@ export function linesFromTemplate(lines: TemplateLine[], catalog: CatalogLike[])
   return lines.flatMap((tl) => {
     const c = byId.get(tl.catalogItemId);
     if (!c) return [];
-    return [{ catalogItemId: c.id, name: c.name, basis: tl.basis, factor: tl.factor, unitPrice: c.price, currency: c.currency, applyWaste: c.isGlass }];
+    return [
+      { catalogItemId: c.id, name: c.name, basis: tl.basis, factor: tl.factor, unitPrice: c.price, currency: c.currency, applyWaste: c.isGlass, unitCost: c.cost ?? null },
+    ];
   });
 }

@@ -17,6 +17,8 @@ import { catalogRoutes } from './routes/catalog';
 import { customerRoutes } from './routes/customers';
 import { leadRoutes } from './routes/leads';
 import { businessByHost, publicRoutes } from './routes/public';
+import { purchaseRoutes } from './routes/purchases';
+import { pushRoutes } from './routes/push';
 import { quoteRoutes } from './routes/quotes';
 import { RESERVED_SLUGS, siteContent } from './services/site';
 
@@ -58,6 +60,8 @@ export async function buildApp(opts: FastifyServerOptions = {}) {
       await quoteRoutes(api);
       await assetRoutes(api);
       await publicRoutes(api);
+      await pushRoutes(api);
+      await purchaseRoutes(api);
     },
     { prefix: '/api' },
   );

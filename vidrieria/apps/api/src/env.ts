@@ -28,6 +28,10 @@ export const env = {
   AUTH_RATE_LIMIT: Number(process.env.AUTH_RATE_LIMIT) || 10,
   /** Consultas por hora y por IP desde la web pública. */
   LEAD_RATE_LIMIT: Number(process.env.LEAD_RATE_LIMIT) || 10,
+  /** Avisos al celular (web push). Si no se configuran las claves, se derivan del secreto de sesión. */
+  VAPID_PUBLIC_KEY: process.env.VAPID_PUBLIC_KEY ?? '',
+  VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY ?? '',
+  PUSH_SUBJECT: process.env.PUSH_SUBJECT ?? 'mailto:avisos@lumina.app',
 };
 
 /**

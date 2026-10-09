@@ -21,7 +21,7 @@ self.addEventListener('push', (event) => {
     }
   })() as { title?: string; body?: string; url?: string };
   event.waitUntil(
-    self.registration.showNotification(data.title ?? 'Super Chino', {
+    self.registration.showNotification(data.title ?? (import.meta.env.VITE_FLAVOR === 'celulares' ? 'Celu Control' : 'Super Chino'), {
       body: data.body,
       icon: '/icon-192.png',
       badge: '/icon-192.png',

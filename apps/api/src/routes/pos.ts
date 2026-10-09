@@ -94,7 +94,7 @@ export async function posRoutes(app: FastifyInstance) {
       prisma.user.findMany({ where: { storeId, active: true, pinHash: { not: null } }, orderBy: { name: 'asc' } }),
       prisma.product.findMany({
         where: { storeId, ...(since ? { updatedAt: { gt: new Date(since) } } : { active: true }) },
-        select: { id: true, barcode: true, name: true, price: true, unit: true, active: true, updatedAt: true, currency: true, serialized: true, isService: true },
+        select: { id: true, barcode: true, name: true, price: true, unit: true, active: true, updatedAt: true, currency: true, serialized: true, isService: true, warrantyMonths: true },
       }),
       prisma.offer.findMany({ where: { storeId, status: 'ACTIVE' }, include: { lot: { select: { qtyRemaining: true } } } }),
       prisma.supplier.findMany({ where: { storeId }, select: { id: true, name: true }, orderBy: { name: 'asc' } }),

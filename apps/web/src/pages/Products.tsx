@@ -7,7 +7,7 @@ import { ScanButton } from '../components/BarcodeScanner';
 import { Empty, ErrorBox, Field, Loading, Modal, toast, toNum } from '../components/ui';
 import { dayFmt, daysUntil, money, qtyFmt } from '../lib/format';
 import { useCategories, useDebounce, useSuppliers } from '../lib/hooks';
-import { can, useMe } from '../lib/me';
+import { can, isPhones, useMe } from '../lib/me';
 import { parseContent } from '@super-chino/shared';
 import type { Product, Unit } from '../lib/types';
 
@@ -88,7 +88,7 @@ export function Products() {
                       <Link to={`/products/${p.id}`}>{p.name}</Link>
                       <div className="muted small">{[p.barcode, p.category].filter(Boolean).join(' · ')}</div>
                     </td>
-                    <td className="num">{money(p.price)}</td>
+                    <td className="num">{p.currency === 'USD' ? `US$ ${p.price}` : money(p.price)}</td>
                     <td className={`num ${p.stock <= p.minStock ? 'error' : ''}`}>
                       {qtyFmt(p.stock)} {p.unit === 'KG' ? 'kg' : ''}
                     </td>
@@ -138,7 +138,13 @@ export function ProductForm({ initial, onSaved }: { initial?: Product; onSaved?:
     targetMargin: initial?.targetMargin != null ? String(initial.targetMargin) : '',
     contentQty: initial?.contentQty != null ? String(initial.contentQty) : '',
     contentUnit: initial?.contentUnit ?? '',
+    currency: (initial?.currency ?? (isPhones(me) ? 'USD' : 'ARS')) as 'ARS' | 'USD',
+    serialized: initial?.serialized ?? isPhones(me),
+    isService: initial?.isService ?? false,
+    warrantyMonths: initial?.warrantyMonths != null ? String(initial.warrantyMonths) : '',
   });
+  const phones = isPhones(me);
+  const cur = f.currency === 'USD' ? 'US$' : '$';
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
@@ -189,6 +195,7 @@ export function ProductForm({ initial, onSaved }: { initial?: Product; onSaved?:
       targetMargin: toNum(f.targetMargin),
       contentQty: f.contentUnit ? toNum(f.contentQty) : null,
       contentUnit: f.contentUnit && toNum(f.contentQty) ? f.contentUnit : null,
+      ...(phones ? { currency: f.currency, serialized: f.serialized, isService: f.isService, warrantyMonths: toNum(f.warrantyMonths) } : {}),
     };
     try {
       const p = initial
@@ -217,18 +224,33 @@ export function ProductForm({ initial, onSaved }: { initial?: Product; onSaved?:
         <input value={f.name} onChange={set('name')} required />
       </Field>
       <div className="grid2">
-        <Field label={`${t('common.price')} ($)`}>
+        {phones && (
+          <Field label="Moneda">
+            <select value={f.currency} onChange={set('currency')}>
+              <option value="USD">Dólares</option>
+              <option value="ARS">Pesos</option>
+            </select>
+          </Field>
+        )}
+        <Field label={`${t('common.price')} (${cur})`}>
           <input value={f.price} onChange={set('price')} inputMode="decimal" required disabled={!canPrice} />
         </Field>
-        <Field label={`${t('common.cost')} ($)`}>
+        <Field label={`${t('common.cost')} (${cur})`}>
           <input value={f.cost} onChange={set('cost')} inputMode="decimal" />
         </Field>
-        <Field label={t('products.unit')}>
-          <select value={f.unit} onChange={set('unit')}>
-            <option value="UNIT">{t('common.units.UNIT')}</option>
-            <option value="KG">{t('common.units.KG')}</option>
-          </select>
-        </Field>
+        {!phones && (
+          <Field label={t('products.unit')}>
+            <select value={f.unit} onChange={set('unit')}>
+              <option value="UNIT">{t('common.units.UNIT')}</option>
+              <option value="KG">{t('common.units.KG')}</option>
+            </select>
+          </Field>
+        )}
+        {phones && (
+          <Field label="Garantía propia (meses)" hint={`Vacío = la del local (${me.store.settings.warrantyNewMonths} nuevos / ${me.store.settings.warrantyUsedMonths} usados)`}>
+            <input value={f.warrantyMonths} onChange={set('warrantyMonths')} inputMode="numeric" />
+          </Field>
+        )}
         <Field label={t('products.minStock')}>
           <input value={f.minStock} onChange={set('minStock')} inputMode="decimal" />
         </Field>
@@ -238,6 +260,16 @@ export function ProductForm({ initial, onSaved }: { initial?: Product; onSaved?:
         <Field label={t('products.targetMargin')} hint={`${t('common.optional')} · ${me.store.settings.targetMargin}%`}>
           <input value={f.targetMargin} onChange={set('targetMargin')} inputMode="decimal" />
         </Field>
+        {phones ? (
+          <div className="stack">
+            <label className="check">
+              <input type="checkbox" checked={f.serialized} onChange={(e) => setF({ ...f, serialized: e.target.checked, isService: false })} /> Cada unidad tiene IMEI / serie
+            </label>
+            <label className="check">
+              <input type="checkbox" checked={f.isService} onChange={(e) => setF({ ...f, isService: e.target.checked, serialized: false })} /> Es un servicio (sin stock)
+            </label>
+          </div>
+        ) : (
         <Field label={t('products.content')} hint={!f.contentQty && parsed ? `${t('products.detected')}: ${parsed.qty} ${parsed.unit}` : undefined}>
           <div className="row" style={{ flexWrap: 'nowrap' }}>
             <input value={f.contentQty} onChange={set('contentQty')} inputMode="decimal" placeholder={parsed ? String(parsed.qty) : ''} />
@@ -251,6 +283,7 @@ export function ProductForm({ initial, onSaved }: { initial?: Product; onSaved?:
             </select>
           </div>
         </Field>
+        )}
       </div>
       <Field label={t('products.category')}>
         <div className="row">

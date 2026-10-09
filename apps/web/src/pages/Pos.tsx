@@ -1,6 +1,6 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CASH_MOVE_KINDS, type CashMoveKind, cashMoveSign, PAYMENT_METHODS, type PaymentMethod, type PosEvent, round2 } from '@super-chino/shared';
+import { BASIC_PAYMENT_METHODS, CASH_MOVE_KINDS, type CashMoveKind, cashMoveSign, type Payment, type PaymentMethod, type PosEvent, round2 } from '@super-chino/shared';
 import { api } from '../api';
 import { beep } from '../components/BarcodeScanner';
 import { Field, Modal, toast, toNum } from '../components/ui';
@@ -10,6 +10,9 @@ import type { Me } from '../lib/me';
 import { addItem, type CartItem, cartTotal, type OfferInfo, parseScan, priceCart, settlePayments } from '../pos/cart';
 import { type CashMoveLocal, type CashSessionLocal, type CatalogProduct, db, kvDel, kvGet, kvSet, type LocalSale, normalize, type PosUser, type StoreInfo, type SupplierRow } from '../pos/db';
 import { verifyPin } from '../pos/pin';
+import { CourierModal, CustomerModal, DepositModal, findSerial, loadPhone, PayTradeInModal, type PhonePayResult, PhonePayModal, PhoneTicket, RepairChargeModal, type SaleCustomer, type Serial, serialDetail, UnitPicker, warrantyUntilFor } from '../celu/PosPhone';
+import { round2 as r2, usd } from '../celu/common';
+import type { PhoneData } from '../pos/db';
 import { enqueue, flushOutbox, getDeviceToken, linkDevice, pendingCount, refreshCatalog, syncEvents, UnlinkedError, unsyncedOfferQty } from '../pos/sync';
 
 type Phase = 'loading' | 'unlinked' | 'pick' | 'open' | 'sell';
@@ -26,8 +29,10 @@ export function Pos() {
   const [online, setOnline] = useState(navigator.onLine);
   const [pending, setPending] = useState(0);
   const [clocking, setClocking] = useState(false);
+  const [phones, setPhones] = useState(false);
 
   const loadLocal = useCallback(async () => {
+    setPhones(!!(await kvGet<PhoneData | null>('phones')));
     const s = await kvGet<StoreInfo>('store');
     if (s) {
       setStore(s);
@@ -101,7 +106,9 @@ export function Pos() {
     return (
       <div className="center-box stack">
         <div className="row between">
-          <h1>🛒 {store?.name}</h1>
+          <h1>
+            {phones ? '📱' : '🛒'} {store?.name}
+          </h1>
           {status}
         </div>
         <PickUser title={t('pos.whoSells')} only={(u) => u.role === 'OWNER' || u.canSell !== false} onPicked={pickCashier} />
@@ -116,6 +123,7 @@ export function Pos() {
   if (phase === 'open' || !session) {
     return (
       <OpenCash
+        phones={phones}
         cashier={cashier}
         onOpened={(s) => {
           setSession(s);
@@ -127,6 +135,7 @@ export function Pos() {
   }
   return (
     <SellScreen
+      phones={phones}
       store={store}
       cashier={cashier}
       session={session}
@@ -296,9 +305,10 @@ function ClockModal({ onClose }: { onClose: () => void }) {
 }
 
 /** Pago a proveedor, gasto, retiro o ingreso de cambio: queda anotado para que el cierre dé bien. */
-function CashMoveModal({ session, cashier, onClose }: { session: CashSessionLocal; cashier: PosUser; onClose: () => void }) {
+function CashMoveModal({ session, cashier, onClose, phones }: { session: CashSessionLocal; cashier: PosUser; onClose: () => void; phones?: boolean }) {
   const { t } = useTranslation();
   const [kind, setKind] = useState<CashMoveKind>('SUPPLIER');
+  const [currency, setCurrency] = useState<'ARS' | 'USD'>('ARS');
   const [amount, setAmount] = useState('');
   const [supplierId, setSupplierId] = useState('');
   const [reason, setReason] = useState('');
@@ -314,10 +324,10 @@ function CashMoveModal({ session, cashier, onClose }: { session: CashSessionLoca
     const occurredAt = nowIso();
     const supplier = kind === 'SUPPLIER' ? suppliers.find((s) => s.id === supplierId) : undefined;
     const why = reason.trim() || undefined;
-    await enqueue({ id, type: 'CASH_MOVE', userId: cashier.id, occurredAt, cashSessionId: session.id, kind, amount: n, reason: why, supplierId: supplier?.id ?? null });
+    await enqueue({ id, type: 'CASH_MOVE', userId: cashier.id, occurredAt, cashSessionId: session.id, kind, amount: n, reason: why, supplierId: supplier?.id ?? null, ...(phones ? { currency } : {}) });
     const key = `cashMoves:${session.id}`;
-    await kvSet(key, [...((await kvGet<CashMoveLocal[]>(key)) ?? []), { id, kind, amount: n, reason: why, supplierName: supplier?.name, occurredAt }]);
-    toast(t('pos.moveSaved', { amount: money(n) }));
+    await kvSet(key, [...((await kvGet<CashMoveLocal[]>(key)) ?? []), { id, kind, amount: n, currency, reason: why, supplierName: supplier?.name, occurredAt }]);
+    toast(t('pos.moveSaved', { amount: currency === 'USD' ? usd(n) : money(n) }));
     onClose();
   };
   return (
@@ -330,6 +340,16 @@ function CashMoveModal({ session, cashier, onClose }: { session: CashSessionLoca
             </label>
           ))}
         </div>
+        {phones && (
+          <div className="row">
+            <button type="button" className={`small ${currency === 'ARS' ? 'primary' : ''}`} onClick={() => setCurrency('ARS')}>
+              Pesos
+            </button>
+            <button type="button" className={`small ${currency === 'USD' ? 'primary' : ''}`} onClick={() => setCurrency('USD')}>
+              Dólares
+            </button>
+          </div>
+        )}
         <Field label={t('pos.amount')}>
           <input autoFocus inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ fontSize: '1.4rem' }} required />
         </Field>
@@ -354,14 +374,15 @@ function CashMoveModal({ session, cashier, onClose }: { session: CashSessionLoca
   );
 }
 
-function OpenCash({ cashier, onOpened, onBack }: { cashier: PosUser; onOpened: (s: CashSessionLocal) => void; onBack: () => void }) {
+function OpenCash({ cashier, onOpened, onBack, phones }: { cashier: PosUser; onOpened: (s: CashSessionLocal) => void; onBack: () => void; phones?: boolean }) {
   const { t } = useTranslation();
   const [amount, setAmount] = useState('');
+  const [amountUsd, setAmountUsd] = useState('');
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    const s: CashSessionLocal = { id: uuid(), userId: cashier.id, openedAt: nowIso(), openingAmount: toNum(amount) ?? 0 };
+    const s: CashSessionLocal = { id: uuid(), userId: cashier.id, openedAt: nowIso(), openingAmount: toNum(amount) ?? 0, ...(phones ? { openingUsd: toNum(amountUsd) ?? 0 } : {}) };
     await kvSet('cashSession', s);
-    await enqueue({ id: uuid(), type: 'CASH_OPEN', userId: cashier.id, occurredAt: s.openedAt, cashSessionId: s.id, openingAmount: s.openingAmount });
+    await enqueue({ id: uuid(), type: 'CASH_OPEN', userId: cashier.id, occurredAt: s.openedAt, cashSessionId: s.id, openingAmount: s.openingAmount, ...(phones ? { openingUsd: s.openingUsd } : {}) });
     onOpened(s);
   };
   return (
@@ -371,6 +392,11 @@ function OpenCash({ cashier, onOpened, onBack }: { cashier: PosUser; onOpened: (
       <Field label={t('pos.openingAmount')}>
         <input autoFocus inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ fontSize: '1.4rem' }} />
       </Field>
+      {phones && (
+        <Field label="Dólares en la caja">
+          <input inputMode="decimal" value={amountUsd} onChange={(e) => setAmountUsd(e.target.value)} style={{ fontSize: '1.4rem' }} />
+        </Field>
+      )}
       <button className="primary big">{t('pos.openCash')}</button>
       <button type="button" className="ghost" onClick={onBack}>
         ← {t('common.back')}
@@ -380,6 +406,7 @@ function OpenCash({ cashier, onOpened, onBack }: { cashier: PosUser; onOpened: (
 }
 
 function SellScreen(props: {
+  phones: boolean;
   store: StoreInfo | null;
   cashier: PosUser;
   session: CashSessionLocal;
@@ -417,6 +444,12 @@ function SellScreen(props: {
   const [recent, setRecent] = useState<LocalSale[]>([]);
   const [printing, setPrinting] = useState<LocalSale | null>(null);
   const [catalogCount, setCatalogCount] = useState(0);
+  // Casa de celulares
+  const [ph, setPh] = useState<PhoneData | null>(null);
+  const [customer, setCustomer] = useState<SaleCustomer | null>(null);
+  const [phModal, setPhModal] = useState<'customer' | 'deposit' | 'repair' | 'tradein' | 'courier' | null>(null);
+  const [unitFor, setUnitFor] = useState<string | null>(null);
+  const rate = ph?.rate ?? null;
   const inputRef = useRef<HTMLInputElement>(null);
   const canOverride = cashier.role === 'OWNER' || cashier.perms.includes('prices');
   const focus = () => setTimeout(() => inputRef.current?.focus(), 0);
@@ -426,7 +459,8 @@ function SellScreen(props: {
     setOffers(new Map(rows.map((o) => [o.productId, { id: o.id, offerPrice: o.offerPrice, remaining: Math.max(0, o.maxQty - (used.get(o.id) ?? 0)) }])));
     setRecent(await db.sales.where('cashSessionId').equals(session.id).reverse().sortBy('occurredAt'));
     setCatalogCount(await db.products.count());
-  }, [session.id]);
+    if (props.phones) setPh(await loadPhone());
+  }, [session.id, props.phones]);
 
   useEffect(() => {
     void loadSide();
@@ -438,7 +472,30 @@ function SellScreen(props: {
   const total = cartTotal(lines);
 
   const add = (p: CatalogProduct, qty: number) => {
-    setItems((prev) => addItem(prev, p, qty));
+    if (ph && p.serialized) {
+      // Celular: hay que elegir cuál (IMEI).
+      setResults(null);
+      return setUnitFor(p.id);
+    }
+    if (ph && p.currency === 'USD' && !rate) return toast('Falta la cotización del dólar (Ajustes)');
+    const price = ph && p.currency === 'USD' ? r2(p.price * rate!) : p.price;
+    setItems((prev) => addItem(prev, { ...p, price }, qty));
+    setResults(null);
+    beep();
+    focus();
+  };
+
+  const addSerial = (s: Serial) => {
+    setUnitFor(null);
+    if (items.some((x) => x.serialItemId === s.id)) return toast('Ese equipo ya está en la venta');
+    if (s.currency === 'USD' && !rate) return toast('Falta la cotización del dólar (Ajustes)');
+    if (s.status === 'RESERVED') toast('Equipo señado: al cobrar usá la seña como pago');
+    const price = s.currency === 'USD' ? r2(s.price * rate!) : s.price;
+    setItems((prev) => [...prev, { productId: s.productId, name: s.name, unit: 'UNIT', qty: 1, listPrice: price, serialItemId: s.id, detail: serialDetail(s) }]);
+    if (!customer && s.customerId && ph) {
+      const c = ph.customers.find((x) => x.id === s.customerId);
+      if (c) setCustomer(c);
+    }
     setResults(null);
     beep();
     focus();
@@ -448,6 +505,8 @@ function SellScreen(props: {
     const { qty, code } = parseScan(raw);
     setInput('');
     if (!code) return;
+    const unit = ph ? findSerial(ph, code) : undefined;
+    if (unit) return addSerial(unit);
     const p = await db.products.where('barcode').equals(code).first();
     if (p?.active) {
       if (p.unit === 'KG' && qty == null) return setWeightFor(p);
@@ -462,8 +521,8 @@ function SellScreen(props: {
     setResults({ list, qty });
   };
 
-  const removeLine = (productId: string, overridden: boolean) => {
-    const it = items.find((x) => x.productId === productId && (x.overridePrice != null) === overridden);
+  const removeLine = (productId: string, overridden: boolean, lineId?: string | null) => {
+    const it = lineId ? items.find((x) => x.serialItemId === lineId || x.repairOrderId === lineId) : items.find((x) => x.productId === productId && (x.overridePrice != null) === overridden && !x.serialItemId && !x.repairOrderId);
     if (!it) return;
     setItems((prev) => prev.filter((x) => x !== it));
     void enqueue({ id: uuid(), type: 'ITEM_REMOVED', userId: cashier.id, occurredAt: nowIso(), cashSessionId: session.id, productId, qty: it.qty, amount: round2(it.qty * (it.overridePrice ?? it.listPrice)) });
@@ -473,10 +532,10 @@ function SellScreen(props: {
   const changeQty = (productId: string, delta: number) =>
     setItems((prev) => prev.map((x) => (x.productId === productId && x.overridePrice == null ? { ...x, qty: Math.max(1, x.qty + delta) } : x)));
 
-  const override = (productId: string) => {
+  const override = (productId: string, lineId?: string | null) => {
     const v = toNum(window.prompt(t('pos.overridePrice')) ?? '');
     if (v == null || v < 0) return;
-    setItems((prev) => prev.map((x) => (x.productId === productId ? { ...x, overridePrice: v } : x)));
+    setItems((prev) => prev.map((x) => ((lineId ? x.serialItemId === lineId || x.repairOrderId === lineId : x.productId === productId && !x.serialItemId) ? { ...x, overridePrice: v } : x)));
     focus();
   };
 
@@ -489,7 +548,7 @@ function SellScreen(props: {
     focus();
   };
 
-  const confirmSale = async (payments: { method: PaymentMethod; amount: number }[], change: number) => {
+  const confirmSale = async (payments: Payment[], change: number, phone?: PhonePayResult) => {
     const id = uuid();
     const occurredAt = nowIso();
     const event: PosEvent = {
@@ -498,19 +557,61 @@ function SellScreen(props: {
       userId: cashier.id,
       occurredAt,
       cashSessionId: session.id,
-      items: lines.map((l) => ({ productId: l.productId, qty: l.qty, unitPrice: l.unitPrice, listPrice: l.listPrice, offerId: l.offerId, priceOverride: l.priceOverride })),
+      items: lines.map((l) => ({
+        productId: l.productId,
+        qty: l.qty,
+        unitPrice: l.unitPrice,
+        listPrice: l.listPrice,
+        offerId: l.offerId,
+        priceOverride: l.priceOverride,
+        ...(l.serialItemId ? { serialItemId: l.serialItemId } : {}),
+        ...(l.repairOrderId ? { repairOrderId: l.repairOrderId } : {}),
+      })),
       payments,
       total,
+      ...(phone
+        ? {
+            rate: rate ?? undefined,
+            cashArs: phone.cashArs,
+            cashUsd: phone.cashUsd,
+            customerId: customer && !customer.isNew ? customer.id : null,
+            newCustomer: customer?.isNew ? { id: customer.id, name: customer.name, phone: customer.phone ?? undefined, dni: customer.dni ?? undefined } : undefined,
+          }
+        : {}),
+    };
+    // Garantía de cada renglón para el certificado (casa de celulares).
+    const products = ph ? new Map((await db.products.bulkGet([...new Set(lines.map((l) => l.productId))])).filter(Boolean).map((p) => [p!.id, p!])) : new Map<string, CatalogProduct>();
+    const warrantyOf = (l: (typeof lines)[number]) => {
+      if (!ph || !store) return null;
+      if (l.repairOrderId) {
+        const d = new Date(Date.now() + store.settings.repairWarrantyDays * 86_400_000);
+        return store.settings.repairWarrantyDays > 0 ? d.toISOString().slice(0, 10) : null;
+      }
+      const p = products.get(l.productId);
+      if (!p || p.isService) return null;
+      const s = l.serialItemId ? ph.serials.find((x) => x.id === l.serialItemId) : null;
+      return warrantyUntilFor(store.settings, s?.condition ?? 'NEW', p.warrantyMonths);
     };
     const local: LocalSale = {
       id,
       occurredAt,
       userId: cashier.id,
       cashSessionId: session.id,
-      lines: lines.map((l) => ({ name: l.name, qty: l.qty, unitPrice: l.unitPrice, lineTotal: l.lineTotal, offer: !!l.offerId })),
+      lines: lines.map((l) => {
+        const s = l.serialItemId ? ph?.serials.find((x) => x.id === l.serialItemId) : null;
+        return {
+          name: l.name,
+          qty: l.qty,
+          unitPrice: l.unitPrice,
+          lineTotal: l.lineTotal,
+          offer: !!l.offerId,
+          ...(ph ? { imei: s ? (s.imei1 ? `IMEI ${s.imei1}` : s.serial) : null, condition: s ? (s.condition === 'NEW' ? 'Nuevo' : `Usado${s.grade ? ` ${s.grade}` : ''}`) : null, warrantyUntil: warrantyOf(l) } : {}),
+        };
+      }),
       total,
       payments,
       change,
+      ...(phone ? { cashArs: phone.cashArs, cashUsd: phone.cashUsd, changeUsd: phone.changeUsd, rate, customerName: customer?.name ?? null } : {}),
     };
     await db.sales.put(local);
     await enqueue(event);
@@ -518,6 +619,7 @@ function SellScreen(props: {
     if (old.length) await db.sales.bulkDelete(old);
     setItems([]);
     setPaying(false);
+    setCustomer(null);
     setDone(local);
     void loadSide();
   };
@@ -537,7 +639,7 @@ function SellScreen(props: {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (paying || done || closing || weightFor || clocking || moving) return;
+      if (paying || done || closing || weightFor || clocking || moving || phModal || unitFor) return;
       if (e.key === 'F2') {
         e.preventDefault();
         inputRef.current?.focus();
@@ -557,11 +659,22 @@ function SellScreen(props: {
     <div className="pos">
       <div className="pos-left">
         <div className="pos-top no-print">
-          <strong className="grow">🛒 {store?.name}</strong>
+          <strong className="grow">
+            {ph ? '📱' : '🛒'} {store?.name}
+          </strong>
+          {ph && <span className="small">{rate ? `US$ 1 = ${money(rate)}` : 'Sin dólar'}</span>}
           <span>{cashier.name}</span>
           {props.status}
           <button onClick={() => setClocking(true)}>🕘 {t('pos.clock')}</button>
           <button onClick={() => setMoving(true)}>💸 {t('pos.cashMove')}</button>
+          {ph && (
+            <>
+              <button onClick={() => setPhModal('repair')}>🔧 Reparación</button>
+              <button onClick={() => setPhModal('deposit')}>💵 Seña</button>
+              <button onClick={() => setPhModal('tradein')}>♻️ Pagar usado</button>
+              <button onClick={() => setPhModal('courier')}>🛵 Cadete</button>
+            </>
+          )}
           <button onClick={props.onSwitch}>{t('pos.changeCashier')}</button>
           <button onClick={() => setClosing(true)}>{t('pos.closeCash')}</button>
         </div>
@@ -582,9 +695,9 @@ function SellScreen(props: {
             {results.list.map((p) => (
               <button key={p.id} className="pos-line" style={{ width: '100%', textAlign: 'left' }} onClick={() => (p.unit === 'KG' && results.qty == null ? setWeightFor(p) : add(p, results.qty ?? 1))}>
                 <span className="n">{p.name}</span>
-                <span className="muted small">{p.barcode}</span>
+                <span className="muted small">{p.serialized && ph ? `${ph.serials.filter((s) => s.productId === p.id).length} disponibles` : p.barcode}</span>
                 <span />
-                <strong>{money(p.price)}</strong>
+                <strong>{p.currency === 'USD' ? usd(p.price) : money(p.price)}</strong>
               </button>
             ))}
           </div>
@@ -595,13 +708,14 @@ function SellScreen(props: {
             <div className="pos-line" key={l.key}>
               <div>
                 <div className="n">{l.name}</div>
+                {l.detail && <div className="small muted">{l.detail}</div>}
                 <div className="small muted">
                   {qtyFmt(l.qty)} {l.unit === 'KG' ? 'kg' : ''} × {money(l.unitPrice)}
                   {l.offerId && <span className="badge red"> {t('pos.offer')}</span>}
                   {l.priceOverride && <span className="badge gold"> {t('pos.overridePrice')}</span>}
                 </div>
               </div>
-              {l.unit === 'UNIT' && !l.priceOverride ? (
+              {l.unit === 'UNIT' && !l.priceOverride && !l.serialItemId && !l.repairOrderId ? (
                 <div className="row">
                   <button className="small" onClick={() => changeQty(l.productId, -1)}>
                     −
@@ -616,11 +730,11 @@ function SellScreen(props: {
               <strong>{money(l.lineTotal)}</strong>
               <div className="row">
                 {canOverride && !l.priceOverride && (
-                  <button className="small ghost" title={t('pos.overridePrice')} onClick={() => override(l.productId)}>
+                  <button className="small ghost" title={t('pos.overridePrice')} onClick={() => override(l.productId, l.serialItemId ?? l.repairOrderId)}>
                     $
                   </button>
                 )}
-                <button className="small ghost" onClick={() => removeLine(l.productId, l.priceOverride)}>
+                <button className="small ghost" onClick={() => removeLine(l.productId, l.priceOverride, l.serialItemId ?? l.repairOrderId)}>
                   ✕
                 </button>
               </div>
@@ -629,7 +743,13 @@ function SellScreen(props: {
         </div>
       </div>
       <div className="pos-right no-print">
+        {ph && (
+          <button onClick={() => setPhModal('customer')} style={{ justifyContent: 'flex-start' }}>
+            👤 {customer ? customer.name : 'Agregar cliente'}
+          </button>
+        )}
         <div className="pos-total">{money(total)}</div>
+        {ph && rate ? <div className="right muted">{usd(r2(total / rate))}</div> : null}
         <button className="primary big" disabled={!items.length} onClick={() => setPaying(true)}>
           {t('pos.pay')} (F12)
         </button>
@@ -665,14 +785,46 @@ function SellScreen(props: {
           }}
         />
       )}
-      {paying && <PayModal total={total} onClose={() => (setPaying(false), focus())} onConfirm={confirmSale} />}
+      {paying && !ph && <PayModal total={total} onClose={() => (setPaying(false), focus())} onConfirm={confirmSale} />}
+      {paying && ph && rate && (
+        <PhonePayModal total={total} rate={rate} ph={ph} customer={customer} settings={store!.settings} onClose={() => (setPaying(false), focus())} onConfirm={(r) => void confirmSale(r.payments, r.changeArs + r.changeUsd * rate, r)} />
+      )}
+      {paying && ph && !rate && (
+        <Modal title="Falta el dólar" onClose={() => setPaying(false)}>
+          <p>No hay cotización del dólar cargada. El dueño la pone en Ajustes (o se baja sola con internet).</p>
+        </Modal>
+      )}
+      {unitFor && ph && <UnitPicker ph={ph} productId={unitFor} onPick={addSerial} onClose={() => (setUnitFor(null), focus())} />}
+      {phModal === 'customer' && ph && <CustomerModal ph={ph} onPick={(c) => (setCustomer(c), setPhModal(null), focus())} onClose={() => (setPhModal(null), focus())} />}
+      {phModal === 'deposit' && ph && rate && store && (
+        <DepositModal ph={ph} rate={rate} session={session} cashier={cashier} settings={store.settings} customer={customer} onClose={() => (setPhModal(null), focus())} onDone={() => (setPhModal(null), void loadSide(), focus())} />
+      )}
+      {phModal === 'repair' && ph && (
+        <RepairChargeModal
+          ph={ph}
+          rate={rate ?? 0}
+          onClose={() => (setPhModal(null), focus())}
+          onPick={(r, ars) => {
+            if (items.some((x) => x.repairOrderId === r.id)) return toast('Ya está en la venta');
+            setItems((prev) => [...prev, { productId: ph.repairProductId, name: `Reparación #${r.number}`, unit: 'UNIT', qty: 1, listPrice: ars, repairOrderId: r.id, detail: r.device }]);
+            if (!customer) {
+              const c = ph.customers.find((x) => x.id === r.customerId);
+              setCustomer(c ?? { id: r.customerId, name: r.customer });
+            }
+            setPhModal(null);
+            focus();
+          }}
+        />
+      )}
+      {phModal === 'tradein' && ph && rate && <PayTradeInModal ph={ph} rate={rate} session={session} cashier={cashier} onClose={() => (setPhModal(null), void loadSide(), focus())} />}
+      {phModal === 'courier' && ph && <CourierModal ph={ph} session={session} cashier={cashier} onClose={() => (setPhModal(null), void loadSide(), focus())} />}
       {done && (
         <Modal title={t('pos.saleDone')} onClose={() => (setDone(null), focus())}>
           <div className="stack">
             <div className="pos-total">{money(done.total)}</div>
             {done.change > 0 && (
               <div className="pos-total" style={{ color: 'var(--ok)' }}>
-                {t('pos.change')}: {money(done.change)}
+                {t('pos.change')}: {done.changeUsd ? usd(done.changeUsd) : money(done.change)}
               </div>
             )}
             <button onClick={() => print(done)}>🖨 {t('pos.printTicket')}</button>
@@ -682,10 +834,10 @@ function SellScreen(props: {
           </div>
         </Modal>
       )}
-      {closing && <CloseCash session={session} cashier={cashier} recent={recent} onClose={() => setClosing(false)} onClosed={props.onClosed} />}
+      {closing && <CloseCash phones={props.phones} session={session} cashier={cashier} recent={recent} onClose={() => setClosing(false)} onClosed={props.onClosed} />}
       {clocking && <ClockModal onClose={() => (setClocking(false), focus())} />}
-      {moving && <CashMoveModal session={session} cashier={cashier} onClose={() => (setMoving(false), focus())} />}
-      {printing && <Ticket sale={printing} store={store} />}
+      {moving && <CashMoveModal phones={props.phones} session={session} cashier={cashier} onClose={() => (setMoving(false), focus())} />}
+      {printing && (props.phones ? <PhoneTicket sale={printing} store={store} /> : <Ticket sale={printing} store={store} />)}
     </div>
   );
 }
@@ -729,7 +881,7 @@ function PayModal({ total, onClose, onConfirm }: { total: number; onClose: () =>
         {rows.map((r, i) => (
           <div key={i} className="stack">
             <div className="row">
-              {PAYMENT_METHODS.map((m) => (
+              {BASIC_PAYMENT_METHODS.map((m) => (
                 <button type="button" key={m} className={`small ${r.method === m ? 'primary' : ''}`} onClick={() => setRow(i, { method: m })}>
                   {t(`pos.methods.${m}`)}
                 </button>
@@ -772,26 +924,39 @@ function PayModal({ total, onClose, onConfirm }: { total: number; onClose: () =>
   );
 }
 
-function CloseCash({ session, cashier, recent, onClose, onClosed }: { session: CashSessionLocal; cashier: PosUser; recent: LocalSale[]; onClose: () => void; onClosed: () => void }) {
+function CloseCash({ session, cashier, recent, onClose, onClosed, phones }: { session: CashSessionLocal; cashier: PosUser; recent: LocalSale[]; onClose: () => void; onClosed: () => void; phones?: boolean }) {
   const { t } = useTranslation();
   const [counted, setCounted] = useState('');
-  const [result, setResult] = useState<{ expected: number; counted: number } | null>(null);
+  const [countedUsd, setCountedUsd] = useState('');
+  const [result, setResult] = useState<{ expected: number; counted: number; expectedUsd?: number; countedUsd?: number } | null>(null);
   const [moves, setMoves] = useState<CashMoveLocal[]>([]);
+  const [deposits, setDeposits] = useState<{ currency: string; amount: number; fx?: number }[]>([]);
   useEffect(() => {
     void kvGet<CashMoveLocal[]>(`cashMoves:${session.id}`).then((m) => setMoves(m ?? []));
+    void kvGet<{ currency: string; amount: number; fx?: number }[]>(`cashDeposits:${session.id}`).then((d) => setDeposits(d ?? []));
   }, [session.id]);
-  const cashSales = round2(recent.filter((s) => !s.voided).reduce((sum, s) => sum + s.payments.filter((p) => p.method === 'CASH').reduce((a, p) => a + p.amount, 0), 0));
-  const out = round2(moves.filter((m) => cashMoveSign(m.kind) < 0).reduce((s, m) => s + m.amount, 0));
-  const inflow = round2(moves.filter((m) => cashMoveSign(m.kind) > 0).reduce((s, m) => s + m.amount, 0));
-  // Esperado = inicial + ventas en efectivo − pagos/gastos/retiros + cambio agregado.
-  const expected = round2(session.openingAmount + cashSales - out + inflow);
+  const valid = recent.filter((s) => !s.voided);
+  const cashSales = round2(valid.reduce((sum, s) => sum + (s.cashArs ?? s.payments.filter((p) => p.method === 'CASH' && p.currency !== 'USD').reduce((a, p) => a + p.amount, 0)), 0));
+  const ars = moves.filter((m) => m.currency !== 'USD');
+  const out = round2(ars.filter((m) => cashMoveSign(m.kind) < 0).reduce((s, m) => s + m.amount, 0));
+  const inflow = round2(ars.filter((m) => cashMoveSign(m.kind) > 0).reduce((s, m) => s + m.amount, 0));
+  const depArs = round2(deposits.filter((d) => d.currency !== 'USD').reduce((s, d) => s + d.amount, 0));
+  // Esperado = inicial + ventas en efectivo − pagos/gastos/retiros + cambio agregado (+ señas en efectivo).
+  const expected = round2(session.openingAmount + cashSales - out + inflow + depArs);
+  // Cajón de dólares (casa de celulares).
+  const usdMoves = round2(moves.filter((m) => m.currency === 'USD').reduce((s, m) => s + cashMoveSign(m.kind) * m.amount, 0));
+  const usdSales = round2(valid.reduce((s, x) => s + (x.cashUsd ?? 0), 0));
+  const usdDeps = round2(deposits.filter((d) => d.currency === 'USD').reduce((s, d) => s + (d.fx ?? 0), 0));
+  const expectedUsd = round2((session.openingUsd ?? 0) + usdSales + usdMoves + usdDeps);
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     const c = toNum(counted) ?? 0;
-    await enqueue({ id: uuid(), type: 'CASH_CLOSE', userId: cashier.id, occurredAt: nowIso(), cashSessionId: session.id, countedAmount: c });
+    const cu = toNum(countedUsd) ?? 0;
+    await enqueue({ id: uuid(), type: 'CASH_CLOSE', userId: cashier.id, occurredAt: nowIso(), cashSessionId: session.id, countedAmount: c, ...(phones ? { countedUsd: cu } : {}) });
     await kvDel('cashSession');
     await kvDel(`cashMoves:${session.id}`);
-    setResult({ expected, counted: c });
+    await kvDel(`cashDeposits:${session.id}`);
+    setResult({ expected, counted: c, ...(phones ? { expectedUsd, countedUsd: cu } : {}) });
   };
   if (result) {
     const diff = round2(result.counted - result.expected);
@@ -807,6 +972,11 @@ function CloseCash({ session, cashier, recent, onClose, onClosed }: { session: C
           <p className={diff === 0 ? 'ok' : 'error'}>
             {t('pos.difference')}: <strong>{money(diff)}</strong>
           </p>
+          {result.expectedUsd != null && (
+            <p className={round2(result.countedUsd! - result.expectedUsd) === 0 ? 'ok' : 'error'}>
+              Dólares: esperado {usd(result.expectedUsd)} · contado {usd(result.countedUsd)} · diferencia <strong>{usd(round2(result.countedUsd! - result.expectedUsd))}</strong>
+            </p>
+          )}
           <button className="primary" onClick={onClosed}>
             {t('common.close')}
           </button>
@@ -839,15 +1009,32 @@ function CloseCash({ session, cashier, recent, onClose, onClosed }: { session: C
                 <td className="num">{money(inflow)}</td>
               </tr>
             )}
+            {depArs > 0 && (
+              <tr>
+                <td>+ Señas en efectivo</td>
+                <td className="num">{money(depArs)}</td>
+              </tr>
+            )}
             <tr>
               <th>{t('pos.expected')}</th>
               <th className="num">{money(expected)}</th>
             </tr>
+            {phones && (
+              <tr>
+                <th>Dólares esperados</th>
+                <th className="num">{usd(expectedUsd)}</th>
+              </tr>
+            )}
           </tbody>
         </table>
         <Field label={t('pos.countedAmount')}>
           <input autoFocus inputMode="decimal" value={counted} onChange={(e) => setCounted(e.target.value)} style={{ fontSize: '1.4rem' }} required />
         </Field>
+        {phones && (
+          <Field label="Dólares contados">
+            <input inputMode="decimal" value={countedUsd} onChange={(e) => setCountedUsd(e.target.value)} style={{ fontSize: '1.4rem' }} required />
+          </Field>
+        )}
         <button className="primary big">{t('pos.closeCash')}</button>
       </form>
     </Modal>

@@ -15,6 +15,9 @@ export function useLiveEvents() {
     on('stock', [['products'], ['lots'], ['product']]);
     on('catalog', [['products'], ['product']]);
     on('offers', [['offers'], ['dashboard']]);
+    on('phones', [['serials'], ['serial'], ['products'], ['tradeins'], ['deposits'], ['customer'], ['phone-reports']]);
+    on('repairs', [['repairs'], ['repair'], ['phone-reports']]);
+    on('orders', [['orders'], ['order'], ['deliveries'], ['phone-reports']]);
     return () => es.close();
   }, [qc]);
 }

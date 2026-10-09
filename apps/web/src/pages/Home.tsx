@@ -7,10 +7,37 @@ import { MessageCard } from '../components/MessageCard';
 import { Dashboard } from './Dashboard';
 import { Empty, toast } from '../components/ui';
 import { timeFmt } from '../lib/format';
-import { can, useMe } from '../lib/me';
+import { can, isPhones, useMe } from '../lib/me';
+import { PhoneHome } from '../celu/Reports';
 import type { Msg } from '../lib/types';
 
 export function Home() {
+  const me = useMe();
+  return isPhones(me) ? <PhoneHomeWithTasks /> : <SuperHome />;
+}
+
+/** Inicio de la casa de celulares + fichaje y tareas (seguimientos por WhatsApp, etc.). */
+function PhoneHomeWithTasks() {
+  const me = useMe();
+  const inbox = useQuery({ queryKey: ['messages', 'inbox'], queryFn: () => api<Msg[]>('/messages?box=inbox') });
+  const tasks = inbox.data?.filter((m) => m.kind === 'TASK' && !m.doneAt) ?? [];
+  return (
+    <div className="stack">
+      <PhoneHome />
+      {me.user.role === 'EMPLOYEE' && <ClockCard />}
+      {tasks.length > 0 && (
+        <div className="stack">
+          <h3>Tareas</h3>
+          {tasks.map((m) => (
+            <MessageCard key={m.id} m={m} box="inbox" />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SuperHome() {
   const me = useMe();
   const { t } = useTranslation();
   const inbox = useQuery({ queryKey: ['messages', 'inbox'], queryFn: () => api<Msg[]>('/messages?box=inbox') });

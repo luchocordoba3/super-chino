@@ -8,6 +8,10 @@ export interface CartItem {
   listPrice: number;
   /** Precio cambiado a mano por el cajero (queda marcado para el control anti-pérdidas). */
   overridePrice?: number | null;
+  /** Casa de celulares: equipo puntual (IMEI) o reparación que se cobra. */
+  serialItemId?: string | null;
+  repairOrderId?: string | null;
+  detail?: string | null;
 }
 export interface OfferInfo {
   id: string;
@@ -26,6 +30,9 @@ export interface PricedLine {
   offerId: string | null;
   priceOverride: boolean;
   lineTotal: number;
+  serialItemId?: string | null;
+  repairOrderId?: string | null;
+  detail?: string | null;
 }
 
 /** Agrega al carrito (si ya está el producto, suma la cantidad). */
@@ -43,12 +50,12 @@ export function priceCart(items: CartItem[], offers: Map<string, OfferInfo>): Pr
   const out: PricedLine[] = [];
   const used = new Map<string, number>();
   items.forEach((it, idx) => {
-    const base = { productId: it.productId, name: it.name, unit: it.unit, listPrice: it.listPrice };
+    const base = { productId: it.productId, name: it.name, unit: it.unit, listPrice: it.listPrice, serialItemId: it.serialItemId ?? null, repairOrderId: it.repairOrderId ?? null, detail: it.detail ?? null };
     if (it.overridePrice != null) {
       out.push({ ...base, key: `${idx}o`, qty: it.qty, unitPrice: it.overridePrice, offerId: null, priceOverride: true, lineTotal: round2(it.qty * it.overridePrice) });
       return;
     }
-    const offer = offers.get(it.productId);
+    const offer = it.serialItemId || it.repairOrderId ? undefined : offers.get(it.productId);
     const avail = offer ? Math.max(0, round3(offer.remaining - (used.get(offer.id) ?? 0))) : 0;
     const offerQty = offer && offer.offerPrice < it.listPrice ? Math.min(it.qty, avail) : 0;
     if (offer && offerQty > 0) {

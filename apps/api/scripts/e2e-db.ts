@@ -23,3 +23,5 @@ const rows = await db.$queryRaw<{ tablename: string }[]>`SELECT tablename FROM p
 await db.$executeRawUnsafe(`TRUNCATE ${rows.map((r) => `"${r.tablename}"`).join(', ')} CASCADE`);
 await db.$disconnect();
 execSync('npx tsx prisma/seed.ts', { stdio: 'inherit', env });
+// También la casa de celulares de demostración (DEMO02).
+execSync('npx tsx prisma/seed.ts', { stdio: 'inherit', env: { ...env, APP_FLAVOR: 'celulares' } });

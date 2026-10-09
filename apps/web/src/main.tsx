@@ -6,6 +6,10 @@ import { registerSW } from 'virtual:pwa-register';
 import './i18n';
 import './styles.css';
 import { App } from './App';
+import { APP_NAME, FLAVOR } from './flavor';
+
+document.title = APP_NAME;
+document.documentElement.dataset.flavor = FLAVOR;
 
 registerSW({ immediate: true });
 

@@ -1,5 +1,6 @@
 import type { AlertType, Prisma } from '@prisma/client';
 import type { Db } from '../db';
+import { env } from '../env';
 import { ownerIds, publish, pushTo } from './notify';
 
 export interface NewAlert {
@@ -38,7 +39,8 @@ export async function notifyAlerts(storeId: string, alerts: NewAlert[]) {
   const danger = alerts.filter((a) => a.severity === 'danger' || PUSH_TYPES.has(a.type));
   if (danger.length) {
     const owners = await ownerIds(storeId);
-    const title = danger.length === 1 ? 'Super Chino: aviso importante' : `Super Chino: ${danger.length} avisos importantes`;
+    const app = env.APP_FLAVOR === 'celulares' ? 'Celu Control' : 'Super Chino';
+    const title = danger.length === 1 ? `${app}: aviso importante` : `${app}: ${danger.length} avisos importantes`;
     await pushTo(owners, { title, body: danger.map((a) => String(a.data.name ?? a.type)).join(', '), url: '/alerts' });
   }
 }

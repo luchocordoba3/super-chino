@@ -7,6 +7,7 @@ import { badRequest, HttpError, notFound } from '../lib/http';
 import { env } from '../env';
 import { resolveAlert } from '../services/alerts';
 import { DEMO_CODE, seedDemo } from '../services/demo';
+import { PHONE_DEMO_CODE, seedPhoneDemo } from '../services/demoPhones';
 import { runDailyJobs } from '../services/jobs';
 import { publish } from '../services/notify';
 import { storeCtx } from '../services/store';
@@ -101,8 +102,9 @@ export async function offerRoutes(app: FastifyInstance) {
   /** Vuelve la demo a los datos de ejemplo de hoy (solo en servidores de demostración). */
   app.post('/demo/reset', guard('owner'), async (req) => {
     const store = await prisma.store.findUniqueOrThrow({ where: { id: req.auth.sid } });
-    if (!env.SEED_DEMO || store.code !== DEMO_CODE) throw new HttpError(403, 'forbidden');
-    await seedDemo();
+    if (!env.SEED_DEMO || (store.code !== DEMO_CODE && store.code !== PHONE_DEMO_CODE)) throw new HttpError(403, 'forbidden');
+    if (store.code === PHONE_DEMO_CODE) await seedPhoneDemo();
+    else await seedDemo();
     publish(req.auth.sid, 'catalog');
     return { ok: true };
   });

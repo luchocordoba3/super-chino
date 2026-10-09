@@ -1,5 +1,5 @@
 import type { PosEvent, SyncResult } from '@super-chino/shared';
-import { type CatalogProduct, db, kvDel, kvGet, kvSet, normalize, type OfferRow, type PosUser, type StoreInfo, type SupplierRow } from './db';
+import { type CatalogProduct, db, type PhoneData, kvDel, kvGet, kvSet, normalize, type OfferRow, type PosUser, type StoreInfo, type SupplierRow } from './db';
 
 export class UnlinkedError extends Error {}
 
@@ -25,6 +25,7 @@ async function posFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 interface Bootstrap {
+  businessType?: 'SUPERMARKET' | 'PHONES';
   serverTime: string;
   full: boolean;
   store: StoreInfo;
@@ -47,6 +48,24 @@ export async function refreshCatalog(full = false) {
     await db.offers.bulkPut(data.offers);
     await kvSet('store', data.store);
     await kvSet('suppliers', data.suppliers ?? []);
+    // Casa de celulares: dólar, equipos, créditos de usados, señas, reparaciones y cadetes.
+    const ph = data as Bootstrap & Partial<PhoneData>;
+    await kvSet(
+      'phones',
+      data.businessType === 'PHONES'
+        ? ({
+            rate: ph.rate ?? null,
+            quotes: ph.quotes ?? [],
+            serials: ph.serials ?? [],
+            tradeIns: ph.tradeIns ?? [],
+            deposits: ph.deposits ?? [],
+            repairs: ph.repairs ?? [],
+            repairProductId: ph.repairProductId ?? '',
+            customers: ph.customers ?? [],
+            couriers: ph.couriers ?? [],
+          } satisfies PhoneData)
+        : null,
+    );
     await kvSet('catalogSince', data.serverTime);
   });
   changed();

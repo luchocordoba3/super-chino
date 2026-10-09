@@ -26,12 +26,35 @@ export function useAlertText() {
       pct: n('pct'),
       minutes: n('minutes'),
       start: String(d.start ?? ''),
+      imei: String(d.imei ?? ''),
+      days: n('days'),
+      number: n('number'),
+      device: String(d.device ?? ''),
+      amount: d.currency === 'USD' && d.fx ? `US$ ${n('fx')}` : money(n('amount')),
+      detail: CONFLICTS[String(d.kind)] ? `${CONFLICTS[String(d.kind)]}${d.name ? ` · ${d.name}` : ''}${d.imei ? ` (${d.imei})` : ''}` : String(d.kind ?? ''),
     };
     return t(`alerts.types.${a.type}`, vars);
   };
 }
 
+/** Qué pasó al sincronizar una venta de la casa de celulares. */
+const CONFLICTS: Record<string, string> = {
+  serial_not_available: 'se vendió un equipo que no estaba disponible',
+  sold_without_imei: 'se vendió un celular sin indicar el IMEI',
+  trade_in_credit: 'el crédito de un usado ya se había usado',
+  trade_in_paid_twice: 'se pagó dos veces un usado',
+  deposit: 'la seña ya se había usado o venció',
+  deposit_serial_not_available: 'se señó un equipo que no estaba disponible',
+  repair_paid_twice: 'se cobró dos veces una reparación',
+};
+
 export function alertLink(a: AlertRow) {
+  if (a.type === 'REPAIR_STUCK' || a.type === 'REPAIR_NOT_PICKED') return `/repairs/${a.data.repairId}`;
+  if (a.type === 'UNIT_AGING') return `/serials/${a.data.serialItemId}`;
+  if (a.type === 'DEPOSIT_EXPIRED') return '/deposits';
+  if (a.type === 'COURIER_DIFF') return '/deliveries';
+  if (a.type === 'RATE_STALE') return '/settings';
+  if (a.type === 'UNIT_CONFLICT') return '/sales';
   if (a.type === 'OFFER_SUGGESTED') return '/offers';
   if (a.type === 'CASH_DIFF' || a.type === 'VOID_SPIKE') return '/sales';
   if (a.type === 'LATE' || a.type === 'ABSENT') return '/attendance';

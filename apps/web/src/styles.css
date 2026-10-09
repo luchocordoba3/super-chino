@@ -1,3 +1,4 @@
+:root[data-flavor='celulares'] { --red: #1f5fd1; --red-dark: #17489f; --gold: #00c2a8; }
 :root {
   --red: #c8102e;
   --red-dark: #9e0c24;
@@ -86,7 +87,9 @@ td.num, th.num { text-align: right; white-space: nowrap; }
 .tabs button.active { background: var(--text); color: #fff; border-color: var(--text); }
 
 .stat { background: #fff; border-radius: var(--radius); padding: 12px; }
-.stat .v { font-size: 1.5rem; font-weight: 700; }
+.stat .v { font-size: clamp(1.05rem, 2.6vw, 1.5rem); font-weight: 700; overflow-wrap: anywhere; }
+.kv { display: flex; justify-content: space-between; gap: 8px; }
+.kv > :last-child { white-space: nowrap; }
 .stat .l { font-size: 0.8rem; color: var(--muted); }
 
 .list-item { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--line); }
@@ -109,7 +112,8 @@ td.num, th.num { text-align: right; white-space: nowrap; }
 .pos { display: grid; grid-template-columns: 1fr 380px; height: 100vh; background: var(--bg); }
 .pos-left { display: flex; flex-direction: column; min-height: 0; }
 .pos-top { display: flex; gap: 10px; align-items: center; padding: 10px 14px; background: var(--red); color: #fff; }
-.pos-top button { background: transparent; color: #fff; border-color: rgba(255, 255, 255, 0.4); }
+.pos-top { flex-wrap: wrap; }
+.pos-top button { background: transparent; color: #fff; border-color: rgba(255, 255, 255, 0.4); min-height: 34px; padding: 4px 10px; font-size: 0.9rem; white-space: nowrap; }
 .pos-scan { padding: 12px 14px; }
 .pos-scan input { font-size: 1.3rem; min-height: 56px; }
 .pos-cart { flex: 1; overflow: auto; padding: 0 14px 14px; }

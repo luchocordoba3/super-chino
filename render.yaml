@@ -21,6 +21,33 @@ services:
       - key: ANTHROPIC_API_KEY
         sync: false
 
+  # Celu Control (casa de celulares): mismo código, otra dirección y otro nombre.
+  # Comparte la base con Super Chino (cada local ve solo lo suyo). Para un negocio real conviene
+  # darle su propia base: cambiar DATABASE_URL por la de otra base.
+  - type: web
+    name: celu-control
+    runtime: docker
+    plan: free
+    region: virginia
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: super-chino-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      # Render pasa las variables al armado de Docker: la web se arma como Celu Control.
+      - key: VITE_FLAVOR
+        value: celulares
+      - key: APP_FLAVOR
+        value: celulares
+      # Carga el local de demostración DEMO02 la primera vez.
+      - key: SEED_DEMO
+        value: "true"
+      - key: ANTHROPIC_API_KEY
+        sync: false
+
 databases:
   - name: super-chino-db
     plan: free

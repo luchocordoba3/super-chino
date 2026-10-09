@@ -4,7 +4,7 @@ import { api } from '../api';
 
 export interface Me {
   user: { id: string; name: string; username: string; email: string | null; role: 'OWNER' | 'EMPLOYEE'; perms: Perm[]; lang: Lang; hasPin: boolean };
-  store: { id: string; name: string; code: string; currency: string; timezone: string; settings: StoreSettings };
+  store: { id: string; name: string; code: string; currency: string; timezone: string; settings: StoreSettings; businessType: 'SUPERMARKET' | 'PHONES' };
   vapidPublicKey: string | null;
   aiEnabled: boolean;
 }
@@ -17,6 +17,9 @@ export function useMe(): Me {
   if (!me) throw new Error('useMe fuera de sesión');
   return me;
 }
+
+/** Casa de celulares (el menú y las pantallas cambian). */
+export const isPhones = (me: Me) => me.store.businessType === 'PHONES';
 
 export const can = (me: Me, perm: Perm | 'owner') =>
   me.user.role === 'OWNER' || (perm !== 'owner' && me.user.perms.includes(perm));

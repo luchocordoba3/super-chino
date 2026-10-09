@@ -54,6 +54,8 @@ export async function applySale(tx: Tx, ctx: Ctx, ev: Ev<'SALE'>, extra: { chann
   const phones = ctx.businessType === 'PHONES';
   const customerId = await resolveCustomer(tx, ctx.storeId, ev.customerId, ev.newCustomer);
   const soldAt = new Date(ev.occurredAt);
+  // La garantía corre desde el día de la venta (aunque la caja sincronice después).
+  const saleDay = new Date(`${ev.occurredAt.slice(0, 10)}T00:00:00.000Z`);
 
   let costTotal = 0;
   let discountTotal = 0;
@@ -78,7 +80,7 @@ export async function applySale(tx: Tx, ctx: Ctx, ev: Ev<'SALE'>, extra: { chann
       if (r) {
         repairOrderId = r.id;
         cost = num(r.partsCost);
-        until = r.warrantyDays > 0 ? addDays(ctx.today, r.warrantyDays) : null;
+        until = r.warrantyDays > 0 ? addDays(saleDay, r.warrantyDays) : null;
         if (r.saleId && r.saleId !== ev.id) alerts.push(await conflictAlert(tx, ctx.storeId, `repair:${r.id}:${ev.id}`, { kind: 'repair_paid_twice', number: r.number, saleId: ev.id }));
         await tx.repairOrder.update({ where: { id: r.id }, data: { status: 'DELIVERED', deliveredAt: soldAt, saleId: ev.id } });
         await tx.repairEvent.create({ data: { repairId: r.id, status: 'DELIVERED', userId: ev.userId, note: null } });
@@ -89,7 +91,7 @@ export async function applySale(tx: Tx, ctx: Ctx, ev: Ev<'SALE'>, extra: { chann
       if (!u) throw new RejectError('serial_not_found');
       serialItemId = u.id;
       cost = toArs(num(u.cost), p.currency, rate);
-      until = warrantyUntil(ctx.settings, ctx.today, u.condition, p.warrantyMonths);
+      until = warrantyUntil(ctx.settings, saleDay, u.condition, p.warrantyMonths);
       if (u.status !== 'AVAILABLE' && u.status !== 'RESERVED') {
         // Se vendió igual (la plata ya entró): queda el aviso para revisar.
         alerts.push(await conflictAlert(tx, ctx.storeId, `serial:${u.id}:${ev.id}`, { kind: 'serial_not_available', name: p.name, imei: u.imei1 ?? u.serial, status: u.status, saleId: ev.id }));
@@ -106,7 +108,7 @@ export async function applySale(tx: Tx, ctx: Ctx, ev: Ev<'SALE'>, extra: { chann
       allocations = await consumeStock(tx, { storeId: ctx.storeId, productId: p.id, qty: it.qty, today: ctx.today, type: 'SALE', refId: ev.id, userId: ev.userId });
       cost = toArs(round2(allocations.reduce((s, a) => s + a.qty * a.unitCost, 0)), p.currency, rate);
       stockTouched.add(p.id);
-      if (phones) until = warrantyUntil(ctx.settings, ctx.today, 'NEW', p.warrantyMonths);
+      if (phones) until = warrantyUntil(ctx.settings, saleDay, 'NEW', p.warrantyMonths);
     }
     costTotal += cost;
 

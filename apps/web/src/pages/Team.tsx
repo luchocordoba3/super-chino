@@ -1,10 +1,10 @@
 import { type FormEvent, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { type Lang, PERMS, type Perm, type WeekSchedule } from '@super-chino/shared';
+import { type Lang, PERMS, type Perm, PHONE_PERMS, type WeekSchedule } from '@super-chino/shared';
 import { api, ApiError, errMsg } from '../api';
 import { ErrorBox, Field, Loading, Modal, toast, toNum } from '../components/ui';
-import { useMe } from '../lib/me';
+import { isPhones, useMe } from '../lib/me';
 
 interface UserRow {
   id: string;
@@ -27,6 +27,8 @@ export function Team() {
   const me = useMe();
   const { t } = useTranslation();
   const qc = useQueryClient();
+  // Los permisos de servicio técnico, usados, pedidos y entregas son solo de la casa de celulares.
+  const perms = isPhones(me) ? PERMS : PERMS.filter((p) => !PHONE_PERMS.includes(p));
   const users = useQuery({ queryKey: ['users'], queryFn: () => api<UserRow[]>('/users') });
   const update = useMutation({
     mutationFn: ({ id, ...body }: { id: string } & Record<string, unknown>) => api(`/users/${id}`, { method: 'PATCH', body }),
@@ -70,7 +72,7 @@ export function Team() {
           </div>
           {u.role === 'EMPLOYEE' && (
             <div className="row">
-              {PERMS.map((p) => (
+              {perms.map((p) => (
                 <label className="check" key={p}>
                   <input type="checkbox" checked={u.perms.includes(p)} onChange={() => update.mutate({ id: u.id, perms: togglePerm(u.perms, p) })} />
                   {t(`perms.${p}`)}
@@ -135,7 +137,7 @@ export function Team() {
           </Field>
         </div>
         <div className="row">
-          {PERMS.map((p) => (
+          {perms.map((p) => (
             <label className="check" key={p}>
               <input type="checkbox" checked={form.perms.includes(p)} onChange={() => setForm({ ...form, perms: togglePerm(form.perms, p) })} />
               {t(`perms.${p}`)}

@@ -26,11 +26,19 @@ import { Suppliers } from './pages/Suppliers';
 import { Stock } from './pages/Stock';
 import { Team } from './pages/Team';
 import { Attendance } from './pages/Attendance';
+import { CustomerDetail, Customers } from './celu/Customers';
+import { Deliveries, NewOrder, OrderDetail, Orders } from './celu/Orders';
+import { NewRepair, PublicRepair, RepairDetail, Repairs } from './celu/Repairs';
+import { PhoneReports } from './celu/Reports';
+import { Deposits, SerialDetail, Serials } from './celu/Serials';
+import { NewTradeIn, TradeInDetail, TradeInPrices, TradeIns } from './celu/TradeIns';
 
 export function App() {
   const location = useLocation();
   const isPos = location.pathname.startsWith('/pos');
-  const me = useQuery({ ...meQuery, enabled: !isPos });
+  // Seguimiento de una reparación: el cliente lo abre sin cuenta.
+  const isPublic = location.pathname.startsWith('/r/');
+  const me = useQuery({ ...meQuery, enabled: !isPos && !isPublic });
 
   useEffect(() => {
     if (me.data) {
@@ -39,6 +47,16 @@ export function App() {
     }
   }, [me.data]);
 
+  if (isPublic) {
+    return (
+      <>
+        <Toaster />
+        <Routes>
+          <Route path="/r/:token" element={<PublicRepair />} />
+        </Routes>
+      </>
+    );
+  }
   if (isPos) {
     return (
       <>
@@ -76,6 +94,24 @@ export function App() {
           <Route path="team" element={<Team />} />
           <Route path="attendance" element={<Attendance />} />
           <Route path="settings" element={<Settings />} />
+          {/* Casa de celulares */}
+          <Route path="serials" element={<Serials />} />
+          <Route path="serials/:id" element={<SerialDetail />} />
+          <Route path="deposits" element={<Deposits />} />
+          <Route path="customers" element={<Customers />} />
+          <Route path="customers/:id" element={<CustomerDetail />} />
+          <Route path="tradeins" element={<TradeIns />} />
+          <Route path="tradeins/new" element={<NewTradeIn />} />
+          <Route path="tradeins/prices" element={<TradeInPrices />} />
+          <Route path="tradeins/:id" element={<TradeInDetail />} />
+          <Route path="repairs" element={<Repairs />} />
+          <Route path="repairs/new" element={<NewRepair />} />
+          <Route path="repairs/:id" element={<RepairDetail />} />
+          <Route path="orders" element={<Orders />} />
+          <Route path="orders/new" element={<NewOrder />} />
+          <Route path="orders/:id" element={<OrderDetail />} />
+          <Route path="deliveries" element={<Deliveries />} />
+          <Route path="reports" element={<PhoneReports />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

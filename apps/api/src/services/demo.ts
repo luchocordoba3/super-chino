@@ -20,8 +20,18 @@ function ean13(n: number) {
 }
 
 /** Borra todo lo cargado en el local (menos el local y los usuarios de la demo). */
-async function wipeStoreData(storeId: string) {
+export async function wipeStoreData(storeId: string, keepUsers = ['dueno', 'sofia', 'martin']) {
   await prisma.$transaction([
+    // Casa de celulares
+    prisma.serialEvent.deleteMany({ where: { serialItem: { storeId } } }),
+    prisma.delivery.deleteMany({ where: { storeId } }),
+    prisma.order.deleteMany({ where: { storeId } }),
+    prisma.repairEvent.deleteMany({ where: { repair: { storeId } } }),
+    prisma.repairOrder.deleteMany({ where: { storeId } }),
+    prisma.deposit.deleteMany({ where: { storeId } }),
+    prisma.tradeIn.deleteMany({ where: { storeId } }),
+    prisma.tradeInPrice.deleteMany({ where: { storeId } }),
+    prisma.serialItem.deleteMany({ where: { storeId } }),
     prisma.saleItemLot.deleteMany({ where: { saleItem: { sale: { storeId } } } }),
     prisma.saleItem.deleteMany({ where: { sale: { storeId } } }),
     prisma.sale.deleteMany({ where: { storeId } }),
@@ -46,7 +56,8 @@ async function wipeStoreData(storeId: string) {
     prisma.product.deleteMany({ where: { storeId } }),
     prisma.category.deleteMany({ where: { storeId } }),
     prisma.supplier.deleteMany({ where: { storeId } }),
-    prisma.user.deleteMany({ where: { storeId, username: { notIn: ['dueno', 'sofia', 'martin'] } } }),
+    prisma.user.deleteMany({ where: { storeId, username: { notIn: keepUsers } } }),
+    prisma.customer.deleteMany({ where: { storeId } }),
   ]);
 }
 

@@ -43,6 +43,76 @@ Es una app web instalable (PWA): la misma app corre en la PC de la caja (con lec
   - sugerencia de qué reponer, con el pedido al proveedor listo para mandar por WhatsApp.
 - **Panel del dueño:** ventas del día, ganancia real (con el costo de cada lote), cajeros, medios de pago, mermas y plata salvada del vencimiento. Todos los días a las 21 hs le llega un resumen al celular.
 
+## 📱 Celu Control (casa de celulares)
+
+Es el mismo código con otro "sabor": otro nombre, color y menú, y módulos propios para un local que vende celulares nuevos y usados, accesorios, hace servicio técnico y vende por WhatsApp/Instagram con entregas. Los precios de los equipos son en dólares. Cada local tiene un rubro (`Store.businessType`): un local de celulares ve estas pantallas, uno de supermercado ve las de siempre. Está solo en español.
+
+- **Dólar:**
+  - toma la cotización de [dolarapi.com](https://dolarapi.com) cada 15 minutos y, si falla, la de bluelytics;
+  - el dueño elige blue, oficial, MEP o tarjeta (compra o venta), le suma un ajuste o pone una cotización propia;
+  - cada venta guarda el dólar que se usó;
+  - los precios se muestran en dólares y en pesos.
+- **Equipos con IMEI:**
+  - cada celular es una ficha con IMEI (se valida el dígito verificador), estado (nuevo, usado o reacondicionado), grado A/B/C, batería, color, si la cuenta iCloud/Google está libre, fotos, costo y garantía del proveedor;
+  - estados: disponible, señado, en reparación, vendido, garantía con proveedor o baja, con la historia completa;
+  - ingreso escaneando o pegando la columna de IMEI de Excel;
+  - consulta de garantía por IMEI y etiqueta con precio para imprimir.
+- **Caja (anda sin internet):**
+  - se escanea el IMEI de la caja y el sistema sabe qué equipo es;
+  - pago mixto en pesos, dólares, débito, crédito en cuotas (con el recargo de cada plan), QR, transferencia, crédito de un usado tomado o una seña;
+  - vuelto en pesos o en dólares;
+  - cajón de pesos y cajón de dólares, con arqueo de los dos al cerrar;
+  - ticket con certificado de garantía (6 meses nuevos y 3 usados como mínimo, Ley 24.240);
+  - además se cobran reparaciones, se toman señas, se le paga a quien nos vendió un usado y se recibe la rendición de los cadetes.
+- **Usados (toma y compra):**
+  - checklist del equipo y fotos del DNI;
+  - consulta en [ENACOM](https://www.enacom.gob.ar/imei) con captura obligatoria (un IMEI denunciado no se puede tomar);
+  - iCloud/Google cerrado y firma de la declaración en la pantalla;
+  - grilla de precios por modelo y grado;
+  - el equipo entra al stock como usado con costo igual a lo que se pagó;
+  - **libro de compras de usados** en Excel para inspecciones (CABA Ley 6.009 y similares).
+- **Servicio técnico:**
+  - orden con checklist de ingreso, fotos, código o patrón de desbloqueo cifrado (lo ven solo el técnico y el dueño), técnico y fecha prometida;
+  - presupuesto con repuestos del stock y mano de obra;
+  - **link para que el cliente siga su reparación y apruebe o rechace el presupuesto desde el celular**;
+  - mensajes de WhatsApp ya escritos;
+  - comprobante para imprimir;
+  - reingreso por garantía sin cargo;
+  - avisos de órdenes trabadas o sin retirar.
+- **Pedidos y entregas:**
+  - pedidos de WhatsApp/Instagram con el equipo (IMEI) reservado;
+  - envío o retiro, pago previo o contra entrega en pesos o dólares;
+  - pantalla del cadete en el celular: mapa, llamar, WhatsApp, "entregado" con foto, DNI de quien recibe e IMEI confirmado;
+  - rendición en la caja con aviso si falta plata;
+  - devolución por arrepentimiento dentro de los 10 días.
+- **Clientes:** ficha con compras, equipos, garantías vigentes, reparaciones, usados, pedidos y señas.
+- **Números:**
+  - ganancia por equipo en dólares;
+  - stock valorizado y antigüedad (0–30, 31–60, 61–90 y más de 90 días);
+  - modelos más vendidos, vendedores con comisión, medios de pago y canales;
+  - técnicos, usados revendidos, cadetes y cierres de caja por moneda;
+  - todo se baja a Excel.
+- **Postventa:** tareas automáticas para escribirle por WhatsApp al cliente a los 3 y a los 30 días, y para ofrecerle cambiar el equipo al año.
+
+Para probarlo en la PC:
+
+```bash
+APP_FLAVOR=celulares pnpm db:seed                      # local de demostración DEMO02
+APP_FLAVOR=celulares pnpm --filter @super-chino/api dev
+VITE_FLAVOR=celulares pnpm --filter @super-chino/web dev
+```
+
+| Quién | Cómo entra |
+| --- | --- |
+| Dueño | `celus@demo.com` / `demo1234` (PIN de caja `0000`) |
+| Flor (vende, toma usados y pedidos) | local `DEMO02`, usuario `vendedor`, PIN `1234` |
+| Leo (técnico) | local `DEMO02`, usuario `tecnico`, PIN `2345` |
+| Tomi (cadete) | local `DEMO02`, usuario `cadete`, PIN `3456` |
+
+En Render, `render.yaml` crea también el servicio **celu-control** con su propio link. Para un negocio real conviene que tenga su propia base de datos: hay que cambiar su `DATABASE_URL`.
+
+Queda para más adelante: factura electrónica ARCA, WhatsApp Business API, MercadoLibre/Tiendanube y consultas pagas de IMEI.
+
 ## Cómo levantarlo
 
 Requisitos: Node 22, pnpm y PostgreSQL 16. Si no tenés Postgres instalado: `docker compose up -d`.
@@ -83,7 +153,8 @@ Para usar la caja, entrá como dueño en la PC y abrí **Caja** → "Vincular es
 ```bash
 pnpm test        # API (contra la base superchino_test) + lógica de la caja
 pnpm e2e         # de punta a punta con Playwright (base superchino_e2e, se crea sola): caja, stock,
-                 # tareas con foto, conteo, ofertas y un recorrido de todas las pantallas buscando errores
+                 # tareas con foto, conteo, ofertas, un recorrido de todas las pantallas buscando errores
+                 # y la casa de celulares (caja con IMEI y dólares, servicio técnico, pedido con cadete)
 pnpm typecheck
 ```
 

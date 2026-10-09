@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../api';
 import { type AppLang, setLang } from '../i18n';
 import { useLiveEvents } from '../lib/live';
-import { can, useMe } from '../lib/me';
+import { APP_ICON } from '../flavor';
+import { can, isPhones, useMe } from '../lib/me';
 
 export function LangSwitch({ onChange }: { onChange?: (l: AppLang) => void }) {
   const { i18n } = useTranslation();
@@ -34,7 +35,29 @@ export function Layout() {
   });
   const badge = (unread.data?.unread ?? 0) + (unread.data?.openTasks ?? 0);
 
-  const links = [
+  const phones = isPhones(me);
+  const phoneLinks = [
+    { to: '/', label: 'Inicio', show: true },
+    { to: '/pos', label: 'Caja', show: can(me, 'sell') },
+    { to: '/serials', label: 'Equipos', show: true },
+    { to: '/repairs', label: 'Servicio técnico', show: can(me, 'repairs') || can(me, 'sell') },
+    { to: '/tradeins', label: 'Usados', show: can(me, 'tradeins') || can(me, 'reports') },
+    { to: '/orders', label: 'Pedidos', show: can(me, 'orders') },
+    { to: '/deliveries', label: 'Entregas', show: can(me, 'deliveries') && !can(me, 'orders') },
+    { to: '/customers', label: 'Clientes', show: true },
+    { to: '/products', label: 'Productos', show: true },
+    { to: '/stock', label: 'Stock accesorios', show: can(me, 'stock') || can(me, 'adjust') },
+    { to: '/suppliers', label: 'Proveedores', show: can(me, 'stock') || can(me, 'prices') },
+    { to: '/deposits', label: 'Señas', show: can(me, 'sell') },
+    { to: '/reports', label: 'Números', show: can(me, 'reports') },
+    { to: '/sales', label: 'Ventas', show: can(me, 'reports') },
+    { to: '/messages', label: t('nav.messages'), show: true },
+    { to: '/alerts', label: 'Avisos', show: can(me, 'owner') },
+    { to: '/team', label: 'Equipo', show: can(me, 'owner') },
+    { to: '/attendance', label: 'Horarios', show: can(me, 'owner') },
+    { to: '/settings', label: 'Ajustes', show: true },
+  ].filter((l) => l.show);
+  const superLinks = [
     { to: '/', label: t('nav.home'), show: true },
     { to: '/pos', label: t('nav.pos'), show: can(me, 'sell') },
     { to: '/stock', label: t('nav.stock'), show: can(me, 'stock') || can(me, 'adjust') },
@@ -49,6 +72,7 @@ export function Layout() {
     { to: '/attendance', label: t('nav.attendance'), show: can(me, 'owner') },
     { to: '/settings', label: t('nav.settings'), show: true },
   ].filter((l) => l.show);
+  const links = phones ? phoneLinks : superLinks;
 
   const saveLang = (lang: AppLang) => {
     void api('/auth/me', { method: 'PATCH', body: { lang } }).then(() => qc.invalidateQueries({ queryKey: ['me'] }));
@@ -62,8 +86,10 @@ export function Layout() {
   return (
     <div>
       <header className="topbar">
-        <div className="brand">🛒 {me.store.name}</div>
-        <LangSwitch onChange={saveLang} />
+        <div className="brand">
+          {phones ? '📱' : APP_ICON} {me.store.name}
+        </div>
+        {!phones && <LangSwitch onChange={saveLang} />}
         <button type="button" onClick={logout}>
           {t('common.logout')}
         </button>

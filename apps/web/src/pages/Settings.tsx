@@ -7,7 +7,8 @@ import { api, errMsg } from '../api';
 import { Field, toast, toNum } from '../components/ui';
 import { dateTimeFmt } from '../lib/format';
 import { enablePush, pushSupported } from '../lib/live';
-import { can, useMe } from '../lib/me';
+import { can, isPhones, useMe } from '../lib/me';
+import { PhoneSettings } from '../celu/PhoneSettings';
 
 const NUM_FIELDS = [
   'expiryAlertDays',
@@ -32,7 +33,7 @@ export function Settings() {
     <div className="stack">
       <h1>{t('settings.title')}</h1>
       <Notifications />
-      {can(me, 'owner') && <StoreForm />}
+      {can(me, 'owner') && (isPhones(me) ? <PhoneSettings /> : <StoreForm />)}
       {can(me, 'owner') && <Devices />}
       {can(me, 'owner') && <DemoReset />}
       {can(me, 'owner') && (
@@ -46,7 +47,7 @@ export function Settings() {
           🔎 {t('settings.runJobs')}
         </button>
       )}
-      {can(me, 'owner') && (
+      {can(me, 'owner') && !isPhones(me) && (
         <button
           onClick={() =>
             void api('/counts', { body: {} })

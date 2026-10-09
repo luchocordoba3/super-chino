@@ -1,4 +1,5 @@
 import { type FormEvent, useState } from 'react';
+import { APP_ICON, APP_NAME, FLAVOR } from '../flavor';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { api, ApiError, errMsg } from '../api';
@@ -35,7 +36,9 @@ export function Login() {
       } else if (tab === 'owner') {
         await api('/auth/owner-login', { body: { email: f.email, password: f.password } });
       } else {
-        await api('/auth/register', { body: { storeName: f.storeName, name: f.name, email: f.email, password: f.password, lang: i18n.language } });
+        await api('/auth/register', {
+          body: { storeName: f.storeName, name: f.name, email: f.email, password: f.password, lang: FLAVOR === 'celulares' ? 'es' : i18n.language, ...(FLAVOR === 'celulares' ? { businessType: 'PHONES' } : {}) },
+        });
       }
       remember('loginTab', tab === 'register' ? 'owner' : tab);
       await qc.invalidateQueries({ queryKey: ['me'] });
@@ -51,8 +54,10 @@ export function Login() {
   return (
     <div className="login">
       <div className="row between">
-        <div className="logo">🛒 Super Chino</div>
-        <LangSwitch />
+        <div className="logo">
+          {APP_ICON} {APP_NAME}
+        </div>
+        {FLAVOR !== 'celulares' && <LangSwitch />}
       </div>
       <p className="muted">{t('login.tagline')}</p>
       <DemoBox />
@@ -109,10 +114,10 @@ export function Login() {
 }
 
 // Datos del local de demostración (se cargan con SEED_DEMO=true, ver prisma/seed.ts).
-const DEMO = {
-  owner: { email: 'dueno@demo.com', password: 'demo1234' },
-  employee: { storeCode: 'DEMO01', username: 'sofia', pin: '1234' },
-};
+const DEMO =
+  FLAVOR === 'celulares'
+    ? { owner: { email: 'celus@demo.com', password: 'demo1234' }, employee: { storeCode: 'DEMO02', username: 'vendedor', pin: '1234' } }
+    : { owner: { email: 'dueno@demo.com', password: 'demo1234' }, employee: { storeCode: 'DEMO01', username: 'sofia', pin: '1234' } };
 
 /** Entrar a la demo con un toque (solo en servidores de demostración). */
 function DemoBox() {
@@ -141,7 +146,7 @@ function DemoBox() {
           {t('login.demoOwner')}
         </button>
         <button type="button" disabled={busy} onClick={() => void enter('employee')}>
-          {t('login.demoEmployee')}
+          {FLAVOR === 'celulares' ? 'Entrar como vendedora (Flor)' : t('login.demoEmployee')}
         </button>
       </div>
       <span className="hint">

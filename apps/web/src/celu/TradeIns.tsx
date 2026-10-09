@@ -303,16 +303,16 @@ export function TradeInDetail() {
           </p>
         )}
         <div className="grid2">
-          <PhotoButton label="Captura de ENACOM" url={t.photos.enacom} upload={photo('enacom')} />
+          <PhotoButton label="Captura de ENACOM" url={t.photos.enacom} upload={photo('enacom')} readOnly={!draft} />
         </div>
       </div>
 
       <div className="card stack">
         <h3>Documento de quien vende</h3>
         <div className="grid2">
-          <PhotoButton label="DNI frente" url={t.photos.dniFront} upload={photo('dniFront')} />
-          <PhotoButton label="DNI dorso" url={t.photos.dniBack} upload={photo('dniBack')} />
-          <PhotoButton label="Foto de la persona (opcional)" url={t.photos.selfie} upload={photo('selfie')} />
+          <PhotoButton label="DNI frente" url={t.photos.dniFront} upload={photo('dniFront')} readOnly={!draft} />
+          <PhotoButton label="DNI dorso" url={t.photos.dniBack} upload={photo('dniBack')} readOnly={!draft} />
+          <PhotoButton label="Foto de la persona (opcional)" url={t.photos.selfie} upload={photo('selfie')} readOnly={!draft} />
         </div>
       </div>
 

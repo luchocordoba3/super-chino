@@ -167,8 +167,22 @@ export function ImeiInput({ value, onChange, label = 'IMEI', autoFocus, onEnter 
 }
 
 /** Subir una foto (en el celular abre la cámara). */
-export function PhotoButton({ label, url, upload }: { label: string; url?: string | null; upload: (f: File) => Promise<unknown> }) {
+export function PhotoButton({ label, url, upload, readOnly }: { label: string; url?: string | null; upload: (f: File) => Promise<unknown>; readOnly?: boolean }) {
   const [busy, setBusy] = useState(false);
+  if (readOnly) {
+    return (
+      <div className="card stack" style={{ padding: 10, alignItems: 'center', textAlign: 'center' }}>
+        {url ? (
+          <a href={url} target="_blank" rel="noreferrer">
+            <img src={url} alt={label} style={{ maxWidth: '100%', maxHeight: 120, borderRadius: 8 }} />
+          </a>
+        ) : (
+          <span className="muted">—</span>
+        )}
+        <span className="small">{label}</span>
+      </div>
+    );
+  }
   return (
     <label className="card stack" style={{ padding: 10, cursor: 'pointer', alignItems: 'center', textAlign: 'center' }}>
       {url ? <img src={url} alt={label} style={{ maxWidth: '100%', maxHeight: 120, borderRadius: 8 }} /> : <span style={{ fontSize: '2rem' }}>📷</span>}

@@ -70,7 +70,7 @@ describe('login y usuarios', () => {
   });
 
   it('la configuración pública indica si es un servidor de demo (por defecto no)', async () => {
-    expect((await client(app).get('/public/config')).body).toEqual({ demo: false });
+    expect((await client(app).get('/public/config')).body).toEqual({ demo: false, flavor: 'super' });
   });
 
   it('un local no ve ni toca los datos de otro', async () => {

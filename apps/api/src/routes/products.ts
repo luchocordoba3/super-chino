@@ -6,9 +6,10 @@ import { startOfLocalDay } from '../domain/dates';
 import { bulkPrice } from '../domain/pricing';
 import { fefoCompare } from '../domain/fefo';
 import { can, guard } from '../lib/auth';
-import { HttpError, notFound } from '../lib/http';
+import { HttpError, notFound, sentOnly } from '../lib/http';
 import { publish } from '../services/notify';
 import { lookupBarcode } from '../services/off';
+import { serialStock } from '../services/phones';
 import { lotsByProduct, stockOf } from '../services/stock';
 import { storeCtx, userNames } from '../services/store';
 
@@ -28,6 +29,10 @@ export const productBody = z.object({
   targetMargin: z.number().min(0).max(500).nullish(),
   contentQty: z.number().positive().max(1e6).nullish(),
   contentUnit: z.enum(CONTENT_UNITS).nullish(),
+  currency: z.enum(['ARS', 'USD']).optional(),
+  serialized: z.boolean().optional(),
+  isService: z.boolean().optional(),
+  warrantyMonths: z.number().int().min(0).max(120).nullish(),
 });
 
 /** Verifica que categoría y proveedor sean del mismo local. */
@@ -67,6 +72,10 @@ export async function createProduct(storeId: string, b: z.infer<typeof productBo
         cost: b.cost ?? 0,
         minStock: b.minStock ?? 0,
         targetMargin: b.targetMargin ?? null,
+        currency: b.currency ?? 'ARS',
+        serialized: b.serialized ?? false,
+        isService: b.isService ?? false,
+        warrantyMonths: b.warrantyMonths ?? null,
         ...contentOf(b),
       },
     });
@@ -77,8 +86,9 @@ export async function createProduct(storeId: string, b: z.infer<typeof productBo
 }
 
 type ProductRow = Prisma.ProductGetPayload<{ include: { category: { select: { name: true } }; supplier: { select: { name: true } } } }>;
-export function productDto(p: ProductRow | Prisma.ProductGetPayload<object>, lots: Awaited<ReturnType<typeof lotsByProduct>>) {
+export function productDto(p: ProductRow | Prisma.ProductGetPayload<object>, lots: Awaited<ReturnType<typeof lotsByProduct>>, serials?: Map<string, number>) {
   const extra = p as Partial<ProductRow>;
+  const st = stockOf(p, lots);
   return {
     id: p.id,
     barcode: p.barcode,
@@ -98,7 +108,13 @@ export function productDto(p: ProductRow | Prisma.ProductGetPayload<object>, lot
     unallocatedSold: num(p.unallocatedSold),
     active: p.active,
     updatedAt: p.updatedAt,
-    ...stockOf(p, lots),
+    currency: p.currency,
+    serialized: p.serialized,
+    isService: p.isService,
+    warrantyMonths: p.warrantyMonths,
+    ...st,
+    // Con IMEI, el stock son los equipos disponibles.
+    ...(p.serialized ? { stock: serials?.get(p.id) ?? 0 } : {}),
   };
 }
 
@@ -208,8 +224,8 @@ export async function productRoutes(app: FastifyInstance) {
       orderBy: { name: 'asc' },
       take: 1000,
     });
-    const lots = await lotsByProduct(prisma, req.auth.sid, products.map((p) => p.id));
-    const list = products.map((p) => productDto(p, lots));
+    const [lots, serials] = await Promise.all([lotsByProduct(prisma, req.auth.sid, products.map((p) => p.id)), serialStock(prisma, req.auth.sid)]);
+    const list = products.map((p) => productDto(p, lots, serials));
     return q.lowStock ? list.filter((p) => p.stock <= p.minStock) : list;
   });
 
@@ -221,7 +237,7 @@ export async function productRoutes(app: FastifyInstance) {
       where: { storeId_barcode: { storeId: req.auth.sid, barcode: code } },
       include: { category: { select: { name: true } }, supplier: { select: { name: true } } },
     });
-    if (p) return { product: productDto(p, await lotsByProduct(prisma, req.auth.sid, [p.id])), suggestion: null };
+    if (p) return { product: productDto(p, await lotsByProduct(prisma, req.auth.sid, [p.id]), await serialStock(prisma, req.auth.sid, [p.id])), suggestion: null };
     return { product: null, suggestion: lookup ? await lookupBarcode(code) : null };
   });
 
@@ -232,7 +248,8 @@ export async function productRoutes(app: FastifyInstance) {
       include: { category: { select: { name: true } }, supplier: { select: { name: true } } },
     });
     if (!p) throw notFound();
-    const [lots, stockLots, movements, prices, names] = await Promise.all([
+    const [serials, lots, stockLots, movements, prices, names] = await Promise.all([
+      serialStock(prisma, req.auth.sid, [p.id]),
       lotsByProduct(prisma, req.auth.sid, [p.id]),
       prisma.lot.findMany({ where: { productId: p.id, qtyRemaining: { gt: 0 } } }),
       prisma.stockMovement.findMany({ where: { productId: p.id }, orderBy: { createdAt: 'desc' }, take: 40 }),
@@ -240,7 +257,7 @@ export async function productRoutes(app: FastifyInstance) {
       userNames(prisma, req.auth.sid),
     ]);
     return {
-      ...productDto(p, lots),
+      ...productDto(p, lots, serials),
       lots: stockLots.sort(fefoCompare).map((l) => ({
         id: l.id,
         lotCode: l.lotCode,
@@ -264,10 +281,13 @@ export async function productRoutes(app: FastifyInstance) {
   /** Editar producto. Cambiar el precio requiere el permiso "prices" y queda registrado. */
   app.patch('/products/:id', guard('stock', 'prices'), async (req) => {
     const { id } = req.params as { id: string };
-    const b = productBody
-      .partial()
-      .extend({ active: z.boolean().optional(), priceSource: z.enum(['manual', 'margin']).optional() })
-      .parse(req.body);
+    const b = sentOnly(
+      productBody
+        .partial()
+        .extend({ active: z.boolean().optional(), priceSource: z.enum(['manual', 'margin']).optional() })
+        .parse(req.body),
+      req.body,
+    );
     const p = await prisma.product.findFirst({ where: { id, storeId: req.auth.sid } });
     if (!p) throw notFound();
     await checkRefs(req.auth.sid, b);
@@ -290,7 +310,7 @@ export async function productRoutes(app: FastifyInstance) {
         });
       });
       publish(req.auth.sid, 'catalog');
-      return productDto(updated, await lotsByProduct(prisma, req.auth.sid, [id]));
+      return productDto(updated, await lotsByProduct(prisma, req.auth.sid, [id]), await serialStock(prisma, req.auth.sid, [id]));
     } catch (e) {
       if (isUniqueError(e)) throw new HttpError(409, 'barcode_taken');
       throw e;

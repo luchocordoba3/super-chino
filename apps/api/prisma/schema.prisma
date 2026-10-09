@@ -31,6 +31,68 @@ enum MovementType {
   ADJUSTMENT
   WASTE
   COUNT
+  REPAIR
+}
+
+/// Rubro del local: decide qué módulos ve (supermercado o casa de celulares).
+enum BusinessType {
+  SUPERMARKET
+  PHONES
+}
+
+/// Estado de un equipo con IMEI / número de serie.
+enum SerialStatus {
+  AVAILABLE
+  RESERVED
+  IN_REPAIR
+  SOLD
+  RMA
+  SCRAPPED
+}
+
+enum ItemCondition {
+  NEW
+  USED
+  REFURB
+}
+
+enum TradeInStatus {
+  DRAFT
+  ACCEPTED
+  REJECTED
+}
+
+enum DepositStatus {
+  ACTIVE
+  USED
+  EXPIRED
+  CANCELLED
+}
+
+enum RepairStatus {
+  RECEIVED
+  DIAGNOSIS
+  QUOTE_SENT
+  APPROVED
+  REJECTED
+  WAITING_PART
+  IN_REPAIR
+  READY
+  DELIVERED
+  CANCELLED
+}
+
+enum OrderStatus {
+  INQUIRY
+  RESERVED
+  PAID
+  PREPARING
+  ASSIGNED
+  ON_THE_WAY
+  DELIVERED
+  FAILED
+  RETURNED
+  CANCELLED
 }
 
 enum SaleStatus {
@@ -61,57 +123,74 @@ enum AlertType {
   OFFER_SUGGESTED
   LATE
   ABSENT
+  UNIT_AGING
+  UNIT_CONFLICT
+  IMEI_DUPLICATE
+  DEPOSIT_EXPIRED
+  REPAIR_STUCK
+  REPAIR_NOT_PICKED
+  COURIER_DIFF
+  RATE_STALE
 }
 
 model Store {
-  id        String   @id @default(cuid())
-  name      String
+  id           String       @id @default(cuid())
+  name         String
   /// Código que usan los empleados para entrar (ej. "K7P2QX").
-  code      String   @unique
-  timezone  String   @default("America/Argentina/Buenos_Aires")
-  currency  String   @default("ARS")
-  settings  Json     @default("{}")
-  createdAt DateTime @default(now())
+  code         String       @unique
+  timezone     String       @default("America/Argentina/Buenos_Aires")
+  currency     String       @default("ARS")
+  businessType BusinessType @default(SUPERMARKET)
+  settings     Json         @default("{}")
+  createdAt    DateTime     @default(now())
 
-  users        User[]
-  devices      Device[]
-  categories   Category[]
-  suppliers    Supplier[]
-  products     Product[]
-  lots         Lot[]
-  stockEntries StockEntry[]
-  movements    StockMovement[]
-  priceChanges PriceChange[]
-  posEvents    PosEvent[]
-  sales        Sale[]
-  cashSessions CashSession[]
-  messages     Message[]
-  alerts       Alert[]
-  offers       Offer[]
-  stockCounts  StockCount[]
-  invoiceScans InvoiceScan[]
-  aiUsage      AiUsage[]
-  pushSubs     PushSubscription[]
-  jobRuns      JobRun[]
-  attendance   Attendance[]
-  cashMoves    CashMovement[]
+  users         User[]
+  devices       Device[]
+  categories    Category[]
+  suppliers     Supplier[]
+  products      Product[]
+  lots          Lot[]
+  stockEntries  StockEntry[]
+  movements     StockMovement[]
+  priceChanges  PriceChange[]
+  posEvents     PosEvent[]
+  sales         Sale[]
+  cashSessions  CashSession[]
+  messages      Message[]
+  alerts        Alert[]
+  offers        Offer[]
+  stockCounts   StockCount[]
+  invoiceScans  InvoiceScan[]
+  aiUsage       AiUsage[]
+  pushSubs      PushSubscription[]
+  jobRuns       JobRun[]
+  attendance    Attendance[]
+  cashMoves     CashMovement[]
+  customers     Customer[]
+  serialItems   SerialItem[]
+  tradeIns      TradeIn[]
+  tradeInPrices TradeInPrice[]
+  deposits      Deposit[]
+  repairs       RepairOrder[]
+  orders        Order[]
+  deliveries    Delivery[]
 }
 
 model User {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   storeId      String
-  store        Store    @relation(fields: [storeId], references: [id])
-  role         Role     @default(EMPLOYEE)
+  store        Store     @relation(fields: [storeId], references: [id])
+  role         Role      @default(EMPLOYEE)
   name         String
   username     String
-  email        String?  @unique
+  email        String?   @unique
   passwordHash String?
   /// PBKDF2 (formato pbkdf2$iter$salt$hash): la caja lo verifica offline.
   pinHash      String?
-  perms        String[] @default([])
-  lang         Lang     @default(es)
-  active       Boolean  @default(true)
-  createdAt    DateTime @default(now())
+  perms        String[]  @default([])
+  lang         Lang      @default(es)
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
   // Ficha del empleado (solo la ve el dueño).
   dni          String?
   phone        String?
@@ -119,7 +198,7 @@ model User {
   salary       Decimal?  @db.Decimal(14, 2)
   notes        String?
   /// Horario semanal: 7 días (0 = domingo), cada uno null (franco) o {start, end} "HH:MM".
-  schedule     Json     @default("[]")
+  schedule     Json      @default("[]")
 
   @@unique([storeId, username])
 }
@@ -184,6 +263,14 @@ model Product {
   contentUnit     String?
   /// Vendido sin stock registrado (ej. venta offline sin lotes cargados). Lo compensa el próximo ingreso.
   unallocatedSold Decimal          @default(0) @db.Decimal(12, 3)
+  /// Moneda del precio y del costo: ARS o USD (celulares en dólares).
+  currency        String           @default("ARS")
+  /// Cada unidad tiene IMEI o número de serie (celulares, tablets, relojes).
+  serialized      Boolean          @default(false)
+  /// Servicio sin stock (reparación, envío, activación).
+  isService       Boolean          @default(false)
+  /// Garantía propia en meses; null = la del local según nuevo/usado.
+  warrantyMonths  Int?
   active          Boolean          @default(true)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
@@ -193,6 +280,8 @@ model Product {
   saleItems       SaleItem[]
   offers          Offer[]
   countItems      StockCountItem[]
+  serialItems     SerialItem[]
+  tradeInPrices   TradeInPrice[]
 
   @@unique([storeId, barcode])
   @@index([storeId, updatedAt])
@@ -290,10 +379,23 @@ model Sale {
   id            String     @id
   storeId       String
   store         Store      @relation(fields: [storeId], references: [id])
-  deviceId      String
+  /// null = venta generada fuera de la caja (pedido entregado por un cadete).
+  deviceId      String?
   userId        String
   cashSessionId String?
   status        SaleStatus @default(COMPLETED)
+  customerId    String?
+  customer      Customer?  @relation(fields: [customerId], references: [id])
+  /// Pesos por dólar usados en la venta.
+  rate          Decimal?   @db.Decimal(14, 4)
+  /// Efectivo que entró (neto de vuelto) a cada cajón; null = ventas viejas (se calcula de los pagos).
+  cashArs       Decimal?   @db.Decimal(14, 2)
+  cashUsd       Decimal?   @db.Decimal(14, 2)
+  /// Recargo por cuotas cobrado encima del total.
+  surcharge     Decimal    @default(0) @db.Decimal(14, 2)
+  /// POS | ORDER
+  channel       String     @default("POS")
+  orderId       String?
   total         Decimal    @db.Decimal(14, 2)
   /// Costo real de lo vendido, según el costo de cada lote descontado.
   costTotal     Decimal    @default(0) @db.Decimal(14, 2)
@@ -323,6 +425,9 @@ model SaleItem {
   cost          Decimal       @default(0) @db.Decimal(14, 2)
   offerId       String?
   priceOverride Boolean       @default(false)
+  serialItemId  String?
+  repairOrderId String?
+  warrantyUntil DateTime?     @db.Date
   lots          SaleItemLot[]
 
   @@index([productId])
@@ -352,6 +457,11 @@ model CashSession {
   countedAmount  Decimal?  @db.Decimal(14, 2)
   expectedAmount Decimal?  @db.Decimal(14, 2)
   difference     Decimal?  @db.Decimal(14, 2)
+  /// Cajón de dólares (casa de celulares).
+  openingUsd     Decimal   @default(0) @db.Decimal(14, 2)
+  countedUsd     Decimal?  @db.Decimal(14, 2)
+  expectedUsd    Decimal?  @db.Decimal(14, 2)
+  differenceUsd  Decimal?  @db.Decimal(14, 2)
   notes          String?
 
   @@index([storeId, openedAt])
@@ -366,11 +476,15 @@ model CashMovement {
   cashSessionId String
   deviceId      String
   userId        String
-  /// SUPPLIER | EXPENSE | WITHDRAWAL | DEPOSIT
+  /// SUPPLIER | EXPENSE | WITHDRAWAL | DEPOSIT | PURCHASE (compra de usado) | COURIER (rendición de cadete)
   kind          String
   amount        Decimal  @db.Decimal(14, 2)
+  /// ARS | USD
+  currency      String   @default("ARS")
   reason        String?
   supplierId    String?
+  /// Toma pagada (PURCHASE) o cadete que rinde (COURIER).
+  refId         String?
   occurredAt    DateTime
 
   @@index([cashSessionId])
@@ -551,4 +665,342 @@ model JobRun {
   createdAt DateTime @default(now())
 
   @@id([storeId, key])
+}
+
+// =====================================================================
+// Casa de celulares
+// =====================================================================
+
+/// Cotización del dólar bajada de internet (compartida por todos los locales).
+model ExchangeRate {
+  id        String   @id @default(cuid())
+  /// oficial | blue | bolsa (MEP) | tarjeta
+  casa      String
+  compra    Decimal  @db.Decimal(14, 4)
+  venta     Decimal  @db.Decimal(14, 4)
+  /// dolarapi | bluelytics
+  source    String
+  fetchedAt DateTime @default(now())
+
+  @@index([casa, fetchedAt])
+}
+
+model Customer {
+  id        String        @id @default(cuid())
+  storeId   String
+  store     Store         @relation(fields: [storeId], references: [id])
+  name      String
+  dni       String?
+  /// WhatsApp, solo dígitos (con código de país).
+  phone     String?
+  email     String?
+  address   String?
+  notes     String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  sales     Sale[]
+  items     SerialItem[]
+  tradeIns  TradeIn[]
+  deposits  Deposit[]
+  repairs   RepairOrder[]
+  orders    Order[]
+
+  @@index([storeId, name])
+  @@index([storeId, dni])
+  @@index([storeId, phone])
+}
+
+/// Un equipo puntual (IMEI / serie). Si el mismo equipo vuelve (toma, garantía) se reutiliza el registro.
+model SerialItem {
+  id                    String        @id @default(cuid())
+  storeId               String
+  store                 Store         @relation(fields: [storeId], references: [id])
+  productId             String
+  product               Product       @relation(fields: [productId], references: [id])
+  imei1                 String?
+  imei2                 String?
+  serial                String?
+  condition             ItemCondition @default(NEW)
+  /// A | B | C (usados)
+  grade                 String?
+  /// Salud de batería en %.
+  battery               Int?
+  color                 String?
+  carrierLocked         Boolean       @default(false)
+  /// iCloud / cuenta Google (FRP) libre. null = no revisado.
+  accountFree           Boolean?
+  includes              String?
+  notes                 String?
+  photos                String[]      @default([])
+  /// Precio propio (en la moneda del producto); null = el del producto.
+  price                 Decimal?      @db.Decimal(14, 2)
+  /// Costo en la moneda del producto (compra + reacondicionamiento).
+  cost                  Decimal       @default(0) @db.Decimal(14, 2)
+  supplierId            String?
+  /// SUPPLIER | TRADE_IN | PURCHASE
+  origin                String        @default("SUPPLIER")
+  supplierWarrantyUntil DateTime?     @db.Date
+  status                SerialStatus  @default(AVAILABLE)
+  receivedAt            DateTime      @default(now())
+  soldAt                DateTime?
+  saleId                String?
+  customerId            String?
+  customer              Customer?     @relation(fields: [customerId], references: [id])
+  warrantyUntil         DateTime?     @db.Date
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  events                SerialEvent[]
+
+  @@unique([storeId, imei1])
+  @@index([storeId, status])
+  @@index([storeId, imei2])
+  @@index([storeId, serial])
+  @@index([storeId, productId])
+  @@index([storeId, updatedAt])
+}
+
+/// Historia de cada equipo: ingreso, reserva, venta, reparación, garantía, cambios.
+model SerialEvent {
+  id           String        @id @default(cuid())
+  serialItemId String
+  serialItem   SerialItem    @relation(fields: [serialItemId], references: [id])
+  /// IN | SOLD | VOID | RESERVED | RELEASED | REPAIR | RMA | EDIT | STATUS | TRADE_IN
+  type         String
+  status       SerialStatus?
+  refId        String?
+  userId       String?
+  note         String?
+  createdAt    DateTime      @default(now())
+
+  @@index([serialItemId, createdAt])
+}
+
+/// Grilla para tasar usados: precio de toma (USD) por modelo y grado.
+model TradeInPrice {
+  id        String   @id @default(cuid())
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id])
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  grade     String
+  price     Decimal  @db.Decimal(14, 2)
+  updatedAt DateTime @updatedAt
+
+  @@unique([productId, grade])
+}
+
+/// Toma de un usado (parte de pago) o compra a un particular. Es el "libro de compras de usados".
+model TradeIn {
+  id           String        @id @default(cuid())
+  storeId      String
+  store        Store         @relation(fields: [storeId], references: [id])
+  number       Int
+  customerId   String
+  customer     Customer      @relation(fields: [customerId], references: [id])
+  productId    String?
+  model        String
+  imei1        String
+  imei2        String?
+  serial       String?
+  color        String?
+  grade        String?
+  battery      Int?
+  /// Respuestas del checklist: { screen: true, faceId: false, ... }
+  checklist    Json          @default("{}")
+  accountFree  Boolean       @default(false)
+  imeiMatches  Boolean       @default(false)
+  /// Consulta en enacom.gob.ar/imei: CLEAN | REPORTED, quién y cuándo.
+  enacomResult String?
+  enacomAt     DateTime?
+  enacomBy     String?
+  enacomPhoto  String?
+  dniFront     String?
+  dniBack      String?
+  selfie       String?
+  signature    String?
+  /// Valor tomado (USD).
+  offeredUsd   Decimal       @default(0) @db.Decimal(14, 2)
+  /// CREDIT (a cuenta de una compra) | CASH (se le paga)
+  payout       String        @default("CREDIT")
+  status       TradeInStatus @default(DRAFT)
+  /// Crédito usado en una venta / pago hecho desde la caja.
+  usedSaleId   String?
+  paidAt       DateTime?
+  serialItemId String?
+  notes        String?
+  userId       String
+  createdAt    DateTime      @default(now())
+  acceptedAt   DateTime?
+
+  @@unique([storeId, number])
+  @@index([storeId, createdAt])
+  @@index([storeId, imei1])
+}
+
+/// Seña: reserva un equipo, una reparación o un pedido. Se descuenta al cobrar.
+model Deposit {
+  id            String        @id
+  storeId       String
+  store         Store         @relation(fields: [storeId], references: [id])
+  customerId    String?
+  customer      Customer?     @relation(fields: [customerId], references: [id])
+  serialItemId  String?
+  repairOrderId String?
+  orderId       String?
+  /// Equivalente en pesos (lo que se descuenta al cobrar).
+  amount        Decimal       @db.Decimal(14, 2)
+  /// Moneda y monto en que se pagó.
+  currency      String        @default("ARS")
+  fx            Decimal?      @db.Decimal(14, 2)
+  method        String
+  cashSessionId String?
+  deviceId      String?
+  userId        String
+  note          String?
+  status        DepositStatus @default(ACTIVE)
+  expiresAt     DateTime?
+  usedSaleId    String?
+  createdAt     DateTime      @default(now())
+
+  @@index([storeId, status])
+}
+
+model RepairOrder {
+  id            String        @id @default(cuid())
+  storeId       String
+  store         Store         @relation(fields: [storeId], references: [id])
+  number        Int
+  customerId    String
+  customer      Customer      @relation(fields: [customerId], references: [id])
+  serialItemId  String?
+  device        String
+  imei          String?
+  problem       String
+  accessories   String?
+  /// Checklist de ingreso: { screen: 'ok' | 'bad' | 'na', ... }
+  checklist     Json          @default("{}")
+  photos        String[]      @default([])
+  /// Código o patrón de desbloqueo, cifrado.
+  lockSecret    String?
+  /// PIN | PATTERN | PASSWORD | NONE
+  lockType      String        @default("NONE")
+  technicianId  String?
+  promisedAt    DateTime?
+  status        RepairStatus  @default(RECEIVED)
+  diagnosis     String?
+  /// Renglones del presupuesto: [{ kind: 'PART' | 'LABOR', productId?, name, qty, price }] (en `currency`).
+  quote         Json          @default("[]")
+  currency      String        @default("ARS")
+  quoteTotal    Decimal       @default(0) @db.Decimal(14, 2)
+  diagnosisFee  Decimal       @default(0) @db.Decimal(14, 2)
+  quoteSentAt   DateTime?
+  quoteAnswerAt DateTime?
+  /// cliente (link) | local
+  quoteAnswerBy String?
+  /// true = aprobó el presupuesto, false = lo rechazó (se cobra solo el diagnóstico).
+  quoteApproved Boolean?
+  /// Costo de repuestos usados (ARS).
+  partsCost     Decimal       @default(0) @db.Decimal(14, 2)
+  partsUsed     Boolean       @default(false)
+  warrantyDays  Int           @default(90)
+  /// Reingreso por garantía de esta otra orden (sin cargo).
+  warrantyOfId  String?
+  publicToken   String        @unique
+  readyAt       DateTime?
+  deliveredAt   DateTime?
+  saleId        String?
+  userId        String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  events        RepairEvent[]
+
+  @@unique([storeId, number])
+  @@index([storeId, status])
+}
+
+model RepairEvent {
+  id        String        @id @default(cuid())
+  repairId  String
+  repair    RepairOrder   @relation(fields: [repairId], references: [id])
+  status    RepairStatus?
+  note      String?
+  userId    String?
+  /// Visible para el cliente en el link de seguimiento.
+  public    Boolean       @default(true)
+  createdAt DateTime      @default(now())
+
+  @@index([repairId, createdAt])
+}
+
+/// Pedido por WhatsApp, Instagram u otro canal, con entrega a domicilio o retiro.
+model Order {
+  id              String      @id @default(cuid())
+  storeId         String
+  store           Store       @relation(fields: [storeId], references: [id])
+  number          Int
+  /// WHATSAPP | INSTAGRAM | LOCAL | OTHER
+  channel         String
+  customerId      String
+  customer        Customer    @relation(fields: [customerId], references: [id])
+  /// [{ productId, name, qty, unitPrice (moneda del producto), currency, serialItemId? }]
+  items           Json        @default("[]")
+  /// Total en pesos (al confirmar) y en dólares de referencia.
+  total           Decimal     @default(0) @db.Decimal(14, 2)
+  rate            Decimal?    @db.Decimal(14, 4)
+  deliveryFee     Decimal     @default(0) @db.Decimal(14, 2)
+  /// PAID | COD (contra entrega)
+  paymentMode     String      @default("COD")
+  /// Si se cobra contra entrega: en qué moneda.
+  codCurrency     String      @default("ARS")
+  paidMethod      String?
+  address         String?
+  addressNotes    String?
+  window          String?
+  scheduledFor    DateTime?   @db.Date
+  notes           String?
+  status          OrderStatus @default(INQUIRY)
+  /// Entrega a domicilio (true) o retiro en el local.
+  delivery        Boolean     @default(true)
+  saleId          String?
+  /// Plazo para arrepentirse (art. 34 Ley 24.240): 10 días desde la entrega.
+  withdrawalUntil DateTime?
+  userId          String
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  deliveries      Delivery[]
+
+  @@unique([storeId, number])
+  @@index([storeId, status])
+}
+
+model Delivery {
+  id              String    @id @default(cuid())
+  storeId         String
+  store           Store     @relation(fields: [storeId], references: [id])
+  orderId         String
+  order           Order     @relation(fields: [orderId], references: [id])
+  courierId       String?
+  courierName     String?
+  /// ASSIGNED | ON_THE_WAY | DELIVERED | FAILED
+  status          String    @default("ASSIGNED")
+  /// A cobrar al cliente.
+  collectAmount   Decimal   @default(0) @db.Decimal(14, 2)
+  collectCurrency String    @default("ARS")
+  collected       Decimal?  @db.Decimal(14, 2)
+  /// Pago del envío al cadete (se descuenta de lo que rinde).
+  fee             Decimal   @default(0) @db.Decimal(14, 2)
+  proofPhoto      String?
+  receiverName    String?
+  receiverDni     String?
+  imeiConfirmed   Boolean   @default(false)
+  failReason      String?
+  startedAt       DateTime?
+  doneAt          DateTime?
+  /// Rendición en la caja (CashMovement COURIER).
+  settledAt       DateTime?
+  settlementId    String?
+  createdAt       DateTime  @default(now())
+
+  @@index([storeId, status])
+  @@index([storeId, courierId])
 }

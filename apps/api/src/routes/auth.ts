@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { Prisma, User } from '@prisma/client';
-import { LANGS, PERMS, parseSchedule, parseSettings, StoreSettingsSchema, WeekScheduleSchema } from '@super-chino/shared';
+import { BUSINESS_TYPES, LANGS, PERMS, parseSchedule, parseSettings, StoreSettingsSchema, WeekScheduleSchema } from '@super-chino/shared';
 import { prisma } from '../db';
 import { dateOnly } from '../domain/dates';
 import { env } from '../env';
@@ -33,8 +33,8 @@ function employeeRecord(u: User) {
   };
 }
 
-function publicStore(s: { id: string; name: string; code: string; currency: string; timezone: string; settings: unknown }) {
-  return { id: s.id, name: s.name, code: s.code, currency: s.currency, timezone: s.timezone, settings: parseSettings(s.settings) };
+function publicStore(s: { id: string; name: string; code: string; currency: string; timezone: string; settings: unknown; businessType: string }) {
+  return { id: s.id, name: s.name, code: s.code, currency: s.currency, timezone: s.timezone, businessType: s.businessType, settings: parseSettings(s.settings) };
 }
 
 export async function authRoutes(app: FastifyInstance) {
@@ -46,6 +46,7 @@ export async function authRoutes(app: FastifyInstance) {
         email: z.email(),
         password: z.string().min(8).max(100),
         lang: z.enum(LANGS).default('es'),
+        businessType: z.enum(BUSINESS_TYPES).optional(),
       })
       .parse(req.body);
     const email = b.email.toLowerCase();
@@ -54,6 +55,7 @@ export async function authRoutes(app: FastifyInstance) {
       data: {
         name: b.storeName,
         code: await uniqueStoreCode(),
+        businessType: b.businessType ?? (env.APP_FLAVOR === 'celulares' ? 'PHONES' : 'SUPERMARKET'),
         users: {
           create: { role: 'OWNER', name: b.name, username: 'dueno', email, passwordHash: await hashPassword(b.password), lang: b.lang },
         },

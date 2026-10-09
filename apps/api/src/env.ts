@@ -29,6 +29,10 @@ export const env = {
   JOBS_ENABLED: !isTest && process.env.JOBS_ENABLED !== 'false',
   /** Servidor de demostración: el login muestra los botones "Probar la demo". */
   SEED_DEMO: process.env.SEED_DEMO === 'true',
+  /** "celulares" = este servidor es Celu Control (los locales nuevos son casas de celulares). */
+  APP_FLAVOR: process.env.APP_FLAVOR === 'celulares' ? ('celulares' as const) : ('super' as const),
+  /** Consultar el dólar en internet (dolarapi / bluelytics). */
+  FX_ENABLED: !isTest && process.env.FX_ENABLED !== 'false',
   /** Intentos de login por minuto y por IP. */
   AUTH_RATE_LIMIT: Number(process.env.AUTH_RATE_LIMIT) || 10,
 };

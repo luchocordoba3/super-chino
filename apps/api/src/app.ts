@@ -16,11 +16,16 @@ import { authRoutes } from './routes/auth';
 import { importRoutes } from './routes/import';
 import { messageRoutes } from './routes/messages';
 import { offerRoutes } from './routes/offers';
+import { orderRoutes } from './routes/orders';
+import { phoneReportRoutes } from './routes/phoneReports';
+import { phoneRoutes } from './routes/phones';
 import { posRoutes } from './routes/pos';
 import { productRoutes } from './routes/products';
+import { repairRoutes } from './routes/repairs';
 import { reportRoutes } from './routes/reports';
 import { salesRoutes } from './routes/sales';
 import { stockRoutes } from './routes/stock';
+import { tradeInRoutes } from './routes/tradeins';
 
 export async function buildApp(opts: FastifyServerOptions = {}) {
   // Detrás del proxy de Render (u otro hosting) la IP real viene en X-Forwarded-For: el límite de logins es por cliente.
@@ -52,7 +57,7 @@ export async function buildApp(opts: FastifyServerOptions = {}) {
   });
 
   app.get('/api/health', async () => ({ ok: true }));
-  app.get('/api/public/config', async () => ({ demo: env.SEED_DEMO }));
+  app.get('/api/public/config', async () => ({ demo: env.SEED_DEMO, flavor: env.APP_FLAVOR }));
 
   await app.register(
     async (api) => {
@@ -67,6 +72,12 @@ export async function buildApp(opts: FastifyServerOptions = {}) {
       await offerRoutes(api);
       await reportRoutes(api);
       await aiRoutes(api);
+      // Casa de celulares
+      await phoneRoutes(api);
+      await tradeInRoutes(api);
+      await repairRoutes(api);
+      await orderRoutes(api);
+      await phoneReportRoutes(api);
     },
     { prefix: '/api' },
   );

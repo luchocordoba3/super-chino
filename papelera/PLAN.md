@@ -181,3 +181,32 @@ npm run build    # deja el sitio listo en dist/
   - sacar fotos reales de la camioneta y la mercadería para Instagram y Google.
 
 **Privacidad:** el sitio muestra solo tus precios de venta. La lista de costo de fábrica (el Excel) **no se sube a ningún lado**.
+
+## Panel administrativo (`/admin`)
+
+Es una página escondida: no está enlazada desde la web, Google no la indexa y **solo guarda con tu token de GitHub**. Lo que cambiás se guarda en el repositorio y la web se publica sola en uno o dos minutos.
+
+**Pestañas**
+- **Precios:** buscador, edición por renglón, alta y baja de artículos, y **suba o baja masiva por %** (por rubro o toda la lista), con redondeo y ejemplo previo.
+- **Lista nueva (PDF):** subís el PDF de la fábrica y te muestra qué cambia (precios, altas y bajas) antes de reemplazar nada. El PDF se lee en tu navegador y no se sube a ningún lado.
+- **Negocio:** WhatsApp, mínimos, horario, zonas y días.
+- **Kits y destacados:** los kits por rubro y los 20 artículos de la ficha impresa.
+- **QR:** a dónde lleva cada QR impreso, sin reimprimir.
+- **Avanzado:** el JSON completo, para los textos de los rubros y las preguntas frecuentes.
+
+**Primera vez**
+1. En GitHub: **Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**.
+2. En **Only select repositories**, marcá este repositorio. En **Permissions → Contents**, elegí **Read and write**.
+3. Entrá a `doblehoja.com.ar/admin`, pegá el token y poné la **rama que publica la web** (la que configuraste en Cloudflare o Netlify, normalmente `main`).
+
+**Modo prueba:** muestra el resultado sin guardar nada. Sirve para practicar.
+
+## Seguimiento por QR
+
+Cada impreso tiene su QR corto (`doblehoja.com.ar/q/iman`, `/q/carpeta`, etc.). Cuando alguien entra por uno, sus pedidos y su alta de cuenta llegan por WhatsApp con una línea al pie, por ejemplo "(Origen: Imán de heladera)", durante 30 días. También sirve agregar `?o=instagram` a cualquier link de la web.
+
+A fin de mes contá los orígenes en WhatsApp: ahí ves qué pieza conviene reimprimir.
+
+## Impresos y planilla
+- `impresos/pdf/`: imán, sticker, ficha A5, tarjeta, carpeta (tapa e interiores) y ploteo de la camioneta, listos para la imprenta. Medidas, papel, colores y cantidades están en `impresos/LEEME.md`.
+- `prospeccion.xlsx`: planilla para las visitas. Tiene las hojas Prospectos, Visitas, Administraciones y Semana (con métricas automáticas), con listas desplegables y un aviso de a quién contactar hoy. Se puede subir a Google Sheets.

@@ -12,6 +12,7 @@
   "dependencies": {
     "@fontsource-variable/archivo": "^5.3.0",
     "@fontsource/jetbrains-mono": "^5.3.0",
-    "astro": "^7.3.5"
+    "astro": "^7.3.5",
+    "pdfjs-dist": "^6.4.299"
   }
 }

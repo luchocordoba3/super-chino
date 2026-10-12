@@ -152,6 +152,7 @@ export const DATOS_PEDIDO = {
   envioSinCargoDesde: negocio.envioSinCargoDesde,
   whatsapp: negocio.whatsapp,
   nombre: negocio.nombre,
+  origenes: Object.fromEntries(negocio.qr.map((q) => [q.id, q.nombre])),
 };
 
 export function totalKit(items: (string | number)[][]) {

@@ -1,0 +1,24 @@
+---
+// Direcciones cortas para los QR impresos: guardan qué pieza trajo al cliente y redirigen.
+import { NEGOCIO, ruta } from "../../lib/catalogo";
+
+export function getStaticPaths() {
+  return NEGOCIO.qr.map((q) => ({ params: { pieza: q.id }, props: { q } }));
+}
+const { q } = Astro.props as { q: (typeof NEGOCIO.qr)[number] };
+const destino = `${ruta(q.destino)}?o=${q.id}`;
+---
+<!doctype html>
+<html lang="es-AR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <meta http-equiv="refresh" content={`0; url=${destino}`} />
+  <title>{NEGOCIO.nombre}</title>
+  <script is:inline define:vars={{ destino }}>location.replace(destino);</script>
+</head>
+<body style="font-family:system-ui,sans-serif;padding:2rem">
+  <p><a href={destino}>Ir a {NEGOCIO.nombre}</a></p>
+</body>
+</html>

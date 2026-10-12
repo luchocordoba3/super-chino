@@ -70,7 +70,7 @@ import { NEGOCIO, pesos } from "../lib/catalogo";
 </Base>
 
 <script>
-  import { linkWhatsApp, validarCampos } from "../scripts/pedido.ts";
+  import { linkWhatsApp, validarCampos, lineaOrigen } from "../scripts/pedido.ts";
   const form = document.getElementById("alta") as HTMLFormElement;
   const enviar = document.getElementById("alta-enviar") as HTMLAnchorElement;
   function texto() {
@@ -86,6 +86,7 @@ import { NEGOCIO, pesos } from "../lib/catalogo";
       `Compra mensual estimada: ${f.get("consumo")}`,
       f.get("uso") ? `Uso habitual: ${f.get("uso")}` : null,
       f.get("mensual") ? "Me interesa la reposición mensual programada." : null,
+      lineaOrigen(),
     ].filter((x) => x !== null).join("\n");
   }
   form.addEventListener("input", (e) => {

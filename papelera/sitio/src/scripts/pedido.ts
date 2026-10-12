@@ -6,6 +6,7 @@ type Datos = {
   envioSinCargoDesde: number;
   whatsapp: string;
   nombre: string;
+  origenes: Record<string, string>;
 };
 
 const D: Datos = JSON.parse(document.getElementById("datos-pedido")!.textContent || "{}");
@@ -39,6 +40,23 @@ const numero = (() => {
   return `0001-${dd(d.getDate())}${dd(d.getMonth() + 1)}${dd(d.getHours())}${dd(d.getMinutes())}`;
 })();
 
+// Origen: qué pieza trajo al cliente (QR del imán, la carpeta, etc.). Se recuerda 30 días.
+const CLAVE_ORIGEN = "doblehoja-origen";
+const TREINTA_DIAS = 30 * 24 * 60 * 60 * 1000;
+function registrarOrigen(id: string | null) {
+  if (!id || !D.origenes[id]) return;
+  try { localStorage.setItem(CLAVE_ORIGEN, JSON.stringify({ id, cuando: Date.now() })); } catch { /* sin almacenamiento */ }
+}
+export function origen(): string | null {
+  try {
+    const o = JSON.parse(localStorage.getItem(CLAVE_ORIGEN) || "null");
+    if (o && D.origenes[o.id] && Date.now() - o.cuando < TREINTA_DIAS) return D.origenes[o.id];
+  } catch { /* sin almacenamiento */ }
+  return null;
+}
+registrarOrigen(new URLSearchParams(location.search).get("o"));
+const lineaOrigen = () => { const o = origen(); return o ? `(Origen: ${o})` : null; };
+
 const linkWhatsApp = (texto: string) => `https://wa.me/${D.whatsapp || ""}?text=${encodeURIComponent(texto)}`;
 
 function textoPedido() {
@@ -59,6 +77,7 @@ function textoPedido() {
     `Pago: ${f.get("pago")}`,
     f.get("nota") ? `Aclaraciones: ${f.get("nota")}` : null,
     f.get("mensual") ? "🔁 Quiero repetir este pedido todos los meses." : null,
+    lineaOrigen(),
   ].filter((x) => x !== null).join("\n");
 }
 
@@ -266,7 +285,7 @@ pintar();
 
 export const productos = D.productos;
 export const minimoMayorista = D.minimoMayorista;
-export { linkWhatsApp, validarCampos };
+export { linkWhatsApp, validarCampos, lineaOrigen, registrarOrigen };
 
 function validarCampos(form: HTMLFormElement, errorId: string) {
   let ok = true;

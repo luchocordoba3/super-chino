@@ -54,6 +54,7 @@ const ano = new Date().getFullYear();
   <meta property="og:image" content={new URL("/compartir.png", NEGOCIO.sitio).href} />
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   {ld.map((d) => <script type="application/ld+json" set:html={JSON.stringify(d)} />)}
+  {NEGOCIO.analytics && <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon={JSON.stringify({ token: NEGOCIO.analytics })} />}
 </head>
 <body>
   <a class="saltar" href="#contenido">Saltar al contenido</a>
@@ -95,7 +96,7 @@ const ano = new Date().getFullYear();
         <div>
           <p class="pie__titulo">Atención</p>
           <p>{NEGOCIO.horario}</p>
-          {NEGOCIO.whatsapp && <a href={`https://wa.me/${NEGOCIO.whatsapp}`} target="_blank" rel="noopener">WhatsApp +{NEGOCIO.whatsapp}</a>}
+          {NEGOCIO.whatsapp && <a href={`https://wa.me/${NEGOCIO.whatsapp}`} target="_blank" rel="noopener">WhatsApp {NEGOCIO.whatsappVisible}</a>}
           {NEGOCIO.instagram && <a href={`https://instagram.com/${NEGOCIO.instagram}`} target="_blank" rel="noopener">Instagram @{NEGOCIO.instagram}</a>}
           {NEGOCIO.email && <a href={`mailto:${NEGOCIO.email}`}>{NEGOCIO.email}</a>}
           <p>Reparto en {NEGOCIO.zona}</p>

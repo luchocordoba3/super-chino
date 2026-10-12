@@ -1,7 +1,7 @@
 ---
 import Base from "../layouts/Base.astro";
 import Pictograma from "../components/Pictograma.astro";
-import Kit from "../components/Kit.astro";
+import Asistente from "../components/Asistente.astro";
 import Zonas from "../components/Zonas.astro";
 import { NEGOCIO, PRODUCTOS, RUBROS, porCodigo, pesos, ruta } from "../lib/catalogo";
 
@@ -87,13 +87,11 @@ const cinta = Array.from({ length: 8 }, () => `${NEGOCIO.nombre} · Reparto prop
   <section class="seccion seccion--blanca" id="kits" aria-labelledby="kits-titulo">
     <div class="envoltura">
       <header class="seccion__cabeza">
-        <p class="sobretitulo">Kits por rubro</p>
-        <h2 id="kits-titulo" class="titular">La reposición de un mes, armada en un toque</h2>
-        <p class="bajada">Partimos de lo que más se usa en cada tipo de negocio. Agregás el kit y después ajustás cantidades en el pedido.</p>
+        <p class="sobretitulo">Kits por negocio</p>
+        <h2 id="kits-titulo" class="titular">Tu primer pedido, armado según lo que vendés</h2>
+        <p class="bajada">Contanos qué negocio tenés y te mostramos el kit inicial. Todos pasan los {pesos(NEGOCIO.minimoMayorista)}, así que el pedido entero va a precio por mayor.</p>
       </header>
-      <div class="kits">
-        {NEGOCIO.kits.map((k) => <Kit id={k.id} />)}
-      </div>
+      <Asistente />
     </div>
   </section>
 

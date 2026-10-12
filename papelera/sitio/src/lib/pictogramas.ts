@@ -145,6 +145,61 @@ export const PICTOGRAMAS: Record<string, string> = {
     <path class="a" d="M8 25c0-3 2-5 5-5h22c3 0 5 2 5 5v9c0 3-2 5-5 5H13c-3 0-5-2-5-5z"/>
     <path d="M8 25c0-3 2-5 5-5h22c3 0 5 2 5 5v9c0 3-2 5-5 5H13c-3 0-5-2-5-5z"/>
     <circle cx="15" cy="11" r="3"/><circle cx="23" cy="8" r="2"/><circle cx="22" cy="14" r="1.5"/>`,
+  // Negocios (asistente de kits)
+  verdura: `
+    <path class="a" d="M24 17c-4-3-12-2-13 6-1 7 3 16 8 18 2 1 3 0 5-1 2 1 3 2 5 1 5-2 9-11 8-18-1-8-9-9-13-6z"/>
+    <path d="M24 17c-4-3-12-2-13 6-1 7 3 16 8 18 2 1 3 0 5-1 2 1 3 2 5 1 5-2 9-11 8-18-1-8-9-9-13-6z"/>
+    <path d="M24 17c0-4 1-7 3-10"/>
+    <path d="M26 12c2-4 7-5 10-4-1 4-5 6-10 4z"/>`,
+  carne: `
+    <path class="a" d="M6 13h25v14a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4z"/>
+    <path d="M6 13h25v14a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4z"/>
+    <path d="M31 18h9a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-9"/>
+    <circle class="f" cx="11.5" cy="18.5" r="2"/>
+    <path d="M10 37h20"/>`,
+  pizza: `
+    <path class="a" d="M24 42L10 14c9-4 19-4 28 0z"/>
+    <path d="M24 42L10 14c9-4 19-4 28 0z"/>
+    <path d="M8 10c10-5 22-5 32 0l-2 4c-9-4-19-4-28 0z"/>
+    <circle class="f" cx="20" cy="21" r="2.4"/><circle class="f" cx="28.5" cy="24" r="2.4"/><circle class="f" cx="23.5" cy="31" r="2"/>`,
+  olla: `
+    <path class="a" d="M10 23h28v12a5 5 0 0 1-5 5H15a5 5 0 0 1-5-5z"/>
+    <path d="M10 23h28v12a5 5 0 0 1-5 5H15a5 5 0 0 1-5-5z"/>
+    <path d="M7 23h34M10 27H5M38 27h5"/>
+    <path d="M14 23c0-4 4-6 10-6s10 2 10 6M22 17v-2h4v2"/>
+    <path d="M18 11c-1-2 1-3 0-5M24 11c-1-2 1-3 0-5M30 11c-1-2 1-3 0-5"/>`,
+  helado: `
+    <path d="M15 22h18l-9 21z"/>
+    <path d="M19 27l9 7M17.5 25l2 2M22 33l4-6"/>
+    <path class="a" d="M16.6 22A9 9 0 1 1 31.4 22z"/>
+    <path d="M16.6 22A9 9 0 1 1 31.4 22z"/>`,
+  taza: `
+    <path class="a" d="M9 19h23v10a8 8 0 0 1-8 8h-7a8 8 0 0 1-8-8z"/>
+    <path d="M9 19h23v10a8 8 0 0 1-8 8h-7a8 8 0 0 1-8-8z"/>
+    <path d="M32 22h3a4.5 4.5 0 0 1 0 9h-3.6"/>
+    <path d="M6 42h29"/>
+    <path d="M16 14c-1-2 1-3 0-5M22 14c-1-2 1-3 0-5M28 14c-1-2 1-3 0-5"/>`,
+  toldo: `
+    <path d="M9 21v20h30V21M5 41h38"/>
+    <path class="a" d="M6 11h36l-2 9H8z"/>
+    <path d="M6 11h36M8 20a4 4 0 0 0 8 0 4 4 0 0 0 8 0 4 4 0 0 0 8 0 4 4 0 0 0 8 0M6 11l2 9M42 11l-2 9M16 11v9M24 11v9M32 11v9"/>
+    <path d="M14 41V30h8v11M27 29h8v6h-8z"/>`,
+  edificio: `
+    <path d="M12 42V7h24v35M6 42h36"/>
+    <path class="a" d="M20 34h8v8h-8z"/>
+    <path d="M20 42v-8h8v8"/>
+    <path d="M17 13h4v3h-4zM27 13h4v3h-4zM17 20h4v3h-4zM27 20h4v3h-4zM17 27h4v3h-4zM27 27h4v3h-4z"/>`,
+  maletin: `
+    <path class="a" d="M7 24h34v6H7z"/>
+    <rect x="7" y="15" width="34" height="25" rx="3"/>
+    <path d="M18 15v-3a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v3M7 27h34"/>
+    <path class="f" d="M21 24h6v6h-6z"/>`,
+  pesa: `
+    <path d="M15 24h18M5 21v6M43 21v6"/>
+    <rect class="a" x="8" y="13" width="7" height="22" rx="2"/>
+    <rect x="8" y="13" width="7" height="22" rx="2"/>
+    <rect class="a" x="33" y="13" width="7" height="22" rx="2"/>
+    <rect x="33" y="13" width="7" height="22" rx="2"/>`,
 };
 
 export function svgPictograma(nombre: string, clase = "pictograma"): string {

@@ -1,0 +1,51 @@
+---
+// Kit inicial de un negocio: el kit armado y, con JS, la opción de ajustarlo a medida.
+import { porCodigo, pesos, totalKit, NEGOCIO } from "../lib/catalogo";
+import Pictograma from "./Pictograma.astro";
+interface Props { id: string; nivel?: "h2" | "h3" }
+const { id, nivel = "h3" } = Astro.props;
+const kit = NEGOCIO.kits.find((k) => k.id === id)!;
+const t = totalKit(kit.items);
+const Titulo = nivel;
+---
+<article class="kit-inicial" data-kit-inicial={kit.id}>
+  <header class="kit-inicial__cabeza">
+    <span class="kit-inicial__icono"><Pictograma nombre={kit.icono} /></span>
+    <div>
+      <p class="sobretitulo">Kit inicial · {kit.para}</p>
+      <Titulo class="kit-inicial__titulo">{kit.rubro}</Titulo>
+    </div>
+  </header>
+
+  <div class="kit-inicial__cuerpo" data-vista="kit">
+    <ul class="kit-inicial__items">
+      {t.lista.map(([cod, n]) => {
+        const p = porCodigo.get(cod)!;
+        return (
+          <li>
+            <span class="kit__icono"><Pictograma nombre={p.icono} /></span>
+            <span class="kit__cant">{n}×</span>
+            <span class="kit-inicial__nombre">{p.titulo}</span>
+            <span class="kit-inicial__sub">{pesos(p.mayorista * n)}</span>
+          </li>
+        );
+      })}
+    </ul>
+    <aside class="kit-inicial__resumen">
+      <p class="kit-inicial__total"><small>Total por mayor</small><strong>{pesos(t.mayor)}</strong></p>
+      <p class="kit-inicial__ahorro">Suelto saldría <s>{pesos(t.suelto)}</s>. <b>Ahorrás {pesos(t.suelto - t.mayor)}.</b></p>
+      <p class="kit-inicial__nota">Pasa el mínimo de {pesos(NEGOCIO.minimoMayorista)}: todo lo que sumes al pedido también va por mayor.</p>
+      <p class="kit-inicial__pregunta">¿Arrancás con este kit o preferís armarlo a tu medida?</p>
+      <div class="kit-inicial__acciones">
+        <button class="btn btn--cinta" type="button" data-kit={kit.id} data-kit-abrir>Quiero este kit</button>
+        <button class="btn btn--linea" type="button" data-a-medida>Armarlo a mi medida</button>
+      </div>
+    </aside>
+  </div>
+
+  <div class="kit-inicial__cuerpo" data-vista="medida" hidden></div>
+</article>
+
+<script>
+  import "../scripts/kits.ts";
+</script>

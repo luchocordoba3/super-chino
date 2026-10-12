@@ -30,7 +30,7 @@ const negocioLd = {
 const ld = [negocioLd, ...(jsonld ? (Array.isArray(jsonld) ? jsonld : [jsonld]) : [])];
 const nav = [
   { id: "lista", texto: "Lista de precios", href: ruta("lista") },
-  { id: "rubros", texto: "Para tu negocio", href: ruta("consorcios") },
+  { id: "rubros", texto: "Para tu negocio", href: `${ruta("")}#kits` },
   { id: "rapido", texto: "Pedido rápido", href: ruta("pedido-rapido") },
   { id: "cuenta", texto: "Cuenta mayorista", href: ruta("cuenta-mayorista") },
 ];
@@ -89,6 +89,7 @@ const ano = new Date().getFullYear();
         </div>
         <div>
           <p class="pie__titulo">Para tu negocio</p>
+          <a href={`${ruta("")}#kits`}>Kits por negocio</a>
           <a href={ruta("gastronomia")}>Gastronomía</a>
           <a href={ruta("consorcios")}>Consorcios y administraciones</a>
           <a href={ruta("oficinas")}>Oficinas y locales</a>

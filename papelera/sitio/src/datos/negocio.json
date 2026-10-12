@@ -32,9 +32,233 @@
   ],
   "kits": [
     {
+      "id": "verduleria",
+      "rubro": "Verdulería",
+      "para": "Verdulerías, fruterías y mercaditos",
+      "icono": "verdura",
+      "items": [
+        [
+          "PB0110",
+          12
+        ],
+        [
+          "PB0108",
+          10
+        ],
+        [
+          "PB0249",
+          2
+        ],
+        [
+          "PB0668",
+          3
+        ],
+        [
+          "PP0244",
+          1
+        ],
+        [
+          "LB0003",
+          2
+        ],
+        [
+          "LL0228",
+          1
+        ]
+      ],
+      "extras": [
+        "PB0112",
+        "PB0100",
+        "PB0097",
+        "PF0023",
+        "PG0001",
+        "LT0011",
+        "LS0013"
+      ]
+    },
+    {
+      "id": "almacen",
+      "rubro": "Almacén o kiosco",
+      "para": "Almacenes, autoservicios, kioscos y dietéticas",
+      "icono": "toldo",
+      "items": [
+        [
+          "PB0102",
+          20
+        ],
+        [
+          "PB0103",
+          20
+        ],
+        [
+          "PB0110",
+          10
+        ],
+        [
+          "PB0097",
+          2
+        ],
+        [
+          "PR0045",
+          1
+        ],
+        [
+          "LB0003",
+          2
+        ],
+        [
+          "LL0228",
+          1
+        ]
+      ],
+      "extras": [
+        "PB0112",
+        "PB0100",
+        "PF0023",
+        "PS0022",
+        "PC0042",
+        "LT0011"
+      ]
+    },
+    {
+      "id": "carniceria",
+      "rubro": "Carnicería",
+      "para": "Carnicerías, pollerías y fiambrerías",
+      "icono": "carne",
+      "items": [
+        [
+          "PB0249",
+          2
+        ],
+        [
+          "PP0002",
+          4
+        ],
+        [
+          "PB0668",
+          4
+        ],
+        [
+          "PP0244",
+          2
+        ],
+        [
+          "PB0110",
+          6
+        ],
+        [
+          "LL0228",
+          2
+        ],
+        [
+          "LD0248",
+          1
+        ]
+      ],
+      "extras": [
+        "PP0319",
+        "PB0108",
+        "PG0001",
+        "PC0058",
+        "LM0077",
+        "LB0003",
+        "LT0011"
+      ]
+    },
+    {
+      "id": "panaderia",
+      "rubro": "Panadería",
+      "para": "Panaderías, confiterías y pastelerías",
+      "icono": "pan",
+      "items": [
+        [
+          "PB0141",
+          4
+        ],
+        [
+          "PB0145",
+          2
+        ],
+        [
+          "PB0038",
+          3
+        ],
+        [
+          "PS0014",
+          6
+        ],
+        [
+          "PS0013",
+          6
+        ],
+        [
+          "PB0110",
+          6
+        ],
+        [
+          "PS0004",
+          4
+        ]
+      ],
+      "extras": [
+        "PB0140",
+        "PB0050",
+        "PP0052",
+        "PC0058",
+        "PG0001",
+        "PB0103",
+        "PF0023"
+      ]
+    },
+    {
+      "id": "pizzeria",
+      "rubro": "Pizzería",
+      "para": "Pizzerías, casas de empanadas y delivery",
+      "icono": "pizza",
+      "items": [
+        [
+          "PC0005",
+          3
+        ],
+        [
+          "PP0245",
+          4
+        ],
+        [
+          "PB0145",
+          1
+        ],
+        [
+          "PS0004",
+          6
+        ],
+        [
+          "PB0110",
+          6
+        ],
+        [
+          "LM0077",
+          1
+        ],
+        [
+          "LB0003",
+          3
+        ]
+      ],
+      "extras": [
+        "PB0161",
+        "PB0158",
+        "PP0004",
+        "LD0248",
+        "PG0001",
+        "LT0045"
+      ]
+    },
+    {
       "id": "gastronomia",
-      "rubro": "Gastronomía",
-      "para": "Rotiserías, pizzerías, bares y cocinas de delivery",
+      "rubro": "Rotisería y bar",
+      "para": "Rotiserías, bares y cocinas de delivery",
+      "icono": "olla",
       "items": [
         [
           "PS0004",
@@ -64,12 +288,111 @@
           "LT0045",
           4
         ]
+      ],
+      "extras": [
+        "PB0757",
+        "PT0003",
+        "PC0380",
+        "PV0150",
+        "PB0141",
+        "LM0077"
+      ]
+    },
+    {
+      "id": "cafeteria",
+      "rubro": "Cafetería",
+      "para": "Cafés, bares de paso y panaderías con café",
+      "icono": "taza",
+      "items": [
+        [
+          "PV0075",
+          3
+        ],
+        [
+          "PV0076",
+          2
+        ],
+        [
+          "PA0012",
+          2
+        ],
+        [
+          "PS0245",
+          3
+        ],
+        [
+          "LD0248",
+          1
+        ],
+        [
+          "LT0045",
+          3
+        ],
+        [
+          "PB0103",
+          5
+        ],
+        [
+          "LB0089",
+          2
+        ]
+      ],
+      "extras": [
+        "PS0563",
+        "PV0150",
+        "PT0098",
+        "LL0252",
+        "LJ0087"
+      ]
+    },
+    {
+      "id": "heladeria",
+      "rubro": "Heladería",
+      "para": "Heladerías y casas de postres",
+      "icono": "helado",
+      "items": [
+        [
+          "PV0029",
+          1
+        ],
+        [
+          "PC0304",
+          1
+        ],
+        [
+          "PS0004",
+          6
+        ],
+        [
+          "PB0103",
+          10
+        ],
+        [
+          "LD0248",
+          1
+        ],
+        [
+          "LT0045",
+          3
+        ],
+        [
+          "LB0003",
+          1
+        ]
+      ],
+      "extras": [
+        "PV0076",
+        "PA0003",
+        "PS0245",
+        "PB0110",
+        "LL0228"
       ]
     },
     {
       "id": "consorcios",
-      "rubro": "Consorcios",
+      "rubro": "Consorcio",
       "para": "Administraciones, encargados y empresas de limpieza",
+      "icono": "edificio",
       "items": [
         [
           "LB0008",
@@ -95,12 +418,21 @@
           "LE0035",
           1
         ]
+      ],
+      "extras": [
+        "LB0006",
+        "LB0094",
+        "LS0014",
+        "LE0033",
+        "LG0007",
+        "LM0041"
       ]
     },
     {
       "id": "oficinas",
-      "rubro": "Oficinas y locales",
-      "para": "Oficinas, consultorios, gimnasios y peluquerías",
+      "rubro": "Oficina o consultorio",
+      "para": "Oficinas, consultorios, estudios y locales",
+      "icono": "maletin",
       "items": [
         [
           "LP0114",
@@ -108,7 +440,7 @@
         ],
         [
           "LT0045",
-          6
+          7
         ],
         [
           "LJ0087",
@@ -130,6 +462,95 @@
           "LB0070",
           4
         ]
+      ],
+      "extras": [
+        "LA0049",
+        "LD0070",
+        "LD0073",
+        "LP0195",
+        "PR0022"
+      ]
+    },
+    {
+      "id": "estetica",
+      "rubro": "Gimnasio o peluquería",
+      "para": "Gimnasios, peluquerías, centros de estética y spa",
+      "icono": "pesa",
+      "items": [
+        [
+          "LT0045",
+          6
+        ],
+        [
+          "LA0049",
+          6
+        ],
+        [
+          "LJ0087",
+          2
+        ],
+        [
+          "LD0297",
+          4
+        ],
+        [
+          "LB0070",
+          4
+        ],
+        [
+          "LP0114",
+          3
+        ],
+        [
+          "LL0228",
+          2
+        ]
+      ],
+      "extras": [
+        "LA0037",
+        "LD0070",
+        "PG0001",
+        "LP0181",
+        "LM0072"
+      ]
+    },
+    {
+      "id": "tienda",
+      "rubro": "Tienda online",
+      "para": "Emprendedores y tiendas que despachan envíos",
+      "icono": "caja",
+      "items": [
+        [
+          "PS0233",
+          6
+        ],
+        [
+          "PC0042",
+          36
+        ],
+        [
+          "PS0138",
+          2
+        ],
+        [
+          "PP0016",
+          5
+        ],
+        [
+          "PS0026",
+          3
+        ],
+        [
+          "PR0022",
+          3
+        ]
+      ],
+      "extras": [
+        "PS0075",
+        "PC0412",
+        "PS0566",
+        "PS0025",
+        "PR0045"
       ]
     }
   ],

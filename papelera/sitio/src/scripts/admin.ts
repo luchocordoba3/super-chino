@@ -15,6 +15,9 @@ const DESTINOS: [string, string][] = [
   ["", "Inicio"], ["lista", "Lista de precios"], ["gastronomia", "Gastronomía"], ["consorcios", "Consorcios"],
   ["oficinas", "Oficinas"], ["pedido-rapido", "Pedido rápido"], ["cuenta-mayorista", "Cuenta mayorista"],
 ];
+const ICONOS_KIT = ["verdura", "toldo", "carne", "pan", "pizza", "olla", "taza", "helado", "edificio", "maletin", "pesa", "caja", "bolsa", "bidon", "vaso", "servilleta", "bandeja", "escoba"];
+const FIJOS = ["gastronomia", "consorcios", "oficinas"]; // tienen página de rubro propia
+const destinos = (): [string, string][] => [...DESTINOS, ...est.negocio.kits.map((k: any): [string, string] => [`kit/${k.id}`, `Kit: ${k.rubro}`])];
 const PREDETERMINADO = {
   repo: "luchocordoba3/super-chino",
   rama: "main",
@@ -363,13 +366,16 @@ function tabKits() {
   const porCod = new Map(est.productos.map((p) => [p.codigo, p]));
   const desconocidos = (est.negocio.destacados as string[]).filter((c) => !porCod.has(c));
   return `
-  <h2>Kits por rubro</h2>
+  <h2>Kits por negocio</h2>
+  <p class="admin-nota">Cada kit tiene su página en /kit/… y aparece en el asistente del inicio. Conviene que pase el mínimo por mayor.</p>
   ${est.negocio.kits.map((k: any, i: number) => {
     const total = k.items.reduce((s: number, [c, n]: [string, number]) => s + (porCod.get(c)?.mayorista ?? 0) * n, 0);
     return `<div class="admin-kit">
       <div class="admin-grilla">
-        <label>Nombre del kit<input data-negocio="kits.${i}.rubro" value="${esc(k.rubro)}"></label>
+        <label>Negocio<input data-negocio="kits.${i}.rubro" value="${esc(k.rubro)}"></label>
         <label>Para quién<input data-negocio="kits.${i}.para" value="${esc(k.para)}"></label>
+        <label>Dirección <small>/kit/…</small><input data-kit-id="${i}" value="${esc(k.id)}"${FIJOS.includes(k.id) ? " disabled" : ""}></label>
+        <label>Ícono<select data-negocio="kits.${i}.icono">${ICONOS_KIT.map((n) => `<option${n === k.icono ? " selected" : ""}>${n}</option>`).join("")}</select></label>
       </div>
       <table class="admin-tabla"><thead><tr><th>Código</th><th>Artículo</th><th>Cantidad</th><th></th></tr></thead><tbody>
         ${k.items.map(([c, n]: [string, number], j: number) => `<tr>
@@ -379,11 +385,13 @@ function tabKits() {
           <td><button class="quitar" type="button" data-accion="kit-quitar" data-i="${i}" data-j="${j}" aria-label="Quitar">×</button></td></tr>`).join("")}
       </tbody></table>
       <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap">
-        <button class="btn-texto" type="button" data-accion="kit-agregar" data-i="${i}">+ Agregar artículo</button>
+        <span><button class="btn-texto" type="button" data-accion="kit-agregar" data-i="${i}">+ Agregar artículo</button>${FIJOS.includes(k.id) ? "" : ` <button class="btn-texto menos" type="button" data-accion="kit-borrar" data-i="${i}">Borrar kit</button>`}</span>
         <span>Total por mayor: <b class="m">${$$(total)}</b> ${total < est.negocio.minimoMayorista ? '<span class="menos">(no llega al mínimo por mayor)</span>' : ""}</span>
       </div>
+      <label class="admin-nota">Sugeridos al armarlo a medida (códigos separados por espacio)<input data-kit-extras="${i}" value="${esc((k.extras || []).join(" "))}" style="width:100%;font-family:var(--f-dato);text-transform:uppercase"></label>
     </div>`;
   }).join("")}
+  <button class="btn btn--linea" type="button" data-accion="kit-nuevo">+ Nuevo kit</button>
   <h2>Destacados de la ficha impresa</h2>
   <p class="admin-nota">Un código por renglón. Son los 20 que salen en el dorso de la ficha A5.</p>
   <textarea data-destacados rows="10" style="width:100%;max-width:22rem;font-family:var(--f-dato);text-transform:uppercase">${esc((est.negocio.destacados as string[]).join("\n"))}</textarea>
@@ -399,7 +407,7 @@ function tabQr() {
     ${est.negocio.qr.map((q: any, i: number) => `<tr>
       <td><input data-negocio="qr.${i}.nombre" value="${esc(q.nombre)}"></td>
       <td class="cod">${esc(sitio)}/q/${esc(q.id)}</td>
-      <td><select data-negocio="qr.${i}.destino">${DESTINOS.map(([v, t]) => `<option value="${v}"${v === q.destino ? " selected" : ""}>${t}</option>`).join("")}</select></td></tr>`).join("")}
+      <td><select data-negocio="qr.${i}.destino">${destinos().map(([v, t]) => `<option value="${v}"${v === q.destino ? " selected" : ""}>${t}</option>`).join("")}</select></td></tr>`).join("")}
   </tbody></table></div>`;
 }
 
@@ -506,6 +514,14 @@ document.addEventListener("click", (e) => {
   } else if (accion === "kit-quitar") {
     est.negocio.kits[Number(t.closest<HTMLElement>("[data-i]")!.dataset.i)].items.splice(Number(t.closest<HTMLElement>("[data-j]")!.dataset.j), 1);
     pintar();
+  } else if (accion === "kit-nuevo") {
+    const ids = new Set(est.negocio.kits.map((k: any) => k.id));
+    let n = 1; while (ids.has(`nuevo-${n}`)) n++;
+    est.negocio.kits.push({ id: `nuevo-${n}`, rubro: "Nuevo kit", para: "", icono: "caja", items: [], extras: [] });
+    pintar();
+  } else if (accion === "kit-borrar") {
+    const i = Number(t.closest<HTMLElement>("[data-i]")!.dataset.i);
+    if (confirm(`¿Borrar el kit "${est.negocio.kits[i].rubro}"? Si algún QR apunta a su página, cambialo.`)) { est.negocio.kits.splice(i, 1); pintar(); }
   } else if (accion === "kit-agregar") {
     est.negocio.kits[Number(t.closest<HTMLElement>("[data-i]")!.dataset.i)].items.push(["", 1]);
     pintar();
@@ -547,6 +563,18 @@ document.addEventListener("change", async (e) => {
   } else if (t.dataset.kit) {
     const [i, j, k] = t.dataset.kit.split(".").map(Number);
     est.negocio.kits[i].items[j][k] = k === 0 ? t.value.trim().toUpperCase() : Math.max(1, Number(t.value) || 1);
+    pintar();
+  } else if (t.dataset.kitId) {
+    const i = Number(t.dataset.kitId);
+    const id = t.value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    if (id && !est.negocio.kits.some((k: any, j: number) => j !== i && k.id === id)) {
+      const viejo = est.negocio.kits[i].id;
+      est.negocio.kits[i].id = id;
+      est.negocio.qr.forEach((q: any) => { if (q.destino === `kit/${viejo}`) q.destino = `kit/${id}`; });
+    } else avisar("Esa dirección ya existe o está vacía.");
+    pintar();
+  } else if (t.dataset.kitExtras) {
+    est.negocio.kits[Number(t.dataset.kitExtras)].extras = t.value.split(/[\s,]+/).map((c) => c.trim().toUpperCase()).filter(Boolean);
     pintar();
   } else if (t.matches("[data-destacados]")) {
     est.negocio.destacados = t.value.split(/\s+/).map((c) => c.trim().toUpperCase()).filter(Boolean);

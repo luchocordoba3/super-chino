@@ -147,7 +147,7 @@ export const rutaProducto = (codigo: string) => ruta(`producto/${codigo.toLowerC
 // Datos mínimos que necesita el pedido en el navegador.
 export const DATOS_PEDIDO = {
   productos: Object.fromEntries(PRODUCTOS.map((p) => [p.codigo, [p.titulo, p.mayorista, p.minorista, p.icono, p.medida]])),
-  kits: negocio.kits.map((k) => ({ id: k.id, rubro: k.rubro, items: k.items })),
+  kits: negocio.kits.map((k) => ({ id: k.id, rubro: k.rubro, items: k.items, extras: k.extras ?? [] })),
   minimoMayorista: negocio.minimoMayorista,
   envioSinCargoDesde: negocio.envioSinCargoDesde,
   whatsapp: negocio.whatsapp,

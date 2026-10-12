@@ -65,6 +65,33 @@ Los segmentos van ordenados por cuánto rinde cada esfuerzo de venta:
 5. **Revendedores:** almacenes, autoservicios, kioscos y ferreterías de barrio. Les vendés por mayor y ellos ponen su precio. Pagan menos margen, pero mueven bultos.
 6. **Jardines, colegios privados y clubes.** Compran de a mucho y pocas veces; se trabajan por mail o WhatsApp con el administrativo.
 
+### Subnichos y kits iniciales
+
+Cada subnicho tiene un **kit inicial** en la web (`/kit/<negocio>`) y en el asistente del inicio ("¿Tenés negocio? ¿Cuál?"). Todos los kits pasan el mínimo de $150.000, así que el primer pedido ya entra a precio por mayor y el cliente ve cuánto ahorra frente al precio suelto (unos $24.000 por kit). Si prefiere, lo arma a su medida: saca lo que no usa, suma sugeridos del rubro y una barra le muestra cuánto le falta para el precio por mayor.
+
+Orden para salir puerta a puerta (de más a menos conveniente):
+
+| # | Subnicho | Qué compran sí o sí | Reposición | Kit inicial (por mayor) | Por qué |
+|---|---|---|---|---|---|
+| 1 | Verdulería | Camisetas, rollos de arranque, bandejas, film | Semanal | $160.220 | Hay una cada dos cuadras, consumo diario de bolsas, compran hoy en supermayoristas y pagan al contado. |
+| 2 | Almacén o kiosco | Camisetas de varios tamaños, rollo térmico, arranque | Semanal | $164.290 | Muchísimos, ticket parejo, y además pueden revender. |
+| 3 | Carnicería, pollería, fiambrería | Folex, bandejas, film, arranque | Semanal | $173.170 | El ticket más alto de los comercios de barrio. Se cuida mucho el precio del folex y el film. |
+| 4 | Panadería | Bandejas de cartón, blondas, sobres sulfito, camisetas | Semanal | $163.960 | Consumo fijo todos los días. Encaja con la camioneta de madrugada o temprano. |
+| 5 | Pizzería y empanadas | Cajas de pizza, papel fondo, bandejas, servilletas | Semanal | $167.410 | El fin de semana se quedan sin cajas: la entrega rápida vende sola. |
+| 6 | Rotisería y bar | Servilletas, vasos, cubiertos, bolsas | Semanal | $176.030 | Mismo recorrido que pizzerías. |
+| 7 | Cafetería | Vasos de polipapel, agitadores, servilletas | Quincenal | $160.870 | Crecen los cafés de especialidad en CABA. Les importa la presentación. |
+| 8 | Heladería | Copas, cucharas, servilletas, camisetas | Semanal en temporada | $161.060 | **La temporada arranca ahora (octubre a marzo).** Visitarlas en las próximas semanas. |
+| 9 | Consorcio | Bolsas de consorcio, lavandina, detergente, trapos | Mensual | $159.790 | Contrato estable. Una administración trae muchos edificios. |
+| 10 | Oficina o consultorio | Papel higiénico, toallas, jabón, aerosoles | Mensual | $157.270 | Poca rotación pero mucha fidelidad. Se cierra por WhatsApp o mail. |
+| 11 | Gimnasio o peluquería | Toallas, alcohol, jabón, desinfectante | Quincenal | $155.410 | Alto consumo de toallas y alcohol. |
+| 12 | Tienda online | Sobres con adhesivo, cintas, stretch, kraft | Semanal | $155.540 | Llegan por Instagram y piden solos desde la web. |
+
+Cómo usarlo en la calle:
+- Mandale al comerciante el link de su kit por WhatsApp, por ejemplo `doblehoja.com.ar/kit/verduleria`. Ve el kit con precios y lo pide en dos toques.
+- El pedido llega con la línea **"Rubro: Verdulería"**, así sabés qué kit le funcionó.
+- Si salís a hacer una zona de un solo rubro (por ejemplo, verdulerías), en el panel podés hacer que el QR del imán apunte a ese kit sin reimprimir (pestaña QR → "Kit: Verdulería").
+- Los kits, sus sugeridos, el ícono y la dirección se editan en el panel (pestaña Kits). Si un kit queda por debajo del mínimo después de cambiar precios, el panel lo marca.
+
 ## 5. Cómo diferenciarte
 
 Muchas papeleras de barrio compiten por precio y atienden por teléfono. Vos competís por **comodidad y confianza**:

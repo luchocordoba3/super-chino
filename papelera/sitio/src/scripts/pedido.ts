@@ -1,7 +1,7 @@
 // Pedido compartido por todas las páginas: se guarda en el navegador y se envía por WhatsApp.
 type Datos = {
   productos: Record<string, [string, number, number, string, string]>;
-  kits: { id: string; rubro: string; items: [string, number][] }[];
+  kits: { id: string; rubro: string; items: [string, number][]; extras: string[] }[];
   minimoMayorista: number;
   envioSinCargoDesde: number;
   whatsapp: string;
@@ -57,6 +57,26 @@ export function origen(): string | null {
 registrarOrigen(new URLSearchParams(location.search).get("o"));
 const lineaOrigen = () => { const o = origen(); return o ? `(Origen: ${o})` : null; };
 
+// Rubro elegido en el asistente de kits (verdulería, carnicería…). Sale en el mensaje.
+const CLAVE_RUBRO = "doblehoja-rubro";
+export function registrarRubro(id: string) {
+  if (!D.kits.some((k) => k.id === id)) return;
+  try { localStorage.setItem(CLAVE_RUBRO, id); } catch { /* sin almacenamiento */ }
+}
+const lineaRubro = () => {
+  let id: string | null = null;
+  try { id = localStorage.getItem(CLAVE_RUBRO); } catch { /* sin almacenamiento */ }
+  const k = D.kits.find((x) => x.id === id);
+  return k ? `Rubro: ${k.rubro}` : null;
+};
+
+// Suma varios artículos de una vez (kits y kits a medida).
+export function agregarVarios(items: [string, number][], etiqueta: string) {
+  items.forEach(([c, n]) => { if (D.productos[c] && n > 0) pedido[c] = Math.min(9999, (pedido[c] || 0) + n); });
+  cambio();
+  avisar(etiqueta);
+}
+
 const linkWhatsApp = (texto: string) => `https://wa.me/${D.whatsapp || ""}?text=${encodeURIComponent(texto)}`;
 
 function textoPedido() {
@@ -72,6 +92,7 @@ function textoPedido() {
     `Envío: ${r.envioSinCargo ? "sin cargo" : "a coordinar"}`,
     "",
     `Negocio: ${f.get("negocio") || "-"}`,
+    lineaRubro(),
     `Dirección: ${f.get("direccion") || "-"}`,
     f.get("cuit") ? `CUIT/DNI: ${f.get("cuit")}` : null,
     `Pago: ${f.get("pago")}`,
@@ -220,9 +241,8 @@ document.addEventListener("click", (e) => {
   if (kit) {
     const k = D.kits.find((x) => x.id === kit.dataset.kit);
     if (k) {
-      k.items.forEach(([c, n]) => { if (D.productos[c]) pedido[c] = (pedido[c] || 0) + n; });
-      cambio();
-      avisar(`Kit ${k.rubro} agregado al pedido`);
+      registrarRubro(k.id);
+      agregarVarios(k.items, `Kit ${k.rubro} agregado al pedido`);
     }
     return;
   }

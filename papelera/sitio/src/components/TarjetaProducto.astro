@@ -11,7 +11,7 @@ const o = p.ofertaVigente;
 <article class:list={["tarjeta", { "tarjeta--agotada": p.estado === "sin-stock" }]} data-producto={p.codigo} data-rubro={p.rubroId} data-buscar={`${p.codigo} ${p.nombre} ${p.medida}`} data-oferta-hasta={o?.hasta}>
   <a class="etiqueta" href={rutaProducto(p.codigo)} data-rubro-tono={p.rubroId} tabindex="-1" aria-hidden="true">
     <span class="etiqueta__cod">{p.codigo}</span>
-    <Pictograma nombre={p.icono} clase="etiqueta__icono" />
+    {p.foto ? <img class="etiqueta__foto" src={p.foto} alt="" width="480" height="480" loading="lazy" decoding="async" /> : <Pictograma nombre={p.icono} clase="etiqueta__icono" />}
     <span class:list={["etiqueta__medida", { "etiqueta__medida--larga": p.medida.length >= 7 }]}>{p.medida || " "}{p.unidades && <small>{p.unidades} u.</small>}</span>
     {p.estado ? <span class="marca-estado" data-estado={p.estado}>{ESTADOS[p.estado]}</span> : o && <span class="marca-estado con-oferta" data-estado="oferta">−{o.porcentaje}%</span>}
   </a>

@@ -134,8 +134,8 @@ function pintar() {
   const precio = (l: (typeof r.lineas)[number]) => (r.esMayor ? l.mayorista : l.minorista);
   $("lineas-cuerpo").innerHTML = r.lineas.map((l) => `
     <tr>
-      <td class="num">${l.cant}</td>
-      <td>${esc(l.titulo)}<span class="l-cod">${l.codigo} · ${$$(precio(l))} c/u</span></td>
+      <td>${esc(l.titulo)}<span class="l-cod">${l.codigo} · ${$$(precio(l))} c/u</span>
+        <span class="cantidad cantidad--chica" data-cantidad="${l.codigo}"><button type="button" data-paso="-1" aria-label="Uno menos de ${esc(l.titulo)}">−</button><output aria-live="polite">${l.cant}</output><button type="button" data-paso="1" aria-label="Uno más de ${esc(l.titulo)}">+</button></span></td>
       <td class="num">${$$(precio(l) * l.cant)}</td>
       <td><button class="quitar" type="button" data-quitar="${l.codigo}" aria-label="Quitar ${l.codigo}">×</button></td>
     </tr>`).join("");
@@ -143,8 +143,8 @@ function pintar() {
 
   document.querySelectorAll<HTMLElement>("[data-cantidad]").forEach((w) => {
     const n = pedido[w.dataset.cantidad!] || 0;
-    const inp = w.querySelector("input")!;
-    if (document.activeElement !== inp) inp.value = n ? String(n) : "";
+    const inp = w.querySelector("input");
+    if (inp && document.activeElement !== inp) inp.value = n ? String(n) : "";
     w.closest("[data-producto]")?.classList.toggle("en-pedido", n > 0);
   });
   document.dispatchEvent(new CustomEvent("pedido:cambio", { detail: r }));
@@ -233,8 +233,11 @@ document.addEventListener("click", (e) => {
   if (paso) {
     const cod = paso.closest<HTMLElement>("[data-cantidad]")!.dataset.cantidad!;
     const antes = pedido[cod] || 0;
+    const enRemito = !!paso.closest("#lineas-cuerpo");
     sumar(cod, Number(paso.dataset.paso));
     if (!antes && pedido[cod]) avisar(`${D.productos[cod][0]} agregado`);
+    // En el pedido los renglones se redibujan: devolver el foco al mismo botón.
+    if (enRemito) document.querySelector<HTMLElement>(`#lineas-cuerpo [data-cantidad="${cod}"] [data-paso="${paso.dataset.paso}"]`)?.focus();
     return;
   }
   const kit = t.closest<HTMLElement>("[data-kit]");

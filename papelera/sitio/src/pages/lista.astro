@@ -10,7 +10,7 @@ const grupos = RUBROS.map((r) => ({ ...r, productos: PRODUCTOS.filter((p) => p.r
   <div class="envoltura">
     <header class="seccion__cabeza seccion__cabeza--fila" style="padding-top:clamp(2rem,5vw,3.5rem);margin-bottom:1rem">
       <div>
-        <p class="sobretitulo">Lista de precios · precios finales con IVA</p>
+        <p class="sobretitulo">Lista de precios · precios finales</p>
         <h1 class="titular">Catálogo completo</h1>
       </div>
       <p class="bajada" style="max-width:28rem"><strong style="color:var(--tinta)">Precio por mayor</strong> en pedidos desde {pesos(NEGOCIO.minimoMayorista)}. Debajo de ese monto rige el precio suelto.</p>
@@ -65,7 +65,7 @@ const grupos = RUBROS.map((r) => ({ ...r, productos: PRODUCTOS.filter((p) => p.r
           <p><strong>No encontramos artículos con esa búsqueda.</strong></p>
           <p>Probá con otra palabra o escribinos: muchas veces lo conseguimos para la próxima entrega.</p>
         </div>
-        <p class="bajada" style="font-size:.82rem;margin-block:2rem 4rem">Precios finales con IVA incluido. Sujetos a cambio sin previo aviso; el precio se confirma al aceptar el pedido.</p>
+        <p class="bajada" style="font-size:.82rem;margin-block:2rem 4rem">Precios finales, con factura C. Sujetos a cambio sin previo aviso; el precio se confirma al aceptar el pedido.</p>
       </div>
 
       <aside class="resumen" aria-label="Resumen del pedido">

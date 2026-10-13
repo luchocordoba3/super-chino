@@ -1,0 +1,65 @@
+---
+// Botón de arrepentimiento (Res. 424/2020): revocar una compra hecha a distancia dentro de los 10 días.
+import Base from "../layouts/Base.astro";
+import Pictograma from "../components/Pictograma.astro";
+import { NEGOCIO } from "../lib/catalogo";
+---
+<Base titulo="Botón de arrepentimiento" camino="arrepentimiento" descripcion={`Revocá una compra hecha en ${NEGOCIO.nombre} dentro de los 10 días corridos desde que la recibiste.`}>
+  <div class="envoltura alta" style="padding-block:clamp(2rem,5vw,4rem) 5rem">
+    <div>
+      <p class="sobretitulo">Defensa del consumidor</p>
+      <h1 class="titular" style="margin-block:.8rem 1rem">Botón de arrepentimiento</h1>
+      <p class="bajada">Si compraste como consumidor final, podés revocar la compra dentro de los 10 días corridos desde que recibiste los productos, sin costo ni explicación (art. 34 de la Ley 24.240).</p>
+      <ul class="beneficios">
+        <li data-rubro-tono="papel"><Pictograma nombre="papel" /><div><strong>1. Mandanos el pedido</strong><span>Completá el formulario. Se envía por WhatsApp a {NEGOCIO.whatsappVisible || "nuestro número"}.</span></div></li>
+        <li data-rubro-tono="embalaje"><Pictograma nombre="resma" /><div><strong>2. Te damos un código de trámite</strong><span>Dentro de las 24 horas te respondemos con el código que identifica tu pedido de revocación.</span></div></li>
+        <li data-rubro-tono="bolsas"><Pictograma nombre="caja" /><div><strong>3. Retiramos los productos</strong><span>Coordinamos el retiro en el próximo recorrido de tu zona y te devolvemos lo que pagaste.</span></div></li>
+      </ul>
+    </div>
+    <div class="alta__panel">
+    <form class="formulario" id="arrep" novalidate>
+      <label for="r-nombre">Nombre y apellido<input id="r-nombre" name="nombre" required autocomplete="name" /></label>
+      <div class="formulario__fila">
+        <label for="r-dni">DNI o CUIT<input id="r-dni" name="dni" required inputmode="numeric" /></label>
+        <label for="r-tel">Teléfono<input id="r-tel" name="telefono" required type="tel" autocomplete="tel" /></label>
+      </div>
+      <div class="formulario__fila">
+        <label for="r-pedido">N.º de pedido o fecha de entrega<input id="r-pedido" name="pedido" required placeholder="Ej.: 0001-12101530 o 12/10" /></label>
+        <label for="r-dir">Dirección de entrega<input id="r-dir" name="direccion" required autocomplete="street-address" /></label>
+      </div>
+      <label for="r-detalle">¿Qué querés devolver? <small>(opcional)</small><textarea id="r-detalle" name="detalle" rows="3" placeholder="Todo el pedido, o los artículos que quieras devolver"></textarea></label>
+      <p class="formulario__error" id="arrep-error" hidden>Completá los campos marcados para poder enviar el pedido.</p>
+      <a class="btn btn--whatsapp btn--ancho" id="arrep-enviar" href="https://wa.me/" target="_blank" rel="noopener">Enviar pedido de revocación</a>
+    </form>
+    </div>
+  </div>
+</Base>
+
+<script>
+  import { linkWhatsApp, validarCampos } from "../scripts/pedido.ts";
+  const form = document.getElementById("arrep") as HTMLFormElement;
+  const enviar = document.getElementById("arrep-enviar") as HTMLAnchorElement;
+  function texto() {
+    const f = new FormData(form);
+    return [
+      "Hola! Quiero revocar una compra (botón de arrepentimiento).",
+      "",
+      `Nombre: ${f.get("nombre")}`,
+      `DNI/CUIT: ${f.get("dni")}`,
+      `Teléfono: ${f.get("telefono")}`,
+      `Pedido: ${f.get("pedido")}`,
+      `Dirección: ${f.get("direccion")}`,
+      f.get("detalle") ? `Devolver: ${f.get("detalle")}` : "Devolver: todo el pedido",
+    ].join("\n");
+  }
+  form.addEventListener("input", (e) => {
+    const el = e.target as HTMLInputElement;
+    if (el.getAttribute("aria-invalid") === "true" && el.value.trim()) el.setAttribute("aria-invalid", "false");
+    enviar.href = linkWhatsApp(texto());
+  });
+  form.addEventListener("submit", (e) => e.preventDefault());
+  enviar.addEventListener("click", (e) => {
+    if (!validarCampos(form, "arrep-error")) { e.preventDefault(); return; }
+    enviar.href = linkWhatsApp(texto());
+  });
+</script>

@@ -10,7 +10,7 @@ const { p } = Astro.props;
   <a class="etiqueta" href={rutaProducto(p.codigo)} data-rubro-tono={p.rubroId} tabindex="-1" aria-hidden="true">
     <span class="etiqueta__cod">{p.codigo}</span>
     <Pictograma nombre={p.icono} clase="etiqueta__icono" />
-    <span class="etiqueta__medida">{p.medida || " "}{p.unidades && <small>{p.unidades} u.</small>}</span>
+    <span class:list={["etiqueta__medida", { "etiqueta__medida--larga": p.medida.length >= 7 }]}>{p.medida || " "}{p.unidades && <small>{p.unidades} u.</small>}</span>
   </a>
   <div class="tarjeta__cuerpo">
     <a class="tarjeta__nombre" href={rutaProducto(p.codigo)}>{p.titulo}</a>

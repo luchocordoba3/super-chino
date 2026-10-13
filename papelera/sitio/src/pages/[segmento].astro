@@ -1,7 +1,7 @@
 ---
 import Base from "../layouts/Base.astro";
 import Pictograma from "../components/Pictograma.astro";
-import Kit from "../components/Kit.astro";
+import KitInicial from "../components/KitInicial.astro";
 import TarjetaProducto from "../components/TarjetaProducto.astro";
 import { NEGOCIO, porCodigo, pesos, ruta } from "../lib/catalogo";
 
@@ -15,7 +15,7 @@ const iconos = [...new Set(claves.map((p) => p.icono))].slice(0, 6);
 const cinta = Array.from({ length: 8 }, () => `${s.sobretitulo} · Reposición mensual · ${NEGOCIO.zona}`);
 const otros = NEGOCIO.segmentos.filter((x) => x.id !== s.id);
 ---
-<Base titulo={s.sobretitulo} camino={s.id} seccion="rubros" descripcion={`${s.titulo}. ${s.bajada}`}>
+<Base titulo={s.sobretitulo} camino={s.id} seccion="rubros" descripcion={`${s.bajada.split(". ")[0].replace(/\.$/, "")}. Precio por mayor publicado y reparto propio en ${NEGOCIO.zona}.`}>
   <section class="rubro-portada" aria-labelledby="titulo">
     <div class="envoltura rubro-portada__in">
       <div>
@@ -47,20 +47,18 @@ const otros = NEGOCIO.segmentos.filter((x) => x.id !== s.id);
   </section>
 
   <section class="seccion seccion--blanca" aria-labelledby="kit-titulo">
-    <div class="envoltura reparto" style="align-items:start">
-      <div>
-        <header class="seccion__cabeza">
-          <p class="sobretitulo">Kit mensual sugerido</p>
-          <h2 id="kit-titulo" class="titular">Un punto de partida para tu reposición</h2>
-          <p class="bajada">Calculado para un mes de uso típico. Lo agregás con un toque y después ajustás cantidades, o nos escribís y lo armamos a medida de tu consumo.</p>
-        </header>
-        <ul class="beneficios">
-          <li data-rubro-tono="papel"><Pictograma nombre="caja" /><div><strong>Precio por mayor desde {pesos(NEGOCIO.minimoMayorista)}</strong><span>El kit ya llega al mínimo: todo el pedido va a precio por mayor.</span></div></li>
-          <li data-rubro-tono="bolsas"><Pictograma nombre="bidon" /><div><strong>Reposición programada</strong><span>Marcá "Repetir cada mes" al enviar y te escribimos antes de cada entrega.</span></div></li>
-          <li data-rubro-tono="embalaje"><Pictograma nombre="papel" /><div><strong>Factura en cada entrega</strong><span>Con el detalle de cada artículo para tu contabilidad.</span></div></li>
-        </ul>
-      </div>
-      <Kit id={s.id} />
+    <div class="envoltura">
+      <header class="seccion__cabeza">
+        <p class="sobretitulo">Kit inicial</p>
+        <h2 id="kit-titulo" class="titular">Un punto de partida para tu reposición</h2>
+        <p class="bajada">Pasa el mínimo de {pesos(NEGOCIO.minimoMayorista)}, así que todo el pedido va por mayor. Lo pedís tal cual o lo armás a tu medida.</p>
+      </header>
+      <KitInicial id={s.id} />
+      <ul class="beneficios beneficios--fila">
+        <li data-rubro-tono="bolsas"><Pictograma nombre="bidon" /><div><strong>Reposición programada</strong><span>Marcá "Repetir cada mes" al enviar y te escribimos antes de cada entrega.</span></div></li>
+        <li data-rubro-tono="embalaje"><Pictograma nombre="papel" /><div><strong>Factura en cada entrega</strong><span>Con el detalle de cada artículo para tu contabilidad.</span></div></li>
+        <li data-rubro-tono="papel"><Pictograma nombre="caja" /><div><strong>Día fijo de reparto</strong><span>Tu zona tiene recorrido dos veces por semana.</span></div></li>
+      </ul>
     </div>
   </section>
 
@@ -87,7 +85,7 @@ const otros = NEGOCIO.segmentos.filter((x) => x.id !== s.id);
       </div>
       <div class="llamado__acciones">
         <a class="btn btn--tinta" href={ruta("cuenta-mayorista")}>Abrir cuenta mayorista</a>
-        {otros.map((o) => <a class="btn btn--linea" href={ruta(o.id)}>{o.sobretitulo.replace("Para ", "")}</a>)}
+        {otros.map((o) => <a class="btn btn--linea" href={ruta(o.id)}>{o.sobretitulo.replace(/^Para (\S)/, (_, l) => l.toUpperCase())}</a>)}
       </div>
     </div>
   </section>

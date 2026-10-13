@@ -12,14 +12,15 @@ interface Props {
   descripcion?: string;
   camino?: string;
   jsonld?: object | object[];
+  imagen?: string;
   seccion?: "lista" | "rubros" | "rapido" | "cuenta" | "inicio";
 }
-const { titulo, descripcion = `Distribuidora de artículos de limpieza, bolsas, descartables y embalaje. Precio por mayor publicado y reparto propio en ${NEGOCIO.zona}.`, camino = "", jsonld, seccion } = Astro.props;
+const { imagen = "/compartir/compartir.png", titulo, descripcion = `Distribuidora de artículos de limpieza, bolsas, descartables y embalaje. Precio por mayor publicado y reparto propio en ${NEGOCIO.zona}.`, camino = "", jsonld, seccion } = Astro.props;
 const tituloCompleto = titulo ? `${titulo} · ${NEGOCIO.nombre}` : `${NEGOCIO.nombre} · ${NEGOCIO.bajada}`;
 const canonica = new URL(camino ? `/${camino.replace(/^\/|\/$/g, "")}/` : "/", NEGOCIO.sitio).href;
 const negocioLd = {
   "@context": "https://schema.org",
-  "@type": "Store",
+  "@type": "WholesaleStore",
   name: NEGOCIO.nombre,
   description: descripcion,
   url: NEGOCIO.sitio,
@@ -51,7 +52,10 @@ const ano = new Date().getFullYear();
   <meta property="og:title" content={tituloCompleto} />
   <meta property="og:description" content={descripcion} />
   <meta property="og:url" content={canonica} />
-  <meta property="og:image" content={new URL("/compartir.png", NEGOCIO.sitio).href} />
+  <meta property="og:image" content={new URL(imagen, NEGOCIO.sitio).href} />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   {ld.map((d) => <script type="application/ld+json" set:html={JSON.stringify(d)} />)}
   {NEGOCIO.analytics && <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon={JSON.stringify({ token: NEGOCIO.analytics })} />}
@@ -104,8 +108,14 @@ const ano = new Date().getFullYear();
         </div>
       </div>
       <div class="pie__legal">
-        <span>© {ano} {NEGOCIO.nombre}. Precios finales con IVA incluido. Emitimos factura C.</span>
+        <span>© {ano} {NEGOCIO.nombre}. Precios finales. Emitimos factura C.</span>
         <span>Precios sujetos a cambio sin previo aviso; se confirman al aceptar el pedido.</span>
+      </div>
+      <div class="pie__legal pie__legal--enlaces">
+        <a href={ruta("arrepentimiento")}>Botón de arrepentimiento</a>
+        <a href="https://www.argentina.gob.ar/produccion/defensadelconsumidor/formulario" target="_blank" rel="noopener">Defensa de las y los consumidores. Para reclamos ingresá acá</a>
+        {NEGOCIO.cuit && <span>CUIT {NEGOCIO.cuit}</span>}
+        {NEGOCIO.dataFiscal && <a href={NEGOCIO.dataFiscal} target="_blank" rel="noopener">Data fiscal (ARCA)</a>}
       </div>
     </div>
   </footer>

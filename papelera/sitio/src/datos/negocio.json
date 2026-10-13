@@ -554,6 +554,39 @@
         "PS0025",
         "PR0045"
       ]
+    },
+    {
+      "id": "revendedor",
+      "rubro": "Reventa de limpieza",
+      "para": "Despensas y venta puerta a puerta",
+      "icono": "escoba",
+      "items": [
+        [
+          "LE0029",
+          12
+        ],
+        [
+          "LT0011",
+          36
+        ],
+        [
+          "LS0013",
+          12
+        ],
+        [
+          "LT0005",
+          36
+        ]
+      ],
+      "extras": [
+        "LE0033",
+        "LE0035",
+        "LS0010",
+        "LS0014",
+        "LT0007",
+        "LT0008",
+        "LR0001"
+      ]
     }
   ],
   "segmentos": [

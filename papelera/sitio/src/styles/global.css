@@ -435,6 +435,8 @@ ul, ol { margin: 0; }
 }
 .etiqueta__icono { grid-column: 2; grid-row: 1 / span 2; align-self: center; width: 100%; aspect-ratio: 1; transition: transform .25s ease; }
 .tarjeta:hover .etiqueta__icono { transform: rotate(-5deg) scale(1.04); }
+.etiqueta__foto { grid-column: 2; grid-row: 1 / span 2; align-self: center; width: 100%; height: auto; aspect-ratio: 1; object-fit: contain; background: #fff; border-radius: 6px; box-shadow: 0 1px 2px rgba(0, 0, 0, .08); transition: transform .25s ease; }
+.tarjeta:hover .etiqueta__foto { transform: scale(1.04); }
 .etiqueta__medida { grid-column: 1; align-self: end; font-family: var(--f-display); font-stretch: 66%; font-weight: 860; font-size: clamp(1.5rem, 2.4vw, 1.95rem); line-height: .92; text-transform: uppercase; color: var(--tinta); white-space: nowrap; }
 .etiqueta__medida--larga { font-size: clamp(1.1rem, 1.7vw, 1.4rem); }
 .etiqueta__medida small { display: block; font-family: var(--f-dato); font-weight: 600; font-stretch: 100%; font-size: .72rem; margin-top: .35rem; color: var(--tenue); }
@@ -517,6 +519,10 @@ ul, ol { margin: 0; }
 .ficha { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(1.5rem, 5vw, 4rem); padding-block: 1.6rem clamp(3rem, 7vw, 5rem); align-items: start; }
 .ficha__visual { position: relative; background: var(--tono); border-radius: var(--radio); aspect-ratio: 1; display: grid; place-items: center; overflow: hidden; }
 .ficha__visual .pictograma-caja { width: 52%; aspect-ratio: 1; }
+.ficha__visual--foto { grid-template-columns: minmax(0, 1fr) 60%; padding: 1.2rem; }
+.ficha__foto { grid-column: 2; width: 100%; margin: 0; display: grid; gap: .4rem; justify-items: center; }
+.ficha__foto img { width: 100%; height: auto; aspect-ratio: 1; object-fit: contain; background: #fff; border-radius: var(--radio); box-shadow: var(--sombra-chica); }
+.ficha__foto figcaption { font-family: var(--f-dato); font-size: .72rem; color: var(--tenue); }
 .ficha__medida { position: absolute; left: 1.4rem; bottom: 1.2rem; font-family: var(--f-display); font-stretch: 62%; font-weight: 880; font-size: clamp(2.6rem, 6vw, 4.2rem); line-height: .9; text-transform: uppercase; }
 .ficha__medida small { display: block; font-family: var(--f-dato); font-stretch: 100%; font-weight: 600; font-size: .9rem; color: var(--tenue); margin-top: .4rem; }
 .ficha__cod { position: absolute; left: 1.4rem; top: 1.2rem; font-family: var(--f-dato); font-size: .8rem; color: var(--tenue); }
@@ -770,6 +776,7 @@ ul, ol { margin: 0; }
   .pie__in { grid-template-columns: 1fr 1fr; }
   .ficha { grid-template-columns: minmax(0, 1fr); }
   .ficha__visual { aspect-ratio: 16 / 11; }
+  .ficha__visual--foto { aspect-ratio: auto; grid-template-columns: minmax(0, 1fr) 56%; padding: 1rem; }
   .rubro-portada__in { grid-template-columns: minmax(0, 1fr); }
   .rubro-portada__iconos { max-width: 22rem; }
   .dolores { grid-template-columns: minmax(0, 1fr); }
@@ -797,7 +804,7 @@ ul, ol { margin: 0; }
   .pie__in { grid-template-columns: minmax(0, 1fr); }
   .grilla-productos { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; }
   .etiqueta { aspect-ratio: 1; grid-template-columns: minmax(0, 1fr); grid-template-rows: 1fr auto; padding: .7rem; }
-  .etiqueta__icono { grid-column: 1; grid-row: 1; width: 62%; justify-self: center; }
+  .etiqueta__icono, .etiqueta__foto { grid-column: 1; grid-row: 1; width: 62%; justify-self: center; }
   .etiqueta__medida { grid-row: 2; font-size: 1.3rem; }
   .etiqueta__cod { top: .55rem; left: .65rem; font-size: .62rem; }
   .tarjeta__cuerpo { padding: .7rem; gap: .55rem; }

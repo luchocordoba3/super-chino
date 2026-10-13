@@ -22,6 +22,7 @@ const productoLd = {
   "@type": "Product",
   name: p.titulo,
   sku: p.codigo,
+  ...(p.foto ? { image: new URL(p.foto, NEGOCIO.sitio).href } : {}),
   category: rubro.corto,
   description: descripcion,
   offers: {
@@ -47,9 +48,9 @@ const ahorroOferta = o ? Math.round((1 - o.mayorista / p.minorista) * 100) : 0;
     </nav>
 
     <article class="ficha" data-producto={p.codigo} data-oferta-hasta={o?.hasta}>
-      <div class="ficha__visual" data-rubro-tono={p.rubroId}>
+      <div class:list={["ficha__visual", { "ficha__visual--foto": p.foto }]} data-rubro-tono={p.rubroId}>
         <span class="ficha__cod">{p.codigo}</span>
-        <Pictograma nombre={p.icono} />
+        {p.foto ? <figure class="ficha__foto"><img src={p.foto} alt={p.titulo} width="480" height="480" /><figcaption>Imagen ilustrativa</figcaption></figure> : <Pictograma nombre={p.icono} />}
         {p.medida && <span class="ficha__medida">{p.medida}{p.unidades && <small>{p.unidades} unidades</small>}</span>}
       </div>
 

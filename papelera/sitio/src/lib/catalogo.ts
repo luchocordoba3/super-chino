@@ -1,6 +1,8 @@
 import productosCrudos from "../datos/productos.json";
 import negocio from "../datos/negocio.json";
 import { hoyAR, preciosOferta, type Estado, type OfertaDatos } from "./ofertas";
+import { readdirSync } from "node:fs";
+import { join } from "node:path";
 export { ESTADOS, fechaCorta, type Estado } from "./ofertas";
 
 export type Producto = {
@@ -21,6 +23,7 @@ export type Ficha = Producto & {
   unidades: string;
   rubroId: string;
   ofertaVigente: Oferta | null; // la del día en que se publica la web; si vence antes, la oculta pedido.ts
+  foto: string | null; // /fotos/<código>.webp si existe (imagen ilustrativa)
 };
 
 export const NEGOCIO = negocio;
@@ -90,6 +93,11 @@ export function nombreLindo(s: string): string {
     .replace(/^(.)/, (m) => m.toUpperCase());
 }
 
+// Fotos de catálogo: public/fotos/<código>.webp (se arma en el build, desde papelera/sitio).
+let archivosFoto: string[] = [];
+try { archivosFoto = readdirSync(join(process.cwd(), "public", "fotos")); } catch { /* sin fotos */ }
+const FOTOS = new Set(archivosFoto.filter((a) => a.endsWith(".webp")).map((a) => a.slice(0, -5).toUpperCase()));
+
 export const PRODUCTOS: Ficha[] = (productosCrudos as Producto[]).map((p) => {
   const { medida, unidades } = medidaDe(p.nombre);
   return {
@@ -100,6 +108,7 @@ export const PRODUCTOS: Ficha[] = (productosCrudos as Producto[]).map((p) => {
     unidades,
     rubroId: rubroPorNombre.get(p.rubro)?.id ?? "otros",
     ofertaVigente: ofertaDe(p),
+    foto: FOTOS.has(p.codigo) ? `/fotos/${p.codigo}.webp` : null,
   };
 });
 

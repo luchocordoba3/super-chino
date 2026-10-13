@@ -1,0 +1,9 @@
+---
+interface Props { codigo: string; grande?: boolean; id?: string }
+const { codigo, grande = false, id } = Astro.props;
+---
+<div class:list={["cantidad", { "cantidad--grande": grande }]} data-cantidad={codigo}>
+  <button type="button" data-paso="-1" aria-label={`Quitar uno de ${codigo}`}>−</button>
+  <input type="number" inputmode="numeric" min="0" step="1" placeholder="0" aria-label={`Cantidad de ${codigo}`} id={id} />
+  <button type="button" data-paso="1" aria-label={`Agregar uno de ${codigo}`}>+</button>
+</div>

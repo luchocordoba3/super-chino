@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /q/
+Sitemap: https://doblehoja.com.ar/sitemap.xml

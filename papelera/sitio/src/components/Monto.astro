@@ -1,0 +1,7 @@
+---
+// Un precio. Si hay oferta, muestra los dos y el CSS elige según venció o no (ver [data-oferta-hasta]).
+import { pesos } from "../lib/catalogo";
+interface Props { normal: number; oferta?: number | null }
+const { normal, oferta } = Astro.props;
+---
+{oferta ? <><span class="con-oferta">{pesos(oferta)}</span><span class="sin-oferta">{pesos(normal)}</span></> : pesos(normal)}

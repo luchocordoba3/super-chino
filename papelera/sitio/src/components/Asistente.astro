@@ -1,0 +1,39 @@
+---
+// "¿Tenés negocio? ¿Cuál?" y el kit inicial que corresponde. Sin JS, cada negocio es un enlace a su página.
+import { NEGOCIO, pesos, ruta } from "../lib/catalogo";
+import Pictograma from "./Pictograma.astro";
+import KitInicial from "./KitInicial.astro";
+---
+<div class="asistente" data-asistente>
+  <div class="asistente__paso" data-paso-asistente="1">
+    <p class="asistente__pregunta"><span class="asistente__n">1</span>¿Tenés un negocio?</p>
+    <div class="asistente__opciones">
+      <button class="opcion" type="button" data-tiene="si" aria-pressed="false">Sí, tengo un negocio</button>
+      <button class="opcion" type="button" data-tiene="no" aria-pressed="false">No, es para mi casa</button>
+    </div>
+    <div class="asistente__casa" data-casa hidden>
+      <p>Te vendemos igual, sin mínimo y a precio suelto. Si el pedido pasa {pesos(NEGOCIO.minimoMayorista)}, se aplica el precio por mayor a todo.</p>
+      <a class="btn btn--tinta" href={ruta("lista")}>Ver la lista de precios</a>
+    </div>
+  </div>
+
+  <div class="asistente__paso" data-paso-asistente="2">
+    <p class="asistente__pregunta"><span class="asistente__n">2</span>¿Qué negocio tenés?</p>
+    <div class="nichos">
+      {NEGOCIO.kits.map((k) => (
+        <a class="nicho" href={ruta(`kit/${k.id}`)} data-nicho={k.id}>
+          <span class="nicho__icono"><Pictograma nombre={k.icono} /></span>
+          <span class="nicho__nombre">{k.rubro}</span>
+        </a>
+      ))}
+    </div>
+    <p class="asistente__otro">¿No está tu rubro? <a href={ruta("cuenta-mayorista")}>Contanos qué vendés</a> y te armamos uno.</p>
+  </div>
+
+  <div class="asistente__paso" data-paso-asistente="3" hidden>
+    <p class="asistente__pregunta"><span class="asistente__n">3</span>Tu kit inicial <button class="btn-texto" type="button" data-cambiar-nicho>Cambiar de negocio</button></p>
+    {NEGOCIO.kits.map((k) => (
+      <div data-panel-nicho={k.id} hidden><KitInicial id={k.id} /></div>
+    ))}
+  </div>
+</div>

@@ -1,0 +1,6 @@
+---
+import { svgPictograma } from "../lib/pictogramas";
+interface Props { nombre: string; clase?: string }
+const { nombre, clase = "pictograma-caja" } = Astro.props;
+---
+<span class={clase} set:html={svgPictograma(nombre)} />

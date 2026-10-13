@@ -1,0 +1,45 @@
+---
+import Base from "../../layouts/Base.astro";
+import Pictograma from "../../components/Pictograma.astro";
+import KitInicial from "../../components/KitInicial.astro";
+import { NEGOCIO, pesos, ruta, totalKit } from "../../lib/catalogo";
+
+export function getStaticPaths() {
+  return NEGOCIO.kits.map((k) => ({ params: { id: k.id }, props: { k } }));
+}
+type K = (typeof NEGOCIO.kits)[number];
+const { k } = Astro.props as { k: K };
+const t = totalKit(k.items);
+const segmento = NEGOCIO.segmentos.find((s) => s.id === k.id);
+const otros = NEGOCIO.kits.filter((x) => x.id !== k.id);
+---
+<Base imagen={`/compartir/kit-${k.id}.png`} titulo={`Kit inicial para ${k.rubro.toLowerCase()}`} camino={`kit/${k.id}`} seccion="rubros" descripcion={`${k.para}: kit inicial de bolsas, descartables y limpieza por ${pesos(t.mayor)} a precio por mayor, con reparto propio en ${NEGOCIO.zona}.`}>
+  <section class="seccion kit-pagina" aria-labelledby="titulo" data-registrar-rubro={k.id}>
+    <div class="envoltura">
+      <header class="seccion__cabeza">
+        <p class="sobretitulo"><a href={`${ruta("")}#kits`}>Kits por negocio</a> / {k.rubro}</p>
+        <h1 id="titulo" class="titular">Kit inicial para tu {k.rubro.toLowerCase()}</h1>
+        <p class="bajada">Un punto de partida armado con lo que más rota en {k.para.toLowerCase()}. Lo pedís tal cual o lo ajustás: sacás lo que no usás y sumás lo que te falta.</p>
+      </header>
+      <KitInicial id={k.id} nivel="h2" />
+      {segmento && <p class="kit-pagina__mas"><a class="flecha" href={ruta(segmento.id)}>Cómo trabajamos con {segmento.sobretitulo.replace(/^Para /, "").toLowerCase()} →</a></p>}
+    </div>
+  </section>
+
+  <section class="seccion seccion--blanca" aria-labelledby="otros-titulo">
+    <div class="envoltura">
+      <header class="seccion__cabeza">
+        <p class="sobretitulo">Otros negocios</p>
+        <h2 id="otros-titulo" class="titular titular--chico">¿Tenés otro rubro?</h2>
+      </header>
+      <div class="nichos">
+        {otros.map((o) => (
+          <a class="nicho" href={ruta(`kit/${o.id}`)}>
+            <span class="nicho__icono"><Pictograma nombre={o.icono} /></span>
+            <span class="nicho__nombre">{o.rubro}</span>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+</Base>

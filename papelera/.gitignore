@@ -1,0 +1,4 @@
+# La lista de costo de fábrica no se sube nunca.
+*.xlsx
+*.xls
+!prospeccion.xlsx

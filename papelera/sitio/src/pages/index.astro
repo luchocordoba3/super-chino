@@ -3,7 +3,8 @@ import Base from "../layouts/Base.astro";
 import Pictograma from "../components/Pictograma.astro";
 import Asistente from "../components/Asistente.astro";
 import Zonas from "../components/Zonas.astro";
-import { NEGOCIO, PRODUCTOS, RUBROS, porCodigo, pesos, ruta } from "../lib/catalogo";
+import TarjetaProducto from "../components/TarjetaProducto.astro";
+import { NEGOCIO, OFERTAS, PRODUCTOS, RUBROS, fechaCorta, porCodigo, pesos, ruta, ultimaOferta } from "../lib/catalogo";
 
 const bulto = ["LB0003", "LL0228", "PV0007", "LT0045", "PS0004", "LP0114", "LE0035", "PC0042", "PB0141"].map((c) => porCodigo.get(c)!);
 const cuenta = Object.fromEntries(RUBROS.map((r) => [r.id, PRODUCTOS.filter((p) => p.rubroId === r.id).length]));
@@ -59,6 +60,23 @@ const cinta = Array.from({ length: 8 }, () => `${NEGOCIO.nombre} · Reparto prop
       <li><strong>Factura en cada entrega</strong><span>Comprobante con el detalle de cada artículo.</span></li>
     </ul>
   </section>
+
+  {OFERTAS.length > 0 && (
+    <section class="seccion seccion--blanca solo-vigente" aria-labelledby="ofertas-titulo" data-oferta-hasta={ultimaOferta}>
+      <div class="envoltura">
+        <header class="seccion__cabeza seccion__cabeza--fila">
+          <div>
+            <p class="sobretitulo">Ofertas · hasta el {fechaCorta(ultimaOferta)}</p>
+            <h2 id="ofertas-titulo" class="titular">Precios rebajados por tiempo limitado</h2>
+          </div>
+          <a class="flecha" href={`${ruta("lista")}#ofertas`}>Ver todas las ofertas →</a>
+        </header>
+        <div class="grilla-productos">
+          {OFERTAS.slice(0, 8).map((p) => <TarjetaProducto p={p} />)}
+        </div>
+      </div>
+    </section>
+  )}
 
   <section class="seccion" aria-labelledby="rubros-titulo">
     <div class="envoltura">

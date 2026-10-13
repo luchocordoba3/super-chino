@@ -55,3 +55,7 @@ npm run generar
 ```
 
 El generador toma todo de la web: el nombre, el WhatsApp, los destacados, los kits y los precios. Para que la tarjeta lleve tu nombre, completá `contacto` en `negocio.json` y regenerá.
+
+## Imágenes para compartir
+
+La vista previa que muestra WhatsApp al mandar un link (una general y una por kit, sin precios) se genera con `npm run compartir`. Las imágenes van a `sitio/public/compartir/`. Volvé a generarlas si agregás o renombrás un kit.

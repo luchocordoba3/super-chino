@@ -3,7 +3,8 @@ import Base from "../../layouts/Base.astro";
 import Pictograma from "../../components/Pictograma.astro";
 import Cantidad from "../../components/Cantidad.astro";
 import TarjetaProducto from "../../components/TarjetaProducto.astro";
-import { NEGOCIO, PRODUCTOS, pesos, ruta, rubroDe, type Ficha } from "../../lib/catalogo";
+import Monto from "../../components/Monto.astro";
+import { ESTADOS, NEGOCIO, PRODUCTOS, fechaCorta, pesos, precioMayor, precioSuelto, ruta, rubroDe, type Ficha } from "../../lib/catalogo";
 
 export function getStaticPaths() {
   return PRODUCTOS.map((p) => ({ params: { codigo: p.codigo.toLowerCase() }, props: { p } }));
@@ -13,7 +14,9 @@ const rubro = rubroDe(p);
 const mismoIcono = PRODUCTOS.filter((x) => x.codigo !== p.codigo && x.icono === p.icono);
 const mismoRubro = PRODUCTOS.filter((x) => x.codigo !== p.codigo && x.rubroId === p.rubroId && x.icono !== p.icono);
 const relacionados = [...mismoIcono, ...mismoRubro].slice(0, 4);
-const descripcion = `${p.titulo} (${p.codigo}) por mayor a ${pesos(p.mayorista)} y suelto a ${pesos(p.minorista)}. ${rubro.corto} con reparto propio en ${NEGOCIO.zona}.`;
+const o = p.ofertaVigente;
+const disponibilidad = { "sin-stock": "OutOfStock", "a-pedido": "PreOrder" }[p.estado ?? ""] ?? "InStock";
+const descripcion = `${p.titulo} (${p.codigo}) por mayor a ${pesos(precioMayor(p))} y suelto a ${pesos(precioSuelto(p))}${o ? ` (oferta hasta el ${fechaCorta(o.hasta)})` : ""}. ${rubro.corto} con reparto propio en ${NEGOCIO.zona}.`;
 const productoLd = {
   "@context": "https://schema.org",
   "@type": "Product",
@@ -24,14 +27,16 @@ const productoLd = {
   offers: {
     "@type": "AggregateOffer",
     priceCurrency: "ARS",
-    lowPrice: p.mayorista,
-    highPrice: p.minorista,
+    lowPrice: precioMayor(p),
+    highPrice: precioSuelto(p),
     offerCount: 2,
-    availability: "https://schema.org/InStock",
+    availability: `https://schema.org/${disponibilidad}`,
+    ...(o ? { priceValidUntil: o.hasta } : {}),
     seller: { "@type": "Organization", name: NEGOCIO.nombre },
   },
 };
 const ahorro = Math.round((1 - p.mayorista / p.minorista) * 100);
+const ahorroOferta = o ? Math.round((1 - o.mayorista / p.minorista) * 100) : 0;
 ---
 <Base titulo={`${p.titulo} por mayor`} camino={`producto/${p.codigo.toLowerCase()}`} seccion="lista" descripcion={descripcion} jsonld={productoLd}>
   <div class="envoltura">
@@ -41,7 +46,7 @@ const ahorro = Math.round((1 - p.mayorista / p.minorista) * 100);
       <a href={`${ruta("lista")}#${rubro.id}`}>{rubro.corto}</a>
     </nav>
 
-    <article class="ficha" data-producto={p.codigo}>
+    <article class="ficha" data-producto={p.codigo} data-oferta-hasta={o?.hasta}>
       <div class="ficha__visual" data-rubro-tono={p.rubroId}>
         <span class="ficha__cod">{p.codigo}</span>
         <Pictograma nombre={p.icono} />
@@ -55,14 +60,19 @@ const ahorro = Math.round((1 - p.mayorista / p.minorista) * 100);
         </div>
 
         <div class="ficha__precios">
-          <div><span class="precio-etq">Por mayor</span><span class="sticker">{pesos(p.mayorista)}</span><span class="ficha__nota">{ahorro}% menos que suelto</span></div>
-          <div><span class="precio-etq">Suelto</span><span class="suelto">{pesos(p.minorista)}</span><span class="ficha__nota">Pedidos menores a {pesos(NEGOCIO.minimoMayorista)}</span></div>
+          <div><span class="precio-etq">{o ? <><span class="con-oferta">Oferta −{o.porcentaje}% · hasta el {fechaCorta(o.hasta)}</span><span class="sin-oferta">Por mayor</span></> : "Por mayor"}</span><span class="sticker"><Monto normal={p.mayorista} oferta={o?.mayorista} /></span><span class="ficha__nota">{o ? <><span class="con-oferta">Antes <s>{pesos(p.mayorista)}</s> · {ahorroOferta}% menos que suelto</span><span class="sin-oferta">{ahorro}% menos que suelto</span></> : `${ahorro}% menos que suelto`}</span></div>
+          <div><span class="precio-etq">Suelto</span><span class="suelto"><Monto normal={p.minorista} oferta={o?.minorista} /></span><span class="ficha__nota">Pedidos menores a {pesos(NEGOCIO.minimoMayorista)}</span></div>
         </div>
 
-        <div class="ficha__comprar">
-          <Cantidad codigo={p.codigo} grande id="cantidad-ficha" />
-          <button class="btn btn--tinta" type="button" data-agregar={p.codigo}>Agregar al pedido</button>
-        </div>
+        {p.estado === "sin-stock" ? (
+          <p class="ficha__estado" data-estado="sin-stock"><strong>Sin stock por ahora.</strong> Escribinos y te avisamos cuando vuelva, o te ofrecemos uno parecido.</p>
+        ) : (
+          <div class="ficha__comprar">
+            <Cantidad codigo={p.codigo} grande id="cantidad-ficha" />
+            <button class="btn btn--tinta" type="button" data-agregar={p.codigo}>Agregar al pedido</button>
+          </div>
+        )}
+        {p.estado === "a-pedido" && <p class="ficha__estado" data-estado="a-pedido"><strong>{ESTADOS["a-pedido"]}.</strong> Lo encargamos a fábrica: llega en la entrega siguiente a la confirmación.</p>}
         <div class="umbral" data-pedido="umbral" hidden>
           <p class="umbral__texto" data-pedido="umbral-texto"></p>
           <div class="umbral__barra"><span data-pedido="umbral-barra"></span></div>

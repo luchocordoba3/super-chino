@@ -12,6 +12,7 @@
   --cinta: #f5c32c;
   --sobre-cinta: #1c1600;
   --ok: #157a45;
+  --oferta: #d13b25;
   --ok-fondo: #e3f3ea;
   --error: #c4332b;
   --whatsapp: #128c4a;
@@ -653,6 +654,27 @@ ul, ol { margin: 0; }
 
 .beneficios--fila { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 1.6rem; }
 @media (max-width: 820px) { .beneficios--fila { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---------- Stock y ofertas ---------- */
+.sin-oferta { display: none; }
+.oferta-vencida .sin-oferta { display: inline; }
+.oferta-vencida .con-oferta, .solo-vigente.oferta-vencida, .chip--oferta.oferta-vencida { display: none !important; }
+:is(.tarjeta, .renglon, .ficha)[data-oferta-hasta]:not(.oferta-vencida) .sticker { background: var(--oferta); color: #fff; }
+.precio-suelto s { margin-right: .3rem; }
+.marca-estado { font: 600 .66rem/1 var(--f-dato); letter-spacing: .06em; text-transform: uppercase; padding: .3rem .45rem; border-radius: 3px; background: var(--tinta); color: var(--papel); white-space: nowrap; }
+.etiqueta .marca-estado { position: absolute; top: .55rem; right: .6rem; }
+.renglon__nombre .marca-estado { margin-left: .5rem; vertical-align: middle; }
+.marca-estado[data-estado="a-pedido"] { background: var(--cobalto); color: #fff; }
+.marca-estado[data-estado="oferta"] { background: var(--oferta); color: #fff; }
+.tarjeta--agotada .etiqueta > :not(.marca-estado), .tarjeta--agotada .renglon__icono { opacity: .45; filter: grayscale(1); }
+.agotado { font: 600 .78rem var(--f-dato); color: var(--tenue); text-transform: uppercase; letter-spacing: .05em; padding: .5rem 0; }
+.chip--oferta { border-color: var(--oferta); color: var(--oferta); }
+.chip--oferta[aria-pressed="true"] { background: var(--oferta); color: #fff; }
+.chip--oferta[aria-pressed="true"] span { color: inherit; }
+.ficha__estado { padding: .8rem 1rem; border-left: 4px solid var(--tinta); background: var(--papel); font-size: .92rem; }
+.ficha__estado[data-estado="a-pedido"] { border-color: var(--cobalto); }
+.kit-inicial__lista { min-width: 0; }
+.kit-inicial__faltan { margin: 0 1.4rem 1rem; font-size: .84rem; color: var(--tenue); }
 
 /* ---------- Asistente de kits por negocio ---------- */
 .asistente { display: grid; gap: 2.2rem; }

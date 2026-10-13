@@ -44,13 +44,14 @@ import { NEGOCIO, pesos } from "../lib/catalogo";
 </Base>
 
 <script>
-  import { productos, sumar, abrir, avisar, minimoMayorista } from "../scripts/pedido.ts";
+  import { productos, precios, sumar, abrir, avisar, minimoMayorista } from "../scripts/pedido.ts";
   import { svgPictograma } from "../lib/pictogramas";
 
   const plata = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
   const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
   const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
-  const lista = Object.entries(productos).map(([codigo, [titulo, mayor, suelto, icono, medida]]) => ({ codigo, titulo, mayor, suelto, icono, medida, txt: norm(`${codigo} ${titulo}`) }));
+  const lista = Object.entries(productos).map(([codigo, [titulo, , , icono, medida, estado]]) => { const [mayor, suelto] = precios(codigo); return { codigo, titulo, mayor, suelto, icono, medida, estado, txt: norm(`${codigo} ${titulo}`) }; });
+  const etiquetaEstado = (e: string) => (e === "sin-stock" ? " <em>· sin stock</em>" : e === "a-pedido" ? " <em>· a pedido</em>" : "");
   const porCodigo = new Map(lista.map((p) => [p.codigo, p]));
   const cuerpo = document.getElementById("renglones-planilla")!;
   let filas: { codigo: string; cant: number }[] = [];
@@ -84,13 +85,13 @@ import { NEGOCIO, pesos } from "../lib/catalogo";
     if (document.activeElement !== cant) cant.value = f.cant ? String(f.cant) : "";
     el.classList.toggle("error", Boolean(f.codigo) && !p);
     el.querySelector("[data-desc]")!.innerHTML = p
-      ? `${svgPictograma(p.icono, "pictograma pictograma-mini")}<span>${esc(p.titulo)}</span>`
+      ? `${svgPictograma(p.icono, "pictograma pictograma-mini")}<span>${esc(p.titulo)}${etiquetaEstado(p.estado)}</span>`
       : f.codigo && !el.querySelector(".sugerencias") ? "<em>Código no encontrado</em>" : "";
     el.querySelector("[data-importe]")!.textContent = p && f.cant ? plata.format(p.mayor * f.cant) : "";
   }
 
   function totales() {
-    const validas = filas.filter((f) => porCodigo.has(f.codigo) && f.cant > 0);
+    const validas = filas.filter((f) => porCodigo.has(f.codigo) && f.cant > 0 && porCodigo.get(f.codigo)!.estado !== "sin-stock");
     const mayor = validas.reduce((s, f) => s + porCodigo.get(f.codigo)!.mayor * f.cant, 0);
     const suelto = validas.reduce((s, f) => s + porCodigo.get(f.codigo)!.suelto * f.cant, 0);
     const esMayor = mayor >= minimoMayorista;
@@ -111,7 +112,7 @@ import { NEGOCIO, pesos } from "../lib/catalogo";
     const res = lista.filter((p) => t.every((x) => p.txt.includes(x))).slice(0, 8);
     if (!res.length) return;
     const fila = cuerpo.querySelector(`[data-i="${i}"]`)!;
-    fila.insertAdjacentHTML("beforeend", `<ul class="sugerencias" role="listbox">${res.map((p, k) => `<li role="option" data-elegir="${p.codigo}" aria-selected="${k === 0}">${svgPictograma(p.icono, "pictograma pictograma-mini")}<code>${p.codigo}</code><span>${esc(p.titulo)}</span><code>${plata.format(p.mayor)}</code></li>`).join("")}</ul>`);
+    fila.insertAdjacentHTML("beforeend", `<ul class="sugerencias" role="listbox">${res.map((p, k) => `<li role="option" data-elegir="${p.codigo}" aria-selected="${k === 0}">${svgPictograma(p.icono, "pictograma pictograma-mini")}<code>${p.codigo}</code><span>${esc(p.titulo)}${etiquetaEstado(p.estado)}</span><code>${plata.format(p.mayor)}</code></li>`).join("")}</ul>`);
     sugerencia = 0;
   }
 
@@ -220,7 +221,7 @@ import { NEGOCIO, pesos } from "../lib/catalogo";
     totales();
   });
   document.getElementById("cargar-pedido")!.addEventListener("click", () => {
-    const validas = filas.filter((f) => porCodigo.has(f.codigo) && f.cant > 0);
+    const validas = filas.filter((f) => porCodigo.has(f.codigo) && f.cant > 0 && porCodigo.get(f.codigo)!.estado !== "sin-stock");
     if (!validas.length) { avisar("Cargá al menos un código con cantidad.", false); return; }
     validas.forEach((f) => sumar(f.codigo, f.cant));
     filas = filas.map(() => ({ codigo: "", cant: 0 }));

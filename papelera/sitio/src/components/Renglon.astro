@@ -1,19 +1,21 @@
 ---
 import type { Ficha } from "../lib/catalogo";
-import { pesos, rutaProducto } from "../lib/catalogo";
+import { ESTADOS, rutaProducto } from "../lib/catalogo";
 import Pictograma from "./Pictograma.astro";
 import Cantidad from "./Cantidad.astro";
+import Monto from "./Monto.astro";
 interface Props { p: Ficha }
 const { p } = Astro.props;
+const o = p.ofertaVigente;
 ---
-<div class="renglon" data-producto={p.codigo} data-rubro={p.rubroId} data-buscar={`${p.codigo} ${p.nombre} ${p.medida}`}>
+<div class:list={["renglon", { "tarjeta--agotada": p.estado === "sin-stock" }]} data-producto={p.codigo} data-rubro={p.rubroId} data-buscar={`${p.codigo} ${p.nombre} ${p.medida}`} data-oferta-hasta={o?.hasta}>
   <span class="renglon__icono" data-rubro-tono={p.rubroId}><Pictograma nombre={p.icono} /></span>
   <span class="renglon__cod">{p.codigo}</span>
-  <a class="renglon__nombre" href={rutaProducto(p.codigo)}>{p.titulo}</a>
+  <a class="renglon__nombre" href={rutaProducto(p.codigo)}>{p.titulo}{p.estado ? <span class="marca-estado" data-estado={p.estado}>{ESTADOS[p.estado]}</span> : o && <span class="marca-estado con-oferta" data-estado="oferta">−{o.porcentaje}%</span>}</a>
   <span class="renglon__medida">{[p.medida, p.unidades && `${p.unidades} u.`].filter(Boolean).join(" · ")}</span>
   <span class="renglon__precios">
-    <span class="renglon__mayor"><span class="sticker">{pesos(p.mayorista)}</span></span>
-    <span class="renglon__suelto num">{pesos(p.minorista)}</span>
+    <span class="renglon__mayor"><span class="sticker"><Monto normal={p.mayorista} oferta={o?.mayorista} /></span></span>
+    <span class="renglon__suelto num"><Monto normal={p.minorista} oferta={o?.minorista} /></span>
   </span>
-  <Cantidad codigo={p.codigo} />
+  {p.estado === "sin-stock" ? <span class="agotado">Sin stock</span> : <Cantidad codigo={p.codigo} />}
 </div>

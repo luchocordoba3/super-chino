@@ -200,7 +200,7 @@ npm run dev      # para verlo mientras editás: http://localhost:4321
 npm run build    # deja el sitio listo en dist/
 ```
 
-- **Netlify o Cloudflare Pages** (gratis): conectás el repositorio y configurás la carpeta base `papelera/sitio`, el comando `npm run build` y la carpeta de salida `dist`. Cada cambio que subas se publica solo.
+- **Cloudflare Pages** (gratis, y lo necesita el panel): conectás el repositorio y configurás la carpeta base `papelera/sitio`, el comando `npm run build` y la carpeta de salida `dist`. Cada cambio que subas se publica solo.
 - **Dominio:** registrá `doblehoja.com` (disponible al momento de armar esto) o un `.com.ar` en NIC Argentina. Antes de usar el nombre, buscalo en INPI para confirmar que no esté registrado como marca en el rubro.
 - **Antes de publicar:**
   - completar `whatsapp` e `instagram` en `negocio.json`;
@@ -211,22 +211,65 @@ npm run build    # deja el sitio listo en dist/
 
 ## Panel administrativo (`/admin`)
 
-Es una página escondida: no está enlazada desde la web, Google no la indexa y **solo guarda con tu token de GitHub**. Lo que cambiás se guarda en el repositorio y la web se publica sola en uno o dos minutos.
+Es una página escondida: no está enlazada desde la web y Google no la indexa. **Se entra con contraseña.** El permiso para escribir en GitHub lo tiene el servidor de Cloudflare, nunca el navegador ni el celular. La sesión dura 30 días en cada dispositivo.
 
 **Pestañas**
-- **Precios:** buscador, edición por renglón, alta y baja de artículos, y **suba o baja masiva por %** (por rubro o toda la lista), con redondeo y ejemplo previo.
-- **Lista nueva (PDF):** subís el PDF de la fábrica y te muestra qué cambia (precios, altas y bajas) antes de reemplazar nada. El PDF se lee en tu navegador y no se sube a ningún lado.
-- **Negocio:** WhatsApp, mínimos, horario, zonas y días.
-- **Kits y destacados:** los kits por rubro y los 20 artículos de la ficha impresa.
+- **Precios y stock:**
+  - buscador y filtros (sin publicar, sin stock, a pedido, en oferta);
+  - edición de precios y nombre;
+  - **stock**: disponible, a pedido o sin stock;
+  - **oferta**: porcentaje y hasta qué día vale;
+  - alta y baja de artículos;
+  - **suba o baja masiva por %**.
+- **Lista nueva (PDF):** subís el PDF de la fábrica y te muestra qué cambia antes de reemplazar. Conserva el stock y las ofertas.
+- **Negocio:** WhatsApp, mínimos, horario, zonas, CUIT y Data Fiscal.
+- **Kits:** kits por negocio y los 20 artículos de la ficha impresa. Avisa si un kit queda debajo del mínimo o tiene artículos sin stock.
 - **QR:** a dónde lleva cada QR impreso, sin reimprimir.
+- **Historial:** los últimos 20 cambios publicados, con "Volver a esta versión".
 - **Avanzado:** el JSON completo, para los textos de los rubros y las preguntas frecuentes.
 
-**Primera vez**
-1. En GitHub: **Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**.
-2. En **Only select repositories**, marcá este repositorio. En **Permissions → Contents**, elegí **Read and write**.
-3. Entrá a `doblehoja.com.ar/admin`, pegá el token y poné la **rama que publica la web** (la que configuraste en Cloudflare o Netlify, normalmente `main`).
+**Botones de abajo**
+- **Vista previa:** arma la web con tus cambios en una dirección aparte (rama `panel-borrador`), sin publicarlos. Tarda uno o dos minutos.
+- **Publicar:** los publica en la web real, en un solo cambio.
+- **Descartar:** vuelve a lo publicado.
+
+**Cómo se ve en la web**
+- **Sin stock:** el artículo aparece en gris con "Sin stock" y no se puede sumar al pedido. Los kits lo dejan afuera y lo avisan.
+- **A pedido:** se puede pedir, y en el mensaje de WhatsApp llega marcado "[a pedido]".
+- **Oferta:**
+  - precio en rojo, con el anterior tachado;
+  - sección "Ofertas" en el inicio y filtro "Ofertas" en la lista;
+  - **al vencer vuelve sola al precio normal**, aunque no publiques nada;
+  - en el mensaje de WhatsApp llega marcada "[oferta]".
+
+**Configuración (una sola vez)**
+1. **Cloudflare Pages:**
+   - creá el proyecto conectando el repositorio de GitHub;
+   - carpeta base `papelera/sitio`, comando `npm run build`, salida `dist`;
+   - rama de producción `main`.
+2. **Token de GitHub:** Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token.
+   - En "Only select repositories", marcá este repositorio.
+   - En Permissions → Contents, elegí Read and write.
+3. **Variables en Cloudflare:** en el proyecto, Settings → Variables and Secrets, como secretos:
+   - `ADMIN_CLAVE`: tu contraseña del panel. Que sea larga.
+   - `SESION_SECRETO`: una frase larga cualquiera. Si la cambiás, se cierran todas las sesiones.
+   - `GITHUB_TOKEN`: el token del paso 2.
+   - Opcional: `VISTA_PREVIA_URL`, la dirección de la vista previa, normalmente `https://panel-borrador.<tu-proyecto>.pages.dev`.
+   - Opcional: `GITHUB_REPO` y `GITHUB_RAMA`, si no son `luchocordoba3/super-chino` y `main`.
+4. Volvé a publicar el proyecto y entrá a `doblehoja.com.ar/admin` con la contraseña.
+
+**Si perdés el celular:** cambiá `SESION_SECRETO` en Cloudflare, y con eso se cierran todas las sesiones. Si te roban la contraseña, cambiá `ADMIN_CLAVE`.
 
 **Modo prueba:** muestra el resultado sin guardar nada. Sirve para practicar.
+
+## Avisos legales de la web
+
+En el pie de la web ya están:
+- el **Botón de arrepentimiento**, con la página `/arrepentimiento`, cuyo pedido llega por WhatsApp;
+- el enlace a **Defensa de las y los consumidores**;
+- el lugar para el **CUIT** y el **Data Fiscal de ARCA**, que se cargan desde el panel (pestaña Negocio).
+
+Para el Data Fiscal, pedí en ARCA el formulario 960/D y pegá el link que te dan. **Confirmá con tu contador** que esto cubre lo que te corresponde según cómo vendas.
 
 ## Seguimiento por QR
 

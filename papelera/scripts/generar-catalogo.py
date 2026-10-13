@@ -63,6 +63,13 @@ def main():
         elif CODIGO.match(linea):
             raros.append(linea.strip())
 
+    # El stock y las ofertas se cargan en el panel: se conservan al cambiar de lista.
+    if SALIDA.exists():
+        previos = {p["codigo"]: p for p in json.loads(SALIDA.read_text(encoding="utf-8"))}
+        for p in productos:
+            for campo in ("estado", "oferta"):
+                if campo in previos.get(p["codigo"], {}):
+                    p[campo] = previos[p["codigo"]][campo]
     SALIDA.write_text(json.dumps(productos, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     print(f"{len(productos)} productos en {len({p['rubro'] for p in productos})} rubros -> {SALIDA}")
     for linea in raros:

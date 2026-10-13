@@ -1,5 +1,7 @@
 import productosCrudos from "../datos/productos.json";
 import negocio from "../datos/negocio.json";
+import { hoyAR, preciosOferta, type Estado, type OfertaDatos } from "./ofertas";
+export { ESTADOS, fechaCorta, type Estado } from "./ofertas";
 
 export type Producto = {
   codigo: string;
@@ -7,7 +9,10 @@ export type Producto = {
   rubro: string;
   mayorista: number;
   minorista: number;
+  estado?: Estado;
+  oferta?: OfertaDatos;
 };
+export type Oferta = OfertaDatos & { mayorista: number; minorista: number };
 
 export type Ficha = Producto & {
   titulo: string;
@@ -15,6 +20,7 @@ export type Ficha = Producto & {
   medida: string;
   unidades: string;
   rubroId: string;
+  ofertaVigente: Oferta | null; // la del día en que se publica la web; si vence antes, la oculta pedido.ts
 };
 
 export const NEGOCIO = negocio;
@@ -93,8 +99,19 @@ export const PRODUCTOS: Ficha[] = (productosCrudos as Producto[]).map((p) => {
     medida,
     unidades,
     rubroId: rubroPorNombre.get(p.rubro)?.id ?? "otros",
+    ofertaVigente: ofertaDe(p),
   };
 });
+
+function ofertaDe(p: Producto): Oferta | null {
+  const o = preciosOferta(p.mayorista, p.minorista, p.oferta, hoyAR());
+  return o && p.oferta ? { ...p.oferta, ...o } : null;
+}
+export const precioMayor = (p: Ficha) => p.ofertaVigente?.mayorista ?? p.mayorista;
+export const precioSuelto = (p: Ficha) => p.ofertaVigente?.minorista ?? p.minorista;
+export const hayStock = (p: Producto) => p.estado !== "sin-stock";
+export const OFERTAS = PRODUCTOS.filter((p) => p.ofertaVigente && hayStock(p));
+export const ultimaOferta = OFERTAS.reduce((m, p) => (p.ofertaVigente!.hasta > m ? p.ofertaVigente!.hasta : m), "");
 
 // Saca del nombre la medida principal ("5 L", "60×90", "750 cc") y la cantidad por bulto ("×50").
 export function medidaDe(nombre: string): { medida: string; unidades: string } {
@@ -146,7 +163,8 @@ export const rutaProducto = (codigo: string) => ruta(`producto/${codigo.toLowerC
 
 // Datos mínimos que necesita el pedido en el navegador.
 export const DATOS_PEDIDO = {
-  productos: Object.fromEntries(PRODUCTOS.map((p) => [p.codigo, [p.titulo, p.mayorista, p.minorista, p.icono, p.medida]])),
+  // [título, por mayor, suelto, ícono, medida, estado, % de oferta, oferta hasta]
+  productos: Object.fromEntries(PRODUCTOS.map((p) => [p.codigo, [p.titulo, p.mayorista, p.minorista, p.icono, p.medida, p.estado ?? "", p.oferta?.porcentaje ?? 0, p.oferta?.hasta ?? ""]])),
   kits: negocio.kits.map((k) => ({ id: k.id, rubro: k.rubro, items: k.items, extras: k.extras ?? [] })),
   minimoMayorista: negocio.minimoMayorista,
   envioSinCargoDesde: negocio.envioSinCargoDesde,
@@ -155,10 +173,13 @@ export const DATOS_PEDIDO = {
   origenes: Object.fromEntries(negocio.qr.map((q) => [q.id, q.nombre])),
 };
 
+// Total de un kit con los precios del día. Lo que no tiene stock queda afuera y se informa en "faltan".
 export function totalKit(items: (string | number)[][]) {
-  const lista = items.filter(([c]) => porCodigo.has(c as string)) as [string, number][];
-  const mayor = lista.reduce((s, [c, n]) => s + porCodigo.get(c)!.mayorista * n, 0);
-  const suelto = lista.reduce((s, [c, n]) => s + porCodigo.get(c)!.minorista * n, 0);
+  const todos = items.filter(([c]) => porCodigo.has(c as string)) as [string, number][];
+  const lista = todos.filter(([c]) => hayStock(porCodigo.get(c)!));
+  const faltan = todos.filter(([c]) => !hayStock(porCodigo.get(c)!)).map(([c]) => porCodigo.get(c)!);
+  const mayor = lista.reduce((s, [c, n]) => s + precioMayor(porCodigo.get(c)!) * n, 0);
+  const suelto = lista.reduce((s, [c, n]) => s + precioSuelto(porCodigo.get(c)!) * n, 0);
   const esMayor = mayor >= negocio.minimoMayorista;
-  return { lista, mayor, suelto, esMayor, total: esMayor ? mayor : suelto };
+  return { lista, faltan, mayor, suelto, esMayor, total: esMayor ? mayor : suelto };
 }

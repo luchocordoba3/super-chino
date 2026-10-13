@@ -1,6 +1,6 @@
 ---
 // Kit inicial de un negocio: el kit armado y, con JS, la opción de ajustarlo a medida.
-import { porCodigo, pesos, totalKit, NEGOCIO } from "../lib/catalogo";
+import { porCodigo, pesos, precioMayor, totalKit, NEGOCIO } from "../lib/catalogo";
 import Pictograma from "./Pictograma.astro";
 interface Props { id: string; nivel?: "h2" | "h3" }
 const { id, nivel = "h3" } = Astro.props;
@@ -18,23 +18,26 @@ const Titulo = nivel;
   </header>
 
   <div class="kit-inicial__cuerpo" data-vista="kit">
+    <div class="kit-inicial__lista">
     <ul class="kit-inicial__items">
       {t.lista.map(([cod, n]) => {
         const p = porCodigo.get(cod)!;
         return (
-          <li>
+          <li data-kit-linea={cod} data-n={n}>
             <span class="kit__icono"><Pictograma nombre={p.icono} /></span>
             <span class="kit__cant">{n}×</span>
             <span class="kit-inicial__nombre">{p.titulo}</span>
-            <span class="kit-inicial__sub">{pesos(p.mayorista * n)}</span>
+            <span class="kit-inicial__sub" data-kit-sub>{pesos(precioMayor(p) * n)}</span>
           </li>
         );
       })}
     </ul>
+    {t.faltan.length > 0 && <p class="kit-inicial__faltan">Por ahora no incluye {t.faltan.map((p) => p.titulo).join(", ")}: sin stock.</p>}
+    </div>
     <aside class="kit-inicial__resumen">
-      <p class="kit-inicial__total"><small>Total por mayor</small><strong>{pesos(t.mayor)}</strong></p>
-      <p class="kit-inicial__ahorro">Suelto saldría <s>{pesos(t.suelto)}</s>. <b>Ahorrás {pesos(t.suelto - t.mayor)}.</b></p>
-      <p class="kit-inicial__nota">Pasa el mínimo de {pesos(NEGOCIO.minimoMayorista)}: todo lo que sumes al pedido también va por mayor.</p>
+      <p class="kit-inicial__total"><small>Total por mayor</small><strong data-kit-total>{pesos(t.mayor)}</strong></p>
+      <p class="kit-inicial__ahorro">Suelto saldría <s data-kit-suelto>{pesos(t.suelto)}</s>. <b>Ahorrás <span data-kit-ahorro>{pesos(t.suelto - t.mayor)}</span>.</b></p>
+      <p class="kit-inicial__nota" data-kit-nota>{t.esMayor ? `Pasa el mínimo de ${pesos(NEGOCIO.minimoMayorista)}: todo lo que sumes al pedido también va por mayor.` : `Con lo que hay en stock no llega al mínimo de ${pesos(NEGOCIO.minimoMayorista)}: sumá algo más para el precio por mayor.`}</p>
       <p class="kit-inicial__pregunta">¿Arrancás con este kit o preferís armarlo a tu medida?</p>
       <div class="kit-inicial__acciones">
         <button class="btn btn--cinta" type="button" data-kit={kit.id} data-kit-abrir>Quiero este kit</button>

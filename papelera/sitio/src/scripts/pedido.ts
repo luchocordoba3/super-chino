@@ -1,6 +1,7 @@
 // Pedido compartido por todas las páginas: se guarda en el navegador y se envía por WhatsApp.
+import { hoyAR, preciosOferta } from "../lib/ofertas";
 type Datos = {
-  productos: Record<string, [string, number, number, string, string]>;
+  productos: Record<string, [string, number, number, string, string, string, number, string]>;
   kits: { id: string; rubro: string; items: [string, number][]; extras: string[] }[];
   minimoMayorista: number;
   envioSinCargoDesde: number;
@@ -18,13 +19,24 @@ const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 const CLAVE = "doblehoja-pedido-v1";
 let pedido: Record<string, number> = {};
 try { pedido = JSON.parse(localStorage.getItem(CLAVE) || "{}") || {}; } catch { pedido = {}; }
-for (const c of Object.keys(pedido)) if (!D.productos[c] || !(pedido[c] > 0)) delete pedido[c];
+// Stock y ofertas con la fecha de hoy: una oferta vencida vuelve sola al precio normal aunque la web no se haya vuelto a publicar.
+const HOY = hoyAR();
+const sinStock = (c: string) => D.productos[c]?.[5] === "sin-stock";
+export function precios(c: string): [number, number] {
+  const [, mayorista, minorista, , , , pct, hasta] = D.productos[c];
+  const o = preciosOferta(mayorista, minorista, pct ? { porcentaje: pct, hasta } : null, HOY);
+  return o ? [o.mayorista, o.minorista] : [mayorista, minorista];
+}
+document.querySelectorAll<HTMLElement>("[data-oferta-hasta]").forEach((el) => el.classList.toggle("oferta-vencida", el.dataset.ofertaHasta! < HOY));
+
+for (const c of Object.keys(pedido)) if (!D.productos[c] || !(pedido[c] > 0) || sinStock(c)) delete pedido[c];
 const guardar = () => { try { localStorage.setItem(CLAVE, JSON.stringify(pedido)); } catch { /* sin almacenamiento */ } };
 
 export function calcular() {
   const lineas = Object.entries(pedido).map(([codigo, cant]) => {
-    const [titulo, mayorista, minorista] = D.productos[codigo];
-    return { codigo, cant, titulo, mayorista, minorista };
+    const [titulo, , , , , estado] = D.productos[codigo];
+    const [mayorista, minorista] = precios(codigo);
+    return { codigo, cant, titulo, mayorista, minorista, aPedido: estado === "a-pedido", oferta: mayorista !== D.productos[codigo][1] };
   });
   const subMayor = lineas.reduce((s, l) => s + l.mayorista * l.cant, 0);
   const subSuelto = lineas.reduce((s, l) => s + l.minorista * l.cant, 0);
@@ -72,9 +84,14 @@ const lineaRubro = () => {
 
 // Suma varios artículos de una vez (kits y kits a medida).
 export function agregarVarios(items: [string, number][], etiqueta: string) {
-  items.forEach(([c, n]) => { if (D.productos[c] && n > 0) pedido[c] = Math.min(9999, (pedido[c] || 0) + n); });
+  const faltan: string[] = [];
+  items.forEach(([c, n]) => {
+    if (!D.productos[c] || !(n > 0)) return;
+    if (sinStock(c)) { faltan.push(D.productos[c][0]); return; }
+    pedido[c] = Math.min(9999, (pedido[c] || 0) + n);
+  });
   cambio();
-  avisar(etiqueta);
+  avisar(faltan.length ? `${etiqueta} (sin ${faltan.join(", ")}: no hay stock)` : etiqueta);
 }
 
 const linkWhatsApp = (texto: string) => `https://wa.me/${D.whatsapp || ""}?text=${encodeURIComponent(texto)}`;
@@ -86,7 +103,7 @@ function textoPedido() {
   return [
     `Hola ${D.nombre}! Te paso el pedido N.º ${numero}:`,
     "",
-    ...r.lineas.map((l) => `• ${l.cant} × ${l.titulo} (${l.codigo}) — ${$$(precio(l) * l.cant)}`),
+    ...r.lineas.map((l) => `• ${l.cant} × ${l.titulo} (${l.codigo})${l.aPedido ? " [a pedido]" : ""}${l.oferta ? " [oferta]" : ""} — ${$$(precio(l) * l.cant)}`),
     "",
     `Subtotal (${r.esMayor ? "precio por mayor" : "precio suelto"}): ${$$(r.total)}`,
     `Envío: ${r.envioSinCargo ? "sin cargo" : "a coordinar"}`,
@@ -134,7 +151,7 @@ function pintar() {
   const precio = (l: (typeof r.lineas)[number]) => (r.esMayor ? l.mayorista : l.minorista);
   $("lineas-cuerpo").innerHTML = r.lineas.map((l) => `
     <tr>
-      <td>${esc(l.titulo)}<span class="l-cod">${l.codigo} · ${$$(precio(l))} c/u</span>
+      <td>${esc(l.titulo)}<span class="l-cod">${l.codigo} · ${$$(precio(l))} c/u${l.oferta ? " · oferta" : ""}${l.aPedido ? " · a pedido" : ""}</span>
         <span class="cantidad cantidad--chica" data-cantidad="${l.codigo}"><button type="button" data-paso="-1" aria-label="Uno menos de ${esc(l.titulo)}">−</button><output aria-live="polite">${l.cant}</output><button type="button" data-paso="1" aria-label="Uno más de ${esc(l.titulo)}">+</button></span></td>
       <td class="num">${$$(precio(l) * l.cant)}</td>
       <td><button class="quitar" type="button" data-quitar="${l.codigo}" aria-label="Quitar ${l.codigo}">×</button></td>
@@ -165,6 +182,7 @@ function cambio(animar = true) {
 export function fijar(codigo: string, n: number) {
   if (!D.productos[codigo]) return;
   n = Math.max(0, Math.min(9999, Math.floor(Number(n) || 0)));
+  if (n > 0 && sinStock(codigo)) { avisar(`${D.productos[codigo][0]}: sin stock por ahora`, false); pintar(); return; }
   if (n) pedido[codigo] = n; else delete pedido[codigo];
   cambio();
 }

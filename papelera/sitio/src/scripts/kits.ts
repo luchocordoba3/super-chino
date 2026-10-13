@@ -1,5 +1,5 @@
 // Asistente de kits por negocio y armado de kits a medida.
-import { productos as P, minimoMayorista, calcular, agregarVarios, registrarRubro, abrir } from "./pedido";
+import { productos as P, precios, minimoMayorista, calcular, agregarVarios, registrarRubro, abrir } from "./pedido";
 import { svgPictograma } from "../lib/pictogramas";
 
 type Kit = { id: string; rubro: string; items: [string, number][]; extras: string[] };
@@ -18,25 +18,25 @@ function pintarMedida(bloque: HTMLElement) {
   const kit = KITS.find((k) => k.id === id)!;
   const m = medidas.get(id)!;
   const lineas = [...m].filter(([c]) => P[c]);
-  const mayor = lineas.reduce((s, [c, n]) => s + P[c][1] * n, 0);
+  const mayor = lineas.reduce((s, [c, n]) => s + precios(c)[0] * n, 0);
   const enPedido = calcular().subMayor;
   const conPedido = mayor + enPedido;
   const falta = Math.max(0, minimoMayorista - conPedido);
   const pct = Math.min(100, Math.round((conPedido / minimoMayorista) * 100));
-  const extras = kit.extras.filter((c) => P[c] && !m.has(c));
+  const extras = kit.extras.filter((c) => P[c] && P[c][5] !== "sin-stock" && !m.has(c));
   const cont = bloque.querySelector<HTMLElement>('[data-vista="medida"]')!;
   cont.innerHTML = `
     <div class="medida">
       <ul class="medida__items">
         ${lineas.map(([c, n]) => `<li data-medida-cod="${c}">
           <span class="kit__icono">${ico(P[c][3])}</span>
-          <span class="medida__nombre">${esc(P[c][0])}<small>${$$(P[c][1])} c/u por mayor</small></span>
+          <span class="medida__nombre">${esc(P[c][0])}<small>${$$(precios(c)[0])} c/u por mayor</small></span>
           <span class="cantidad cantidad--chica"><button type="button" data-medida-paso="-1" aria-label="Uno menos">−</button><input type="number" inputmode="numeric" min="0" value="${n}" aria-label="Cantidad de ${esc(P[c][0])}" data-medida-cant><button type="button" data-medida-paso="1" aria-label="Uno más">+</button></span>
-          <span class="kit-inicial__sub">${$$(P[c][1] * n)}</span>
+          <span class="kit-inicial__sub">${$$(precios(c)[0] * n)}</span>
         </li>`).join("") || `<li class="medida__vacio">Sacaste todo. Sumá artículos de abajo o volvé al kit inicial.</li>`}
       </ul>
       ${extras.length ? `<div class="medida__extras"><p class="sobretitulo">Para tu negocio también suelen llevar</p><ul>
-        ${extras.map((c) => `<li><span class="kit__icono">${ico(P[c][3])}</span><span class="medida__nombre">${esc(P[c][0])}<small>${$$(P[c][1])} por mayor</small></span><button class="btn-texto" type="button" data-medida-sumar="${c}">+ Sumar</button></li>`).join("")}
+        ${extras.map((c) => `<li><span class="kit__icono">${ico(P[c][3])}</span><span class="medida__nombre">${esc(P[c][0])}<small>${$$(precios(c)[0])} por mayor</small></span><button class="btn-texto" type="button" data-medida-sumar="${c}">+ Sumar</button></li>`).join("")}
       </ul></div>` : ""}
     </div>
     <aside class="kit-inicial__resumen">
@@ -59,7 +59,7 @@ function vista(bloque: HTMLElement, cual: "kit" | "medida") {
 function abrirMedida(bloque: HTMLElement) {
   const id = bloque.dataset.kitInicial!;
   const kit = KITS.find((k) => k.id === id)!;
-  medidas.set(id, new Map(kit.items));
+  medidas.set(id, new Map(kit.items.filter(([c]) => P[c] && P[c][5] !== "sin-stock")));
   registrarRubro(id);
   pintarMedida(bloque);
   vista(bloque, "medida");
@@ -71,6 +71,21 @@ function cambiarCant(bloque: HTMLElement, cod: string, n: number) {
   if (n) m.set(cod, n); else m.delete(cod);
   pintarMedida(bloque);
 }
+
+// Los totales del kit se recalculan con los precios del día (por si venció una oferta desde la última publicación).
+function refrescarKit(bloque: HTMLElement) {
+  let mayor = 0, suelto = 0;
+  bloque.querySelectorAll<HTMLElement>("[data-kit-linea]").forEach((li) => {
+    const [m, s] = precios(li.dataset.kitLinea!);
+    const n = Number(li.dataset.n);
+    mayor += m * n; suelto += s * n;
+    li.querySelector("[data-kit-sub]")!.textContent = $$(m * n);
+  });
+  bloque.querySelector("[data-kit-total]")!.textContent = $$(mayor);
+  bloque.querySelector("[data-kit-suelto]")!.textContent = $$(suelto);
+  bloque.querySelector("[data-kit-ahorro]")!.textContent = $$(suelto - mayor);
+}
+document.querySelectorAll<HTMLElement>("[data-kit-inicial]").forEach(refrescarKit);
 
 // ---------- Asistente: ¿tenés negocio? ¿cuál? ----------
 const asistente = document.querySelector<HTMLElement>("[data-asistente]");

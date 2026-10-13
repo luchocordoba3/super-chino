@@ -3,7 +3,7 @@ import Base from "../layouts/Base.astro";
 import Pictograma from "../components/Pictograma.astro";
 import TarjetaProducto from "../components/TarjetaProducto.astro";
 import Renglon from "../components/Renglon.astro";
-import { NEGOCIO, PRODUCTOS, RUBROS, pesos, ruta } from "../lib/catalogo";
+import { NEGOCIO, OFERTAS, PRODUCTOS, RUBROS, pesos, ruta, ultimaOferta } from "../lib/catalogo";
 const grupos = RUBROS.map((r) => ({ ...r, productos: PRODUCTOS.filter((p) => p.rubroId === r.id) }));
 ---
 <Base titulo="Lista de precios" camino="lista" seccion="lista" descripcion={`Lista de precios por mayor de ${PRODUCTOS.length} artículos de limpieza, bolsas, papel, descartables y embalaje. Reparto propio en ${NEGOCIO.zona}.`}>
@@ -32,6 +32,7 @@ const grupos = RUBROS.map((r) => ({ ...r, productos: PRODUCTOS.filter((p) => p.r
           </div>
           <div class="chips" role="group" aria-label="Filtrar por rubro">
             <button class="chip chip--todo" type="button" data-filtro="" aria-pressed="true">Todo <span>{PRODUCTOS.length}</span></button>
+            {OFERTAS.length > 0 && <button class="chip chip--oferta" type="button" data-filtro="ofertas" aria-pressed="false" data-oferta-hasta={ultimaOferta}>Ofertas <span>{OFERTAS.length}</span></button>}
             {grupos.map((g) => (
               <button class="chip" type="button" data-filtro={g.id} aria-pressed="false"><span class="chip__icono"><Pictograma nombre={g.icono} /></span>{g.corto} <span>{g.productos.length}</span></button>
             ))}
@@ -88,7 +89,7 @@ const grupos = RUBROS.map((r) => ({ ...r, productos: PRODUCTOS.filter((p) => p.r
 
 <script>
   const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-  const items = [...document.querySelectorAll<HTMLElement>("[data-buscar]")].map((el) => ({ el, txt: norm(el.dataset.buscar!), rubro: el.dataset.rubro! }));
+  const items = [...document.querySelectorAll<HTMLElement>("[data-buscar]")].map((el) => ({ el, txt: norm(el.dataset.buscar!), rubro: el.dataset.rubro!, oferta: () => Boolean(el.dataset.ofertaHasta) && !el.classList.contains("oferta-vencida") }));
   const grupos = [...document.querySelectorAll<HTMLElement>("[data-grupo]")];
   const chips = [...document.querySelectorAll<HTMLButtonElement>("[data-filtro]")];
   const buscar = document.getElementById("buscar") as HTMLInputElement;
@@ -98,7 +99,7 @@ const grupos = RUBROS.map((r) => ({ ...r, productos: PRODUCTOS.filter((p) => p.r
     const q = norm(buscar.value.trim()).split(/\s+/).filter(Boolean);
     let visibles = 0;
     for (const it of items) {
-      const ok = (!rubro || it.rubro === rubro) && q.every((t) => it.txt.includes(t));
+      const ok = (!rubro || (rubro === "ofertas" ? it.oferta() : it.rubro === rubro)) && q.every((t) => it.txt.includes(t));
       it.el.hidden = !ok;
       if (ok) visibles++;
     }

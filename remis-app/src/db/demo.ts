@@ -1,12 +1,14 @@
 import { defaultCheckItems } from '../domain/checks';
-import { addDays, addMonths, dayKey, startOfWeek } from '../domain/dates';
+import { addDays, addMonths, dayKey } from '../domain/dates';
 import { DOC_TYPES, defaultDocTypes } from '../domain/documents';
 import { defaultItems } from '../domain/maintenance';
+import { newInstallId } from '../domain/license';
+import { platformsFrom } from '../domain/platforms';
 import { settlePeriod } from '../domain/settlement';
-import { db, newId } from './db';
+import { SELLER_TABLES, db, newId } from './db';
 import type { CheckRun, DocumentRec, Expense, FuelLevel, FuelLoad, Income, Incident, ServiceLog, Settings, Settlement, Shift, Vehicle } from './types';
 
-/** Datos de ejemplo (6 semanas de un remis compartido y un segundo auto con chofer) para ver la app funcionando. Reemplaza todo. */
+/** Datos de ejemplo (6 semanas de un chofer de Uber, DiDi e inDrive con el auto compartido, y un segundo auto con chofer). Reemplaza todo menos lo del vendedor. */
 export async function loadDemo(now = new Date()) {
   let seed = 7;
   const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
@@ -18,7 +20,6 @@ export async function loadDemo(now = new Date()) {
     return d.toISOString();
   };
   const today = dayKey(now);
-  const thisWeek = startOfWeek(today);
 
   const DAYS = 42;
   const vehicleId = newId();
@@ -70,19 +71,30 @@ export async function loadDemo(now = new Date()) {
     }
     if (dow === 6) expenses.push({ id: newId(), vehicleId, at: at(ago, 15, 10), category: 'lavado', amount: 6000 });
     if (rnd() < 0.5) expenses.push({ id: newId(), vehicleId, at: at(ago, 13, 0), category: 'comida', amount: int(70, 95) * 100 });
-    if (dow === 1 && dayKey(day) < thisWeek) expenses.push({ id: newId(), vehicleId, at: at(ago, 7, 0), category: 'agencia', amount: 80_000, note: 'Base semanal' });
+    if (day.getDate() === 12) expenses.push({ id: newId(), vehicleId, at: at(ago, 11, 0), category: 'monotributo', amount: 84_613, note: 'Categoría D' });
     if (ago === 30) expenses.push({ id: newId(), vehicleId, at: at(ago, 12, 0), category: 'celular', amount: 15_000 });
-    const gross = int(1050, 1650) * 100;
-    incomes.push({
-      id: newId(),
-      vehicleId,
-      at: s.endAt!,
-      shiftId: s.id,
-      gross,
-      trips: int(12, 21),
-      cash: Math.round((gross * int(35, 60)) / 100 / 100) * 100,
-      tips: rnd() < 0.3 ? int(1, 4) * 1000 : 0,
-      agencyFee: 0,
+    // Lo del día repartido en las apps (lo que cada una muestra como ganancia); los viernes y sábados rinden más.
+    const gross = int(1050, 1650) * 100 * (dow === 5 || dow === 6 ? 1.15 : 1);
+    const split = [
+      { platform: 'uber' as const, share: int(45, 60) / 100 },
+      { platform: 'didi' as const, share: int(25, 35) / 100 },
+    ];
+    const rest = 1 - split[0].share - split[1].share;
+    const trips = int(12, 21);
+    [...split, { platform: 'indrive' as const, share: rest }].forEach((x, i) => {
+      const g = Math.round((gross * x.share) / 100) * 100;
+      if (g <= 0) return;
+      incomes.push({
+        id: newId(),
+        vehicleId,
+        at: s.endAt!,
+        shiftId: s.id,
+        platform: x.platform,
+        gross: g,
+        trips: Math.max(1, Math.round(trips * x.share)),
+        ...(i === 0 ? { cash: Math.round((gross * int(15, 30)) / 100 / 100) * 100, tips: rnd() < 0.3 ? int(1, 4) * 1000 : 0 } : {}),
+        agencyFee: 0,
+      });
     });
     km += driven;
   }
@@ -204,10 +216,25 @@ export async function loadDemo(now = new Date()) {
     { id: newId(), vehicleId: car2.id, at: at(24, 11), category: 'patente', amount: 52_000 },
   ];
 
-  const settings: Settings = { id: 'main', vehicleId, agency: { mode: 'fixed', amount: 80_000, period: 'week' }, tolls, theme: 'auto', lastBackupAt: at(3, 21) };
+  // Se mantienen el código del celular, la prueba y el código de activación de quien la está usando.
+  const prev = await db.settings.get('main');
+  const settings: Settings = {
+    id: 'main',
+    vehicleId,
+    agency: { mode: 'none' },
+    tolls,
+    theme: prev?.theme ?? 'auto',
+    lastBackupAt: at(3, 21),
+    platforms: platformsFrom(['uber', 'didi', 'indrive']),
+    goal: { day: 90_000, week: 500_000 },
+    monotributo: { cat: 'D', monthly: 84_613, limit: 30_628_651 },
+    installId: prev?.installId ?? newInstallId(),
+    trialStart: prev?.trialStart ?? new Date().toISOString(),
+    license: prev?.license,
+  };
 
   await db.transaction('rw', db.tables, async () => {
-    for (const t of db.tables) await t.clear();
+    for (const t of db.tables) if (!SELLER_TABLES.includes(t.name)) await t.clear();
     await db.vehicles.bulkAdd([vehicle, car2]);
     await db.shifts.bulkAdd(shifts);
     await db.fuel.bulkAdd(fuel);

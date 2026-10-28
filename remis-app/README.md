@@ -1,11 +1,30 @@
-# 🚕 Mi Remis
+# 🚕 Rinde (antes Mi Remis)
 
-App para el chofer de remis. Lleva la cuenta de los km, avisa cuándo toca el service, anota combustible, peajes y gastos, y muestra lo que ganás de verdad.
+App para choferes de **Uber, DiDi, Cabify, inDrive y remis**. Lleva la cuenta de los km, avisa cuándo toca el service y cuándo vencen los papeles, anota combustible, peajes y gastos, y muestra lo que ganás de verdad. El nombre se cambia en `src/brand.ts`.
+
+**Para venderla** (prueba de 14 días, plan mensual o anual, cobro por transferencia con código de activación): ver [docs/vender.md](docs/vender.md).
 
 Es una app web que se instala en el celular (PWA). Funciona **sin internet** y los datos quedan **guardados en el teléfono**: no hay servidor, no hay usuario y no cuesta nada mantenerla.
 
 ## Qué hace
 
+- **Choferes de apps:**
+  - elegís con qué manejás (Uber, DiDi, Cabify, inDrive, viajes particulares o agencia);
+  - al terminar el turno anotás lo que hiciste en cada una, en neto o en bruto con la comisión;
+  - el Resumen muestra **cuánto te dejó cada app** y tus **mejores días** ($ por hora según el día de la semana).
+- **¿Me conviene este viaje?:**
+  - ponés lo que te pagan, los km hasta el pasajero y del viaje (y los minutos, si querés);
+  - te dice cuánto te queda después de nafta y desgaste, por km y por hora, y si conviene;
+  - el costo por km sale de tus datos o lo cargás a mano.
+- **Meta del día y de la semana:** "te faltan $ X, a tu ritmo unas N horas".
+- **Auto alquilado:** cuánto y cada cuánto pagás, con el botón "Pagué el alquiler".
+- **Monotributo:**
+  - la categoría con su cuota y su tope (valores de agosto 2026, que se pueden editar);
+  - aviso de que vence el 20, de la recategorización y de cuándo te acercás al tope.
+- **Plan y códigos** (si se configuró la venta):
+  - 14 días de prueba;
+  - después, plan mensual o anual activado con un código que te manda el vendedor;
+  - con el plan vencido se puede ver todo y hacer la copia, pero no anotar cosas nuevas.
 - **Turnos y km por día:** tocás "Empezar turno" y "Terminar turno" con el km del odómetro. La app calcula los km del día, las horas y tu ritmo (km por día).
 - **Auto compartido (chofer de día y de noche):**
   - al recibir y al entregar el auto anotás el nivel de combustible, fotos y detalles;
@@ -47,7 +66,7 @@ Es una app web que se instala en el celular (PWA). Funciona **sin internet** y l
 - **Copia de seguridad:** un archivo con todo (fotos incluidas) que podés mandar a tu WhatsApp o a Drive, y restaurar en otro celular.
 - **Modo oscuro** para la noche, botones grandes y teclado numérico.
 
-> Para probarla sin cargar nada: en la pantalla de bienvenida tocá **"Primero quiero verla con datos de ejemplo"**. Trae 6 semanas de un remis compartido y un segundo auto con chofer. Después la borrás en Ajustes → Borrar todo.
+> Para probarla sin cargar nada: en la pantalla de bienvenida tocá **"Primero quiero verla con datos de ejemplo"**. Trae 6 semanas de un chofer de Uber, DiDi e inDrive y un segundo auto con chofer. Después la borrás en Ajustes → Borrar todo.
 
 ## Instalarla en el celular
 
@@ -65,13 +84,15 @@ pnpm install
 pnpm dev          # http://localhost:5174
 pnpm test         # cálculos, base de datos y copia de seguridad (Vitest)
 pnpm typecheck
-pnpm e2e          # compila y recorre la app en Chromium (Playwright)
+pnpm e2e          # compila con .env.e2e (clave de prueba) y recorre la app en Chromium (Playwright)
 pnpm icons        # regenera los PNG de los íconos desde public/icon.svg
 ```
 
 - **Tecnología:** React 19, Vite, TypeScript, `vite-plugin-pwa`, y Dexie para guardar en IndexedDB. Es el mismo estilo que Super Chino, pero sin servidor.
 - **Estructura:**
-  - `src/domain/`: todos los cálculos, sin pantallas y con pruebas (km, mantenimiento, papeles, combustible, plata, avisos);
+  - `src/domain/`: todos los cálculos, sin pantallas y con pruebas (km, mantenimiento, papeles, combustible, plata, avisos, apps, viaje, monotributo, códigos de activación y ventas);
+  - `src/config.ts` y `src/brand.ts`: lo que se configura al publicar (variables `VITE_*`) y el nombre;
+  - `src/pages/Seller.tsx`: el panel del vendedor (`/vendedor`);
   - `src/db/`: la base del celular, la copia de seguridad y los datos de ejemplo;
   - `src/pages/` y `src/components/`: las pantallas.
 
@@ -91,7 +112,7 @@ Si más adelante la pasás a su propio repositorio, el `render.yaml` de esta car
 
 ## Ideas para más adelante
 
-- **Para choferes de aplicaciones (Uber, DiDi, Cabify):** ingresos por plataforma con su comisión, y el alquiler del auto por día o por semana. Para venderla hacen falta cuentas de usuario y cobro (con un servidor).
+- **Cobro automático** con Mercado Pago, página de venta y textos legales: ver "Cuando se venda bien" en [docs/vender.md](docs/vender.md).
 - **Km automáticos por GPS:** necesita una app nativa (Capacitor), porque una web no puede seguirte con la pantalla apagada.
 - **Varios choferes o la agencia entera,** con usuarios y los datos en un servidor, como Super Chino.
 - **Leer el ticket de la carga con una foto (IA),** para no tipear litros y montos.

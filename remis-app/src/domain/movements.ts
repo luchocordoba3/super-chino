@@ -3,6 +3,7 @@ import { dayKey, fromDayKey, inRange } from './dates';
 import { FUEL_LABEL, FUEL_UNIT } from './fuel';
 import { shiftKm } from './km';
 import { EXPENSE_LABEL, EXPENSE_ONE } from './money';
+import { PLATFORM_LABEL, incomePlatform } from './platforms';
 import { rangeText, settle } from './settlement';
 
 export type MovementKind = 'shift' | 'fuel' | 'expense' | 'income' | 'service' | 'settlement';
@@ -58,8 +59,9 @@ export function movements(d: {
   for (const e of d.expenses)
     out.push({ kind: 'expense', id: e.id, at: e.at, title: EXPENSE_ONE[e.category] ?? EXPENSE_LABEL[e.category], detail: e.note, amount: -e.amount });
   for (const i of d.incomes) {
-    const extra = [i.trips ? `${i.trips} viajes` : '', i.tips ? `propinas ${nf.format(i.tips)}` : '', i.agencyFee ? `agencia −${nf.format(i.agencyFee)}` : ''];
-    out.push({ kind: 'income', id: i.id, at: i.at, title: 'Recaudación', detail: extra.filter(Boolean).join(' · ') || i.note, amount: i.gross + (i.tips ?? 0) - i.agencyFee });
+    const p = incomePlatform(i);
+    const extra = [i.trips ? `${i.trips} viajes` : '', i.tips ? `propinas ${nf.format(i.tips)}` : '', i.agencyFee ? `${p === 'agencia' ? 'agencia' : 'comisión'} −${nf.format(i.agencyFee)}` : ''];
+    out.push({ kind: 'income', id: i.id, at: i.at, title: p === 'agencia' ? 'Recaudación' : PLATFORM_LABEL[p], detail: extra.filter(Boolean).join(' · ') || i.note, amount: i.gross + (i.tips ?? 0) - i.agencyFee });
   }
   const names = new Map(d.items.map((i) => [i.id, i.name]));
   for (const s of d.services)

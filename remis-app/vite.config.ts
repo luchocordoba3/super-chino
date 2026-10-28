@@ -2,6 +2,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import { BRAND } from './src/brand';
 
 export default defineConfig({
   plugins: [
@@ -15,9 +16,9 @@ export default defineConfig({
         skipWaiting: true,
       },
       manifest: {
-        name: 'Mi Remis',
-        short_name: 'Mi Remis',
-        description: 'Km, mantenimiento, combustible, peajes y ganancias del remis. Funciona sin internet.',
+        name: BRAND.name,
+        short_name: BRAND.name,
+        description: BRAND.description,
         lang: 'es-AR',
         start_url: '/',
         display: 'standalone',

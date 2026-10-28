@@ -6,7 +6,11 @@ import { db } from './db';
 import { loadDemo } from './demo';
 import { addVehicle, loadAll, removeRecord, removeVehicle, setup, wipeAll } from './repo';
 
-beforeEach(() => wipeAll());
+beforeEach(async () => {
+  await wipeAll();
+  await db.seller.clear();
+  await db.sales.clear();
+});
 
 describe('datos en el celular', () => {
   it('la primera vez arma el plan, los papeles y el checklist', async () => {
@@ -114,6 +118,30 @@ describe('datos en el celular', () => {
     const d = (await loadAll())!;
     expect(d.vehicle.plate).toBe('AB 123 CD');
     expect(d.others[0].settlements).toEqual([]);
-    await expect(importBackup(JSON.stringify({ ...v2, version: 3 }))).rejects.toThrow(/más nueva/);
+    await expect(importBackup(JSON.stringify({ ...v2, version: 4 }))).rejects.toThrow(/más nueva/);
+  });
+
+  it('la clave y las ventas del vendedor no se borran con "Borrar todo", el ejemplo ni una copia sin ellas', async () => {
+    await loadDemo(new Date(2026, 9, 28, 12));
+    await db.settings.update('main', { license: 'codigo', installId: 'K7P29QXM' });
+    await db.seller.put({ id: 'main', privateJwk: { kty: 'EC', d: 'x' }, publicKey: 'pub', createdAt: '' });
+    await db.sales.add({ id: 's1', at: '2026-10-28T12:00:00.000Z', plan: 'anual', starts: '2026-10-28', expires: '2027-10-27', amount: 20_000, code: 'c' });
+    const json = await exportBackup(false);
+    expect(JSON.parse(json).tables.sales).toHaveLength(1);
+    // Cargar el ejemplo de nuevo mantiene el código del celular y el código de activación.
+    await loadDemo(new Date(2026, 9, 28, 12));
+    expect((await db.settings.get('main'))!).toMatchObject({ license: 'codigo', installId: 'K7P29QXM' });
+    await wipeAll();
+    expect(await loadAll()).toBeNull();
+    expect(await db.seller.count()).toBe(1);
+    expect(await db.sales.count()).toBe(1);
+    // Una copia sin clave de vendedor (de otro celular) no la borra.
+    const other = JSON.parse(json);
+    other.tables.seller = [];
+    other.tables.sales = [];
+    await importBackup(JSON.stringify(other));
+    expect(await db.seller.count()).toBe(1);
+    expect(await db.sales.count()).toBe(1);
+    expect((await loadAll())!.settings.platforms?.filter((p) => p.on).map((p) => p.id)).toEqual(['uber', 'didi', 'indrive']);
   });
 });

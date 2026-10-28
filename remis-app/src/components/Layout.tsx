@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { BRAND } from '../brand';
 import { saveSettings } from '../db/repo';
+import { BuyHost } from './access';
 import { isChofer } from '../domain/settlement';
 import { useData } from '../lib/data';
 import { kmFmt } from '../lib/format';
@@ -29,7 +31,7 @@ export function Layout() {
       <header className="topbar">
         <div className="brand">
           <img src="/icon.svg" alt="" />
-          Mi Remis
+          {BRAND.name}
         </div>
         <button type="button" className="topkm" onClick={() => setCars(true)} aria-label={`${d.vehicle.plate || d.vehicle.name}, ${kmFmt(d.km)}. Cambiar de auto`}>
           <span>
@@ -55,6 +57,7 @@ export function Layout() {
           </NavLink>
         ))}
       </nav>
+      <BuyHost />
       {cars && (
         <Sheet title="Tus autos" onClose={() => setCars(false)}>
           <div className="list">

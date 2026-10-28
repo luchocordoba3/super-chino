@@ -1,7 +1,7 @@
 import { defaultCheckItems } from '../domain/checks';
 import { defaultDocTypes, DOC_TYPES } from '../domain/documents';
 import { defaultItems } from '../domain/maintenance';
-import { db, newId, type TableName } from './db';
+import { SELLER_TABLES, db, newId, type TableName } from './db';
 import type {
   AgencyConfig,
   CheckItem,
@@ -116,10 +116,12 @@ export interface VehicleInput {
 
 export interface SetupInput extends VehicleInput {
   agency: AgencyConfig;
+  /** Lo demás de la primera vez: apps, meta, monotributo, código del celular, prueba y código de activación. */
+  extra?: Partial<Omit<Settings, 'id' | 'vehicleId' | 'agency'>>;
 }
 
 /** Suma un auto con su plan de mantenimiento, sus papeles y el checklist (si no había), y lo deja como auto activo. */
-export async function addVehicle(input: VehicleInput, agency?: AgencyConfig): Promise<string> {
+export async function addVehicle(input: VehicleInput, first?: Pick<SetupInput, 'agency' | 'extra'>): Promise<string> {
   const vehicle: Vehicle = { ...input.vehicle, id: newId(), createdAt: new Date().toISOString() };
   const items = defaultItems(vehicle.id, vehicle.fuels, newId);
   if (input.oil && (input.oil.km != null || input.oil.date)) {
@@ -140,19 +142,20 @@ export async function addVehicle(input: VehicleInput, agency?: AgencyConfig): Pr
     if ((await db.checkItems.count()) === 0) await db.checkItems.bulkAdd(defaultCheckItems(newId));
     const prev = await db.settings.get('main');
     await db.settings.put({
+      ...prev,
+      ...first?.extra,
       id: 'main',
       vehicleId: vehicle.id,
-      agency: agency ?? prev?.agency ?? { mode: 'none' },
+      agency: first?.agency ?? prev?.agency ?? { mode: 'none' },
       tolls: prev?.tolls ?? [],
       theme: prev?.theme ?? 'auto',
-      lastBackupAt: prev?.lastBackupAt,
     });
   });
   return vehicle.id;
 }
 
-/** Primera vez: el auto, el plan de mantenimiento, los papeles, el checklist y cómo le pagás a la agencia. */
-export const setup = (input: SetupInput) => addVehicle(input, input.agency);
+/** Primera vez: el auto, el plan de mantenimiento, los papeles, el checklist y cómo trabajás. */
+export const setup = (input: SetupInput) => addVehicle(input, input);
 
 /** Borra un auto con todo lo suyo (fotos incluidas). Si era el activo, pasa al siguiente. */
 export async function removeVehicle(id: string) {
@@ -172,10 +175,10 @@ export async function removeVehicle(id: string) {
   });
 }
 
-/** Borra todos los datos del celular. */
+/** Borra todos los datos del celular (menos la clave y las ventas del vendedor). */
 export async function wipeAll() {
   await db.transaction('rw', db.tables, async () => {
-    for (const t of db.tables) await t.clear();
+    for (const t of db.tables) if (!SELLER_TABLES.includes(t.name)) await t.clear();
   });
 }
 

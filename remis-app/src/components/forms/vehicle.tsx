@@ -1,10 +1,10 @@
-import type { DocType, Driver, FuelType, SettlePeriod } from '../../db/types';
+import type { AgencyPeriod, DocType, Driver, FuelType, SettlePeriod } from '../../db/types';
 import type { VehicleInput } from '../../db/repo';
 import { DOC_TYPES, defaultDocTypes } from '../../domain/documents';
 import { FUEL_LABEL } from '../../domain/fuel';
 import { SETTLE_LABEL } from '../../domain/settlement';
 import { parseKm, parseNum } from '../../lib/format';
-import { Field, KmField, QtyField, Seg } from '../ui';
+import { Field, KmField, MoneyField, QtyField, Seg } from '../ui';
 
 // Formulario de un auto: lo usan la bienvenida y "Agregar otro auto".
 
@@ -18,7 +18,13 @@ export interface DriverForm {
   period: SettlePeriod;
 }
 
-export interface CarForm extends DriverForm {
+export interface RentForm {
+  rented: boolean;
+  rentAmount: string;
+  rentPeriod: AgencyPeriod;
+}
+
+export interface CarForm extends DriverForm, RentForm {
   name: string;
   plate: string;
   year: string;
@@ -44,7 +50,46 @@ export const emptyCar = (): CarForm => ({
   choferName: '',
   percent: '50',
   period: 'quincena',
+  rented: false,
+  rentAmount: '',
+  rentPeriod: 'week',
 });
+
+/** El alquiler del auto, listo para guardar. Devuelve un texto si falta algo. */
+export function rentFrom(f: RentForm) {
+  if (!f.rented) return undefined;
+  const amount = parseNum(f.rentAmount);
+  return amount && amount > 0 ? { amount, period: f.rentPeriod } : 'Poné cuánto pagás de alquiler';
+}
+
+/** ¿El auto es tuyo o alquilado? Si es alquilado, cuánto y cada cuánto. */
+export function RentFields({ form, set }: { form: RentForm; set: (patch: Partial<RentForm>) => void }) {
+  return (
+    <>
+      <Seg
+        label="El auto es"
+        options={[
+          { id: 'own', label: 'Mío' },
+          { id: 'rent', label: 'Alquilado' },
+        ]}
+        value={form.rented ? 'rent' : 'own'}
+        onChange={(v) => set({ rented: v === 'rent' })}
+      />
+      {form.rented && (
+        <div className="grid2">
+          <MoneyField label="Alquiler" value={form.rentAmount} onChange={(rentAmount) => set({ rentAmount })} />
+          <Field label="Cada">
+            <select value={form.rentPeriod} onChange={(e) => set({ rentPeriod: e.target.value as AgencyPeriod })}>
+              <option value="day">Día</option>
+              <option value="week">Semana</option>
+              <option value="month">Mes</option>
+            </select>
+          </Field>
+        </div>
+      )}
+    </>
+  );
+}
 
 /** Quién lo maneja, listo para guardar en el auto. Devuelve un texto si falta algo. */
 export function driverFrom(f: DriverForm) {
@@ -61,6 +106,8 @@ export function carInput(f: CarForm): VehicleInput | string {
   if (!f.fuels.length) return 'Elegí al menos un combustible';
   const who = driverFrom(f);
   if (typeof who === 'string') return who;
+  const rent = who.driver === 'me' ? rentFrom(f) : undefined;
+  if (typeof rent === 'string') return rent;
   const docTypes = docTypesFor(f.fuels);
   return {
     vehicle: {
@@ -71,6 +118,7 @@ export function carInput(f: CarForm): VehicleInput | string {
       initialKm: km,
       shared: who.driver === 'me' && f.shared,
       ...who,
+      ...(rent ? { rent } : {}),
     },
     oil: { km: parseKm(f.oilKm) ?? undefined, date: f.oilDate || undefined },
     docs: Object.fromEntries(Object.entries(f.docs).filter(([t]) => docTypes.includes(t as DocType))),
@@ -152,10 +200,13 @@ export function CarSections({ form, set, title = 'Tu auto', withDriver }: { form
         <KmField label="Km que marca hoy el odómetro" value={form.km} onChange={(km) => set({ km })} big />
         {withDriver && <DriverFields form={form} set={set} />}
         {form.driver === 'me' && (
-          <label className="check">
-            <input type="checkbox" checked={form.shared} onChange={(e) => set({ shared: e.target.checked })} />
-            Lo comparto con otro chofer (día y noche)
-          </label>
+          <>
+            <RentFields form={form} set={set} />
+            <label className="check">
+              <input type="checkbox" checked={form.shared} onChange={(e) => set({ shared: e.target.checked })} />
+              Lo comparto con otro chofer (día y noche)
+            </label>
+          </>
         )}
       </section>
 

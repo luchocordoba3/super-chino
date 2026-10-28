@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { db, newId } from '../../db/db';
 import { removeRecord } from '../../db/repo';
-import type { FuelLevel, Shift } from '../../db/types';
+import type { FuelLevel, Income, PlatformId, Shift } from '../../db/types';
 import { fromLocalInput, toLocalInput } from '../../domain/dates';
 import { kmWarning, shiftKm } from '../../domain/km';
-import { agencyFeeFor } from '../../domain/money';
+import { PLATFORM_LABEL, activePlatforms, feeFor, feePercent } from '../../domain/platforms';
 import { useData } from '../../lib/data';
 import { kmFmt, money, parseKm, parseNum } from '../../lib/format';
 import { PhotoPicker, usePhotos } from '../photos';
@@ -77,19 +77,29 @@ export function ShiftStartSheet({ onClose, onStarted }: { onClose: () => void; o
   );
 }
 
+/** Texto de lo que se lleva la agencia o la app ("La agencia se lleva $ 24.000 (20%)."). */
+export function feeHint(id: PlatformId, fee: number, pct?: number) {
+  if (!fee) return undefined;
+  return `${id === 'agencia' ? 'La agencia' : PLATFORM_LABEL[id]} se lleva ${money(fee)}${pct ? ` (${pct}%)` : ''}.`;
+}
+
+export const grossLabel = (id: PlatformId) => (id === 'agencia' ? 'Recaudado en viajes' : id === 'particular' ? 'Viajes particulares' : `Lo que hiciste en ${PLATFORM_LABEL[id]}`);
+
 export function ShiftEndSheet({ shift, onClose }: { shift: Shift; onClose: () => void }) {
   const d = useData();
   const [km, setKm] = useState(kmStr(Math.max(d.km, shift.startKm)));
   const [fuel, setFuel] = useState<FuelLevel>();
   const [note, setNote] = useState('');
-  const [gross, setGross] = useState('');
-  const [trips, setTrips] = useState('');
+  const [gross, setGross] = useState<Partial<Record<PlatformId, string>>>({});
+  const [trips, setTrips] = useState<Partial<Record<PlatformId, string>>>({});
   const [cash, setCash] = useState('');
   const [tips, setTips] = useState('');
   const photos = usePhotos();
   const n = parseKm(km);
-  const g = parseNum(gross) ?? 0;
-  const fee = agencyFeeFor(g, d.settings.agency);
+  const active = activePlatforms(d.settings);
+  const plats = active.length ? active.map((p) => p.id) : (['agencia'] as PlatformId[]);
+  const one = plats.length === 1;
+  const g = (id: PlatformId) => parseNum(gross[id] ?? '') ?? 0;
   const cancel = () => {
     void photos.cancel();
     onClose();
@@ -99,6 +109,22 @@ export function ShiftEndSheet({ shift, onClose }: { shift: Shift; onClose: () =>
     if (n < shift.startKm) return toast(`No puede ser menos que al empezar (${kmFmt(shift.startKm)})`);
     await photos.commit();
     const endAt = new Date().toISOString();
+    const t = parseNum(tips) ?? 0;
+    // Un ingreso por app; las propinas y el efectivo van con el primero.
+    const incomes: Income[] = plats
+      .filter((id) => g(id) > 0)
+      .map((id) => ({
+        id: newId(),
+        vehicleId: d.vehicle.id,
+        at: endAt,
+        shiftId: shift.id,
+        platform: id,
+        gross: g(id),
+        trips: parseNum(trips[id] ?? '') ?? undefined,
+        agencyFee: feeFor(id, g(id), d.settings),
+      }));
+    if (!incomes.length && t > 0) incomes.push({ id: newId(), vehicleId: d.vehicle.id, at: endAt, shiftId: shift.id, platform: plats[0], gross: 0, agencyFee: 0 });
+    if (incomes.length) Object.assign(incomes[0], { tips: t || undefined, cash: parseNum(cash) ?? undefined });
     await db.transaction('rw', db.shifts, db.incomes, async () => {
       await db.shifts.update(shift.id, {
         endAt,
@@ -107,35 +133,40 @@ export function ShiftEndSheet({ shift, onClose }: { shift: Shift; onClose: () =>
         endPhotos: photos.ids.length ? photos.ids : undefined,
         endNote: note.trim() || undefined,
       });
-      const t = parseNum(tips) ?? 0;
-      if (g > 0 || t > 0)
-        await db.incomes.add({
-          id: newId(),
-          vehicleId: d.vehicle.id,
-          at: endAt,
-          shiftId: shift.id,
-          gross: g,
-          trips: parseNum(trips) ?? undefined,
-          cash: parseNum(cash) ?? undefined,
-          tips: t || undefined,
-          agencyFee: fee,
-        });
+      if (incomes.length) await db.incomes.bulkAdd(incomes);
     });
     toast(`Turno terminado: ${kmFmt(n - shift.startKm)}`);
     onClose();
   };
+  const tripsField = (id: PlatformId, label: string) => (
+    <Field label={label}>
+      <input inputMode="numeric" value={trips[id] ?? ''} onChange={(e) => setTrips((x) => ({ ...x, [id]: e.target.value.replace(/\D/g, '') }))} placeholder="0" />
+    </Field>
+  );
   return (
     <Sheet title="Terminar turno" onClose={cancel} footer={<SaveBar onSave={save} label="Terminar" />}>
       <KmField label="Km del odómetro" value={km} onChange={setKm} big hint={n != null && n >= shift.startKm ? `Hiciste ${kmFmt(n - shift.startKm)} en este turno.` : undefined} />
       {n != null && n < shift.startKm && <p className="error-text">Arrancaste con {kmFmt(shift.startKm)}: revisá el número.</p>}
       <h3>¿Cuánto hiciste?</h3>
-      <MoneyField label="Recaudado en viajes" value={gross} onChange={setGross} hint={fee ? `La agencia se lleva ${money(fee)} (${d.settings.agency.percent}%).` : undefined} />
-      <div className="grid2">
-        <Field label="Viajes">
-          <input inputMode="numeric" value={trips} onChange={(e) => setTrips(e.target.value.replace(/\D/g, ''))} placeholder="0" />
-        </Field>
-        <MoneyField label="Propinas" value={tips} onChange={setTips} />
-      </div>
+      {one ? (
+        <>
+          <MoneyField label={grossLabel(plats[0])} value={gross[plats[0]] ?? ''} onChange={(v) => setGross({ [plats[0]]: v })} hint={feeHint(plats[0], feeFor(plats[0], g(plats[0]), d.settings), feePercent(plats[0], d.settings))} />
+          <div className="grid2">
+            {tripsField(plats[0], 'Viajes')}
+            <MoneyField label="Propinas" value={tips} onChange={setTips} />
+          </div>
+        </>
+      ) : (
+        <>
+          {plats.map((id) => (
+            <div key={id} className="grid2">
+              <MoneyField label={PLATFORM_LABEL[id]} value={gross[id] ?? ''} onChange={(v) => setGross((x) => ({ ...x, [id]: v }))} hint={feeHint(id, feeFor(id, g(id), d.settings), feePercent(id, d.settings))} />
+              {tripsField(id, `Viajes en ${PLATFORM_LABEL[id]}`)}
+            </div>
+          ))}
+          <MoneyField label="Propinas" value={tips} onChange={setTips} />
+        </>
+      )}
       <MoneyField label="De lo recaudado, en efectivo" value={cash} onChange={setCash} hint="Opcional. El resto se toma como transferencia o app." />
       {d.vehicle.shared && (
         <>

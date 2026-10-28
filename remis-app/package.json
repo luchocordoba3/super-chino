@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "typecheck": "tsc -p .",
     "test": "vitest run",
-    "e2e": "vite build && playwright test",
+    "e2e": "vite build --mode e2e && playwright test",
     "icons": "node scripts/icons.mjs"
   },
   "dependencies": {

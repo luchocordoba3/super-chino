@@ -1,18 +1,25 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { DriverFields, type DriverForm, FUELS, FuelChips, driverFrom } from '../components/forms/vehicle';
+import { openBuy, copy, useGuard } from '../components/access';
+import { DriverFields, type DriverForm, FUELS, FuelChips, RentFields, type RentForm, driverFrom, rentFrom } from '../components/forms/vehicle';
 import { Icon } from '../components/icons';
-import { Field, KmField, MoneyField, Seg, toast } from '../components/ui';
+import { Field, KmField, Meter, MoneyField, QtyField, Seg, toast } from '../components/ui';
 import { backupFileName, exportBackup, importBackup } from '../db/backup';
 import { db, newId } from '../db/db';
 import { loadDemo } from '../db/demo';
 import { ensureFuelDefaults, removeVehicle, saveSettings, wipeAll } from '../db/repo';
-import type { AgencyMode, AgencyPeriod, FuelType, Settings } from '../db/types';
+import { BRAND } from '../brand';
+import { licensing } from '../config';
+import { formatId, PLAN_LABEL } from '../domain/license';
+import { MONO_CATS, MONO_DATE, MONO_TABLE, billedLast12 } from '../domain/monotributo';
+import { PLATFORM_LABEL, platformList } from '../domain/platforms';
+import type { AgencyMode, AgencyPeriod, FuelType, MonoCat, PlatformCfg, Settings } from '../db/types';
 import { useData } from '../lib/data';
-import { dateTimeFmt, money, numFmt, numInput, parseKm, parseNum } from '../lib/format';
+import { dateTimeFmt, dayFmt, money, numFmt, numInput, parseKm, parseNum } from '../lib/format';
 import { canShareFiles, download, shareFiles } from '../lib/share';
 import { AgencyFields, agencyFrom } from './Onboarding';
 import { moneyInput } from '../components/forms/money';
+import { dayKey } from '../domain/dates';
 
 const intFmt = new Intl.NumberFormat('es-AR');
 
@@ -32,6 +39,7 @@ function VehicleCard() {
     percent: numInput(v.chofer?.percent ?? 50),
     period: v.chofer?.period ?? 'quincena',
   });
+  const [rentF, setRentF] = useState<RentForm>({ rented: !!v.rent, rentAmount: moneyInput(v.rent?.amount), rentPeriod: v.rent?.period ?? 'week' });
   const many = d.vehicles.length > 1;
   const save = async () => {
     const k = parseKm(initialKm);
@@ -39,6 +47,8 @@ function VehicleCard() {
     if (k == null) return toast('Poné el km inicial');
     const driver = driverFrom(who);
     if (typeof driver === 'string') return toast(driver);
+    const rent = driver.driver === 'me' ? rentFrom(rentF) : undefined;
+    if (typeof rent === 'string') return toast(rent);
     const next = {
       ...v,
       name: name.trim() || 'Mi auto',
@@ -48,6 +58,7 @@ function VehicleCard() {
       shared: driver.driver === 'me' && shared,
       initialKm: k,
       ...driver,
+      rent,
     };
     await db.vehicles.put(next);
     await ensureFuelDefaults(next);
@@ -75,10 +86,13 @@ function VehicleCard() {
       <FuelChips value={fuels} onChange={setFuels} />
       <DriverFields form={who} set={(patch) => setWho((w) => ({ ...w, ...patch }))} />
       {who.driver === 'me' && (
-        <label className="check">
-          <input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} />
-          Lo comparto con otro chofer
-        </label>
+        <>
+          <RentFields form={rentF} set={(patch) => setRentF((r) => ({ ...r, ...patch }))} />
+          <label className="check">
+            <input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} />
+            Lo comparto con otro chofer
+          </label>
+        </>
       )}
       <KmField label="Km cuando empezaste a usar la app" value={initialKm} onChange={setInitialKm} hint="El km actual sale solo de lo que vas anotando." />
       <button type="button" className="primary" onClick={() => void save()}>
@@ -169,7 +183,7 @@ function BackupCard({ settings }: { settings: Settings }) {
     setBusy(true);
     try {
       const f = await make();
-      if (await shareFiles([f], 'Copia de Mi Remis', f.name)) await done();
+      if (await shareFiles([f], `Copia de ${BRAND.name}`, f.name)) await done();
     } catch {
       toast('No se pudo compartir. Probá con "Descargar".');
     } finally {
@@ -258,14 +272,218 @@ function StorageCard() {
   );
 }
 
+function PlanCard() {
+  const d = useData();
+  const a = d.access;
+  if (!licensing()) return null;
+  const id = formatId(d.settings.installId ?? '');
+  const status =
+    a.state === 'trial'
+      ? `Prueba gratis: te quedan ${a.daysLeft === 1 ? '1 día' : `${a.daysLeft} días`} (hasta el ${dayFmt(a.until)}).`
+      : a.state === 'active'
+        ? `${PLAN_LABEL[a.plan]}${a.name ? ` a nombre de ${a.name}` : ''}: activa hasta el ${dayFmt(a.until)}.`
+        : a.state === 'expired'
+          ? `${a.wasTrial ? 'Se terminó la prueba gratis' : 'Venció tu plan'} el ${dayFmt(a.until)}. Podés ver todo; para anotar cosas nuevas, activá un plan.`
+          : '';
+  return (
+    <section className="card stack-s" id="plan">
+      <h2>Tu plan</h2>
+      <p className={a.state === 'expired' ? 'notice' : 'small'}>{status}</p>
+      <div className="row between">
+        <span className="small muted">Código de tu celular</span>
+        <button type="button" className="ghost small mono" onClick={() => void copy(id, 'Código copiado')} aria-label={`Código de tu celular ${id}, copiar`}>
+          {id}
+        </button>
+      </div>
+      <div className="grid2">
+        <button type="button" className="primary" onClick={() => openBuy('buy')}>
+          {a.state === 'active' ? 'Renovar' : 'Activar'}
+        </button>
+        <button type="button" onClick={() => openBuy('code')}>
+          Ingresar código
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function PlatformsCard({ settings }: { settings: Settings }) {
+  const [list, setList] = useState<PlatformCfg[]>(() => platformList(settings));
+  const [pct, setPct] = useState<Record<string, string>>(() => Object.fromEntries(platformList(settings).map((p) => [p.id, numInput(p.percent)])));
+  const set = (id: string, patch: Partial<PlatformCfg>) => setList((l) => l.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  const save = async () => {
+    if (!list.some((p) => p.on)) return toast('Elegí al menos una');
+    const next = list.map((p) => ({ ...p, percent: parseNum(pct[p.id] ?? '') ?? undefined }));
+    const bad = next.find((p) => p.on && p.id !== 'agencia' && p.mode === 'bruto' && !(p.percent && p.percent > 0 && p.percent < 100));
+    if (bad) return toast(`Poné el porcentaje que se lleva ${PLATFORM_LABEL[bad.id]}`);
+    await saveSettings({ platforms: next });
+    toast('Guardado');
+  };
+  return (
+    <section className="card stack">
+      <h2>Con qué manejás</h2>
+      <p className="muted small">Al terminar el turno anotás cuánto hiciste en cada una. "Neto" es lo que la app te muestra como ganancia (ya sin la comisión).</p>
+      {list.map((p) => (
+        <div key={p.id} className="stack-s platform-row">
+          <label className="check">
+            <input type="checkbox" checked={p.on} onChange={(e) => set(p.id, { on: e.target.checked })} />
+            {PLATFORM_LABEL[p.id]}
+          </label>
+          {p.on && p.id !== 'agencia' && p.id !== 'particular' && (
+            <div className="grid2">
+              <Seg
+                label={`Cómo anotás ${PLATFORM_LABEL[p.id]}`}
+                options={[
+                  { id: 'neto', label: 'Neto' },
+                  { id: 'bruto', label: 'Bruto' },
+                ]}
+                value={p.mode}
+                onChange={(mode) => set(p.id, { mode })}
+              />
+              {p.mode === 'bruto' && <QtyField label="Comisión (%)" value={pct[p.id] ?? ''} onChange={(v) => setPct((x) => ({ ...x, [p.id]: v }))} />}
+            </div>
+          )}
+        </div>
+      ))}
+      <button type="button" className="primary" onClick={() => void save()}>
+        Guardar
+      </button>
+    </section>
+  );
+}
+
+function GoalCard({ settings }: { settings: Settings }) {
+  const [day, setDay] = useState(moneyInput(settings.goal?.day));
+  const [week, setWeek] = useState(moneyInput(settings.goal?.week));
+  const save = async () => {
+    await saveSettings({ goal: { day: parseNum(day) ?? undefined, week: parseNum(week) ?? undefined } });
+    toast('Meta guardada');
+  };
+  return (
+    <section className="card stack">
+      <h2>Tu meta</h2>
+      <p className="muted small">Lo que querés cobrar (ya sin la comisión). La ves en Hoy y en el Resumen.</p>
+      <div className="grid2">
+        <MoneyField label="Por día" value={day} onChange={setDay} />
+        <MoneyField label="Por semana" value={week} onChange={setWeek} />
+      </div>
+      <button type="button" className="primary" onClick={() => void save()}>
+        Guardar
+      </button>
+    </section>
+  );
+}
+
+function MonoCard() {
+  const d = useData();
+  const guard = useGuard();
+  const m = d.settings.monotributo;
+  const [on, setOn] = useState(!!m);
+  const [cat, setCat] = useState<MonoCat>(m?.cat ?? 'A');
+  const [monthly, setMonthly] = useState(moneyInput(m?.monthly ?? MONO_TABLE.A.monthly));
+  const [limit, setLimit] = useState(moneyInput(m?.limit ?? MONO_TABLE.A.limit));
+  const pick = (c: MonoCat) => {
+    setCat(c);
+    setMonthly(moneyInput(Math.round(MONO_TABLE[c].monthly)));
+    setLimit(moneyInput(Math.round(MONO_TABLE[c].limit)));
+  };
+  const save = async () => {
+    if (!on) {
+      await saveSettings({ monotributo: undefined });
+      return toast('Listo, sin monotributo');
+    }
+    const mo = parseNum(monthly);
+    const li = parseNum(limit);
+    if (!mo || !li) return toast('Poné la cuota y el tope');
+    await saveSettings({ monotributo: { cat, monthly: mo, limit: li } });
+    toast('Monotributo guardado');
+  };
+  const today = dayKey(d.now);
+  const all = [d, ...d.others];
+  const billed = m ? billedLast12(all.flatMap((r) => r.incomes), all.flatMap((r) => r.settlements), today) : 0;
+  const paid = d.expenses.some((e) => e.category === 'monotributo' && dayKey(e.at) >= `${today.slice(0, 7)}-01`) || d.others.some((o) => o.expenses.some((e) => e.category === 'monotributo' && dayKey(e.at) >= `${today.slice(0, 7)}-01`));
+  const pay = async () => {
+    if (!m) return;
+    await db.expenses.add({ id: newId(), vehicleId: d.vehicle.id, at: new Date().toISOString(), category: 'monotributo', amount: m.monthly, note: `Categoría ${m.cat}` });
+    toast(`Cuota de ${money(m.monthly)} anotada`);
+  };
+  return (
+    <section className="card stack">
+      <h2>Monotributo</h2>
+      <label className="check">
+        <input type="checkbox" checked={on} onChange={(e) => setOn(e.target.checked)} />
+        Soy monotributista
+      </label>
+      {on && (
+        <>
+          <Field label="Categoría" hint={`Valores para servicios desde el ${dayFmt(MONO_DATE)}. Se actualizan en febrero y agosto: si cambian, corregilos acá.`}>
+            <select value={cat} onChange={(e) => pick(e.target.value as MonoCat)}>
+              {MONO_CATS.map((c) => (
+                <option key={c} value={c}>
+                  {c} · tope {money(MONO_TABLE[c].limit)} por año
+                </option>
+              ))}
+            </select>
+          </Field>
+          <div className="grid2">
+            <MoneyField label="Cuota por mes" value={monthly} onChange={setMonthly} />
+            <MoneyField label="Tope por año" value={limit} onChange={setLimit} />
+          </div>
+          <button type="button" className="primary" onClick={() => void save()}>
+            Guardar
+          </button>
+          {m && (
+            <>
+              <div className="stack-s">
+                <div className="row between small">
+                  <span>Últimos 12 meses</span>
+                  <span>
+                    {money(billed)} de {money(m.limit)}
+                  </span>
+                </div>
+                <Meter value={billed / m.limit} state={billed >= m.limit ? 'due' : billed >= m.limit * 0.8 ? 'soon' : 'ok'} label="Facturación de los últimos 12 meses contra el tope" />
+              </div>
+              {paid ? (
+                <p className="small good">La cuota de este mes ya está anotada.</p>
+              ) : (
+                <button type="button" onClick={guard(() => void pay())}>
+                  Pagué la cuota de este mes ({money(m.monthly)})
+                </button>
+              )}
+              <p className="hint">Es orientativo: suma lo que anotaste como ingresos. Ante la duda, consultá a tu contador.</p>
+            </>
+          )}
+        </>
+      )}
+      {!on && m && (
+        <button type="button" onClick={() => void save()}>
+          Guardar
+        </button>
+      )}
+    </section>
+  );
+}
+
 export function SettingsPage() {
   const d = useData();
+  const nav = useNavigate();
+  const taps = useRef(0);
+  const agency = platformList(d.settings).find((p) => p.id === 'agencia')?.on;
+  // Panel del vendedor: 5 toques en la versión.
+  const tap = () => {
+    taps.current++;
+    if (taps.current >= 5) nav('/vendedor');
+  };
   return (
     <div className="stack">
       <h1>Ajustes</h1>
+      <PlanCard />
       <BackupCard settings={d.settings} />
       <VehicleCard key={d.vehicle.id} />
-      <AgencyCard settings={d.settings} />
+      <PlatformsCard settings={d.settings} />
+      {agency && <AgencyCard settings={d.settings} />}
+      <GoalCard settings={d.settings} />
+      <MonoCard />
       <TollsCard settings={d.settings} />
       <section className="card stack-s">
         <h2>Pantalla</h2>
@@ -297,8 +515,8 @@ export function SettingsPage() {
           Borrar todo
         </button>
       </section>
-      <p className="hint" style={{ textAlign: 'center' }}>
-        Mi Remis 0.1 · Anda sin internet · Tus datos no salen de este celular
+      <p className="hint" style={{ textAlign: 'center' }} onClick={tap}>
+        {BRAND.name} {BRAND.version} · Anda sin internet · Tus datos no salen de este celular
       </p>
     </div>
   );

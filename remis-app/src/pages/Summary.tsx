@@ -1,16 +1,19 @@
 import { useMemo, useState } from 'react';
 import { CostBars, KmChart } from '../components/charts';
 import { Icon } from '../components/icons';
-import { Field, Seg, Stat } from '../components/ui';
+import { Field, Meter, Seg, Stat } from '../components/ui';
 import { addDays, dayKey, eachDay, inRange } from '../domain/dates';
 import { FUEL_LABEL, FUEL_UNIT, avgKmPerUnit, segments } from '../domain/fuel';
 import { gapsBetweenShifts, kmByDay } from '../domain/km';
 import { movements, movementsCsv } from '../domain/movements';
-import { COST_LABEL, type CostKey, periodRange, splitByKm, summarize } from '../domain/money';
+import { COST_LABEL, type CostKey, bestDays, periodRange, splitByKm, summarize } from '../domain/money';
+import { PLATFORM_LABEL } from '../domain/platforms';
+import type { PlatformId } from '../db/types';
 import { isChofer, settlementKm } from '../domain/settlement';
 import { useData } from '../lib/data';
 import { dayFmt, hoursFmt, kmFmt, money, money2, numFmt } from '../lib/format';
 import { download } from '../lib/share';
+import { BRAND } from '../brand';
 
 type Kind = 'week' | 'month' | 'custom';
 const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
@@ -44,9 +47,15 @@ export function Summary() {
   }, [d, range.from, range.to]);
   const costRows = (Object.entries(s.costs.by) as [CostKey, number][]).map(([k, v]) => ({ label: COST_LABEL[k], value: v }));
 
+  const platforms = (Object.entries(s.byPlatform) as [PlatformId, { net: number; fee: number; trips: number }][]).filter(([, p]) => p.net > 0);
+  const showPlatforms = platforms.length > 1 || (platforms.length === 1 && platforms[0][0] !== 'agencia');
+  // Mejores días: las últimas 8 semanas (con una sola semana no alcanza para comparar).
+  const days8 = useMemo(() => bestDays(d.shifts, d.incomes, addDays(today, -55), today).filter((x) => x.perHour != null && x.shifts > 0), [d.shifts, d.incomes, today]);
+  const weekGoal = kind === 'week' ? d.settings.goal?.week : undefined;
+
   const exportCsv = () => {
     const csv = movementsCsv(movements(d), range.from, range.to);
-    download(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `mi-remis-${range.from}-a-${range.to}.csv`);
+    download(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `${BRAND.name.toLowerCase()}-${range.from}-a-${range.to}.csv`);
   };
 
   return (
@@ -116,6 +125,18 @@ export function Summary() {
         </section>
       )}
 
+      {weekGoal != null && weekGoal > 0 && !chofer && (
+        <section className="card stack-s">
+          <div className="row between">
+            <span className="label">Meta de la semana</span>
+            <span className="small">
+              <strong>{money(s.income.net)}</strong> de {money(weekGoal)}
+            </span>
+          </div>
+          <Meter value={s.income.net / weekGoal} state={s.income.net >= weekGoal ? 'ok' : 'soon'} label="Meta de la semana" />
+        </section>
+      )}
+
       {chofer ? (
         <div className="stats" style={{ marginTop: 0 }}>
           <Stat label="Km del auto" value={kmFmt(carKm)} sub="Según el km de cada liquidación" />
@@ -138,6 +159,28 @@ export function Summary() {
         <section className="card">
           <h2 style={{ marginBottom: 8 }}>Km por día</h2>
           <KmChart days={days} mine={byDay.mine} other={d.vehicle.shared ? byDay.other : undefined} />
+        </section>
+      )}
+
+      {!chofer && showPlatforms && (
+        <section className="card">
+          <h2 style={{ marginBottom: 8 }}>Por app</h2>
+          <CostBars rows={platforms.map(([id, p]) => ({ label: PLATFORM_LABEL[id], value: p.net, note: p.trips ? `· ${p.trips} viajes · ${money(p.net / p.trips)} c/u` : undefined }))} />
+          {platforms.some(([, p]) => p.fee > 0) && (
+            <p className="muted small" style={{ marginTop: 8 }}>
+              Comisiones: {platforms.filter(([, p]) => p.fee > 0).map(([id, p]) => `${PLATFORM_LABEL[id]} ${money(p.fee)}`).join(' · ')}.
+            </p>
+          )}
+        </section>
+      )}
+
+      {!chofer && days8.length >= 2 && (
+        <section className="card">
+          <h2 style={{ marginBottom: 4 }}>Mejores días</h2>
+          <p className="muted small" style={{ marginBottom: 8 }}>
+            Lo que te queda por hora de turno, en las últimas 8 semanas.
+          </p>
+          <CostBars rows={days8.map((x) => ({ label: x.label, value: Math.round(x.perHour!), note: `· ${x.shifts} turnos` }))} share={false} sort={false} />
         </section>
       )}
 

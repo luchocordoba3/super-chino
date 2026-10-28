@@ -1,11 +1,12 @@
-import { db, TABLES } from './db';
+import { BRAND } from '../brand';
+import { SELLER_TABLES, db, TABLES } from './db';
 import type { Photo } from './types';
 
 // Copia de seguridad: un archivo JSON con todo (y las fotos en base64).
 
 const APP = 'mi-remis';
-/** 2: suma las liquidaciones del chofer. Las copias de la versión 1 se restauran igual. */
-const VERSION = 2;
+/** 2: liquidaciones del chofer. 3: ventas y clave del vendedor. Las copias anteriores se restauran igual. */
+const VERSION = 3;
 
 function bufToB64(buf: ArrayBuffer): string {
   const bytes = new Uint8Array(buf);
@@ -39,16 +40,18 @@ export async function importBackup(text: string) {
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error('El archivo no es una copia de Mi Remis.');
+    throw new Error('El archivo no es una copia de la app.');
   }
-  if (data?.app !== APP || !data.tables) throw new Error('El archivo no es una copia de Mi Remis.');
+  if (data?.app !== APP || !data.tables) throw new Error('El archivo no es una copia de la app.');
   if ((data.version ?? 0) > VERSION) throw new Error('La copia es de una versión más nueva de la app. Actualizá la app y probá de nuevo.');
   const tables = data.tables;
   await db.transaction('rw', db.tables, async () => {
-    for (const t of db.tables) await t.clear();
+    // Lo del vendedor solo se reemplaza si la copia lo trae (una copia vieja no te borra la clave).
+    const keep = (name: string) => SELLER_TABLES.includes(name) && !(Array.isArray(tables[name]) && tables[name].length);
+    for (const t of db.tables) if (!keep(t.name)) await t.clear();
     for (const name of TABLES) {
       const rows = tables[name];
-      if (!Array.isArray(rows)) continue;
+      if (!Array.isArray(rows) || keep(name)) continue;
       if (name === 'photos')
         await db.photos.bulkAdd((rows as (Omit<Photo, 'data'> & { data: string })[]).map((p) => ({ ...p, data: b64ToBuf(p.data) })));
       else await db.table(name).bulkAdd(rows);
@@ -57,4 +60,4 @@ export async function importBackup(text: string) {
 }
 
 export const backupFileName = (d = new Date()) =>
-  `mi-remis-copia-${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}.json`;
+  `${BRAND.name.toLowerCase()}-copia-${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}.json`;

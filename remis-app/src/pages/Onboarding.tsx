@@ -1,11 +1,17 @@
 import { useRef, useState } from 'react';
 import { CarSections, carInput, emptyCar, type CarForm } from '../components/forms/vehicle';
 import { Field, MoneyField, QtyField, Seg, toast } from '../components/ui';
+import { BRAND } from '../brand';
+import { CONFIG, licensing } from '../config';
+import { MONO_CATS, MONO_TABLE } from '../domain/monotributo';
+import { PLATFORM_IDS, PLATFORM_LABEL, platformsFrom } from '../domain/platforms';
+import { newInstallId } from '../domain/license';
+import { localTrial, pendingCode } from '../lib/install';
 import { importBackup } from '../db/backup';
 import { loadDemo } from '../db/demo';
 import { setup } from '../db/repo';
-import type { AgencyConfig, AgencyMode, AgencyPeriod } from '../db/types';
-import { parseNum } from '../lib/format';
+import type { AgencyConfig, AgencyMode, AgencyPeriod, MonoCat, PlatformId } from '../db/types';
+import { money, parseNum } from '../lib/format';
 
 export function agencyFrom(mode: AgencyMode, amount: string, period: AgencyPeriod, percent: string): AgencyConfig | string {
   if (mode === 'fixed') {
@@ -61,6 +67,9 @@ export function AgencyFields(p: {
 
 export function Onboarding() {
   const [car, setCar] = useState<CarForm>(emptyCar);
+  const [apps, setApps] = useState<PlatformId[]>([]);
+  const [goal, setGoal] = useState('');
+  const [mono, setMono] = useState<MonoCat | ''>('');
   const [mode, setMode] = useState<AgencyMode>('none');
   const [amount, setAmount] = useState('');
   const [period, setPeriod] = useState<AgencyPeriod>('week');
@@ -68,14 +77,30 @@ export function Onboarding() {
   const [busy, setBusy] = useState(false);
   const file = useRef<HTMLInputElement>(null);
 
+  const remis = apps.includes('agencia');
   const start = async () => {
+    if (!apps.length) return toast('Elegí con qué manejás');
     const input = carInput(car);
     if (typeof input === 'string') return toast(input);
-    const agency = agencyFrom(mode, amount, period, percent);
+    const agency = remis ? agencyFrom(mode, amount, period, percent) : { mode: 'none' as const };
     if (typeof agency === 'string') return toast(agency);
     setBusy(true);
     try {
-      await setup({ ...input, agency });
+      const local = localTrial();
+      const g = parseNum(goal);
+      await setup({
+        ...input,
+        agency,
+        extra: {
+          platforms: platformsFrom(apps),
+          goal: g ? { day: g } : undefined,
+          monotributo: mono ? { cat: mono, monthly: Math.round(MONO_TABLE[mono].monthly), limit: Math.round(MONO_TABLE[mono].limit) } : undefined,
+          installId: local.installId ?? newInstallId(),
+          trialStart: local.trialStart ?? new Date().toISOString(),
+          license: pendingCode(),
+        },
+      });
+      pendingCode(null);
       void navigator.storage?.persist?.();
       toast('¡Listo! Ya podés empezar tu primer turno');
     } finally {
@@ -103,17 +128,56 @@ export function Onboarding() {
       <div className="row" style={{ gap: 14 }}>
         <img className="onb-logo" src="/icon.svg" alt="" />
         <div>
-          <h1>Mi Remis</h1>
-          <p className="muted">Km, service, combustible, peajes y lo que ganás de verdad.</p>
+          <h1>{BRAND.name}</h1>
+          <p className="muted">{BRAND.tagline}.</p>
         </div>
       </div>
-      <p className="muted small">Todo queda guardado en este celular y anda sin internet. Cargá tu auto y arrancá.</p>
+      <ul className="pitch">
+        <li>Lo que te queda de verdad por día, por hora y por km, después de nafta, comisiones y gastos.</li>
+        <li>¿Te conviene el viaje? Ponés lo que te pagan y los km, y te dice si rinde.</li>
+        <li>Avisos de service, VTV, seguro y licencia, y el monotributo al día.</li>
+        <li>Anda sin internet y tus datos no salen de tu celular.</li>
+      </ul>
+      {licensing() && (
+        <p className="small">
+          <strong>{CONFIG.trialDays} días gratis.</strong> Después, {money(CONFIG.prices.mes)} por mes o {money(CONFIG.prices.anual)} por año.
+        </p>
+      )}
+
+      <section className="card stack">
+        <h2>¿Con qué manejás?</h2>
+        <div className="chips" role="group" aria-label="Con qué manejás">
+          {PLATFORM_IDS.map((id) => (
+            <button key={id} type="button" aria-pressed={apps.includes(id)} className={apps.includes(id) ? 'on' : ''} onClick={() => setApps((x) => (x.includes(id) ? x.filter((y) => y !== id) : [...x, id]))}>
+              {id === 'agencia' ? 'Remis (agencia)' : PLATFORM_LABEL[id]}
+            </button>
+          ))}
+        </div>
+        <p className="hint">Al terminar cada turno anotás lo que hiciste en cada una (lo que la app te muestra como ganancia).</p>
+      </section>
 
       <CarSections form={car} set={(patch) => setCar((c) => ({ ...c, ...patch }))} />
 
+      {remis && (
+        <section className="card stack">
+          <h2>La agencia</h2>
+          <AgencyFields mode={mode} setMode={setMode} amount={amount} setAmount={setAmount} period={period} setPeriod={setPeriod} percent={percent} setPercent={setPercent} />
+        </section>
+      )}
+
       <section className="card stack">
-        <h2>La agencia</h2>
-        <AgencyFields mode={mode} setMode={setMode} amount={amount} setAmount={setAmount} period={period} setPeriod={setPeriod} percent={percent} setPercent={setPercent} />
+        <h2>Opcional</h2>
+        <MoneyField label="¿Cuánto querés hacer por día?" value={goal} onChange={setGoal} hint="Tu meta: la ves en Hoy con lo que te falta." />
+        <Field label="Monotributo" hint="Te avisa cuándo vence la cuota y si te acercás al tope.">
+          <select value={mono} onChange={(e) => setMono(e.target.value as MonoCat | '')}>
+            <option value="">No soy monotributista / después</option>
+            {MONO_CATS.map((c) => (
+              <option key={c} value={c}>
+                Categoría {c}
+              </option>
+            ))}
+          </select>
+        </Field>
       </section>
 
       <button type="button" className="primary big" onClick={() => void start()} disabled={busy}>

@@ -1,0 +1,16 @@
+{
+  "app": "rinde-vendedor",
+  "nota": "SOLO PARA LAS PRUEBAS AUTOMÁTICAS. No usar para vender.",
+  "privateJwk": {
+    "key_ops": [
+      "sign"
+    ],
+    "ext": true,
+    "kty": "EC",
+    "x": "LyqWDUZrLhqY4ORz7TZjNDmfqQm9taUG7TNTPpeAkDw",
+    "y": "JPREIA50EHxj9jIAeX7A8H3gkmQsKTIzhxFHRfuN24Q",
+    "crv": "P-256",
+    "d": "0WUa_7JUXfIAJcc7TFZJ16g26X5gxyzes8Wy0RVfBps"
+  },
+  "publicKey": "BC8qlg1Gay4amODkc-02YzQ5n6kJvbWlBu0zUz6XgJA8JPREIA50EHxj9jIAeX7A8H3gkmQsKTIzhxFHRfuN24Q"
+}

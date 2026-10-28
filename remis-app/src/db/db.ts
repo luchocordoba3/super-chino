@@ -11,6 +11,8 @@ import type {
   Photo,
   ServiceLog,
   Settings,
+  Sale,
+  SellerKey,
   Settlement,
   Shift,
   Vehicle,
@@ -31,6 +33,8 @@ export class RemisDB extends Dexie {
   checks!: EntityTable<CheckRun, 'id'>;
   incidents!: EntityTable<Incident, 'id'>;
   settlements!: EntityTable<Settlement, 'id'>;
+  sales!: EntityTable<Sale, 'id'>;
+  seller!: EntityTable<SellerKey, 'id'>;
   photos!: EntityTable<Photo, 'id'>;
 
   constructor(name = 'mi-remis') {
@@ -51,6 +55,7 @@ export class RemisDB extends Dexie {
       photos: 'id',
     });
     this.version(2).stores({ settlements: 'id, vehicleId, to' });
+    this.version(3).stores({ sales: 'id, at, installId, expires', seller: 'id' });
   }
 }
 
@@ -70,8 +75,13 @@ export const TABLES = [
   'checks',
   'incidents',
   'settlements',
+  'sales',
+  'seller',
   'photos',
 ] as const;
 export type TableName = (typeof TABLES)[number];
+
+/** Lo del vendedor (su clave y sus ventas): "Borrar todo" y los datos de ejemplo no lo tocan. */
+export const SELLER_TABLES: string[] = ['seller', 'sales'];
 
 export const newId = () => crypto.randomUUID();

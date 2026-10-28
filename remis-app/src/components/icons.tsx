@@ -28,6 +28,8 @@ const PATHS = {
   swap: 'M16 3l4 4-4 4M20 7H8M8 21l-4-4 4-4M4 17h12',
   user: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
   down: 'M6 9l6 6 6-6',
+  alert: 'M12 7.5v6M12 16.5h.01M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z',
+  calc: 'M6 2.5h12a1.5 1.5 0 0 1 1.5 1.5v16a1.5 1.5 0 0 1-1.5 1.5H6A1.5 1.5 0 0 1 4.5 20V4A1.5 1.5 0 0 1 6 2.5zM8 6.5h8v3.5H8zM8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01',
 } as const;
 
 export type IconName = keyof typeof PATHS;

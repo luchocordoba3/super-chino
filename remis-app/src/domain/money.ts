@@ -1,6 +1,7 @@
-import type { AgencyConfig, Expense, ExpenseCategory, FuelLoad, FuelType, Income, ServiceLog, Settlement, Shift } from '../db/types';
+import type { AgencyConfig, AgencyPeriod, Expense, ExpenseCategory, FuelLoad, FuelType, Income, PlatformId, ServiceLog, Settlement, Shift } from '../db/types';
 import { addDays, dayKey, endOfMonth, inRange, startOfMonth, startOfWeek } from './dates';
 import { gapsBetweenShifts, shiftHours, shiftKm } from './km';
+import { incomePlatform } from './platforms';
 import { settle } from './settlement';
 
 export const EXPENSE_LABEL: Record<ExpenseCategory, string> = {
@@ -8,6 +9,8 @@ export const EXPENSE_LABEL: Record<ExpenseCategory, string> = {
   estacionamiento: 'Estacionamiento',
   lavado: 'Lavado',
   agencia: 'Base de la agencia',
+  alquiler: 'Alquiler del auto',
+  monotributo: 'Monotributo',
   taller: 'Taller y repuestos',
   seguro: 'Seguro',
   patente: 'Patente',
@@ -48,6 +51,8 @@ export interface Summary {
   /** Días con al menos un turno. */
   days: number;
   income: { gross: number; tips: number; agency: number; trips: number; cash: number; net: number };
+  /** Por app o agencia: lo que te quedó (con propinas y sin comisión), lo que se llevaron y los viajes. */
+  byPlatform: Partial<Record<PlatformId, { net: number; fee: number; trips: number }>>;
   /** Auto con chofer: liquidaciones que cierran en el período. */
   split: { count: number; gross: number; returned: number; chofer: number; owner: number };
   costs: { total: number; by: Partial<Record<CostKey, number>> };
@@ -68,7 +73,12 @@ export function summarize(d: MoneyData, from: string, to: string, now = new Date
   const hours = shifts.reduce((a, s) => a + shiftHours(s, now), 0);
 
   const income = { gross: 0, tips: 0, agency: 0, trips: 0, cash: 0, net: 0 };
+  const byPlatform: Summary['byPlatform'] = {};
   for (const i of d.incomes.filter((x) => inR(x.at))) {
+    const p = (byPlatform[incomePlatform(i)] ??= { net: 0, fee: 0, trips: 0 });
+    p.net += i.gross + (i.tips ?? 0) - i.agencyFee;
+    p.fee += i.agencyFee;
+    p.trips += i.trips ?? 0;
     income.gross += i.gross;
     income.tips += i.tips ?? 0;
     income.agency += i.agencyFee;
@@ -107,6 +117,7 @@ export function summarize(d: MoneyData, from: string, to: string, now = new Date
     shifts: shifts.length,
     days: new Set(shifts.map((s) => dayKey(s.startAt))).size,
     income,
+    byPlatform,
     split,
     costs: { total, by },
     profit,
@@ -135,10 +146,32 @@ export function periodRange(kind: PeriodKind, anchor: string): { from: string; t
   return { from: startOfMonth(anchor), to: endOfMonth(anchor) };
 }
 
+/** Un pago fijo por período (base de la agencia, alquiler del auto): cuánto corresponde ahora y cuánto ya pagaste. */
+export function fixedDue(amount: number, period: AgencyPeriod, category: ExpenseCategory, expenses: Expense[], today: string) {
+  const { from, to } = periodRange(period, today);
+  const paid = expenses.filter((e) => e.category === category && inRange(dayKey(e.at), from, to)).reduce((a, e) => a + e.amount, 0);
+  return { from, to, amount, paid, left: Math.max(0, amount - paid) };
+}
+
 /** Base fija de la agencia: cuánto corresponde en el período actual y cuánto ya pagaste. */
 export function agencyDue(cfg: AgencyConfig, expenses: Expense[], today: string) {
   if (cfg.mode !== 'fixed' || !cfg.amount) return null;
-  const { from, to } = periodRange(cfg.period ?? 'week', today);
-  const paid = expenses.filter((e) => e.category === 'agencia' && inRange(dayKey(e.at), from, to)).reduce((a, e) => a + e.amount, 0);
-  return { from, to, amount: cfg.amount, paid, left: Math.max(0, cfg.amount - paid) };
+  return fixedDue(cfg.amount, cfg.period ?? 'week', 'agencia', expenses, today);
+}
+
+const WEEKDAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+/** Cuánto te queda por hora según el día de la semana (turnos cerrados con su ingreso), de lunes a domingo. */
+export function bestDays(shifts: Shift[], incomes: Income[], from: string, to: string) {
+  const net = new Map<string, number>();
+  for (const i of incomes) if (i.shiftId) net.set(i.shiftId, (net.get(i.shiftId) ?? 0) + i.gross + (i.tips ?? 0) - i.agencyFee);
+  const days = WEEKDAYS.map((label) => ({ label, hours: 0, net: 0, shifts: 0 }));
+  for (const s of shifts) {
+    if (!s.endAt || !inRange(dayKey(s.startAt), from, to)) continue;
+    const d = days[new Date(s.startAt).getDay()];
+    d.hours += shiftHours(s);
+    d.net += net.get(s.id) ?? 0;
+    d.shifts++;
+  }
+  return [...days.slice(1), days[0]].map((d) => ({ ...d, perHour: d.hours > 0 ? d.net / d.hours : null }));
 }

@@ -148,10 +148,11 @@ export function KmChart({ days, mine, other }: { days: string[]; mine: Map<strin
   );
 }
 
-/** Barras horizontales de gastos por rubro, con el monto en la punta. */
-export function CostBars({ rows }: { rows: { label: string; value: number }[] }) {
-  const sorted = rows.filter((r) => r.value > 0).sort((a, b) => b.value - a.value);
-  const max = sorted[0]?.value ?? 1;
+/** Barras horizontales (gastos por rubro, lo que dejó cada app…), con el monto en la punta y, si suman, el porcentaje. */
+export function CostBars({ rows, share = true, sort = true }: { rows: { label: string; value: number; note?: string }[]; share?: boolean; sort?: boolean }) {
+  const sorted = rows.filter((r) => r.value > 0);
+  if (sort) sorted.sort((a, b) => b.value - a.value);
+  const max = Math.max(...sorted.map((r) => r.value), 1);
   const total = sorted.reduce((a, r) => a + r.value, 0);
   return (
     <div>
@@ -159,7 +160,8 @@ export function CostBars({ rows }: { rows: { label: string; value: number }[] })
         <div key={r.label} className="hbar">
           <span className="n">{r.label}</span>
           <span className="v">
-            {money(r.value)} <span className="muted small">{Math.round((r.value / total) * 100)}%</span>
+            {money(r.value)} {share && <span className="muted small">{Math.round((r.value / total) * 100)}%</span>}
+            {r.note && <span className="muted small"> {r.note}</span>}
           </span>
           <div className="track">
             <div className="fill" style={{ width: `${(r.value / max) * 100}%` }} />

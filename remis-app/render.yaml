@@ -1,8 +1,9 @@
-# Receta ("Blueprint") de Render para cuando Mi Remis tenga su propio repositorio:
-# render.com -> New -> Blueprint -> elegir el repo. Sitio estático gratis, sin base de datos.
+# Receta ("Blueprint") de Render para cuando la app tenga su propio repositorio:
+# render.com -> New -> Blueprint -> elegir el repo. Sitio estático gratis, sin servidor ni base de datos.
+# Si la publicás desde este repositorio, en el sitio poné Root Directory: remis-app.
 services:
   - type: web
-    name: mi-remis
+    name: rinde
     runtime: static
     buildCommand: npm i -g pnpm@10.33.0 && pnpm install --frozen-lockfile && pnpm build
     staticPublishPath: ./dist
@@ -15,3 +16,24 @@ services:
       - path: /sw.js
         name: Cache-Control
         value: no-cache
+    # Cobro casero (ver docs/vender.md). Se completan en Render -> Environment y después "Manual Deploy".
+    # Mientras VITE_LICENSE_PUBLIC_KEYS esté vacía, la app queda libre (sin prueba ni códigos).
+    envVars:
+      - key: VITE_LICENSE_PUBLIC_KEYS
+        sync: false
+      - key: VITE_PRICE_MES
+        value: '3500'
+      - key: VITE_PRICE_ANUAL
+        value: '20000'
+      - key: VITE_TRIAL_DAYS
+        value: '14'
+      - key: VITE_PAY_ALIAS
+        sync: false
+      - key: VITE_PAY_CBU
+        sync: false
+      - key: VITE_PAY_HOLDER
+        sync: false
+      - key: VITE_PAY_BANK
+        sync: false
+      - key: VITE_SELLER_WHATSAPP
+        sync: false

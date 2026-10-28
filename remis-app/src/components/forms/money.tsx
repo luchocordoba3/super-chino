@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react';
 import { db, newId } from '../../db/db';
 import { removeRecord, saveSettings } from '../../db/repo';
-import type { Expense, ExpenseCategory, FuelLoad, FuelType, Income } from '../../db/types';
+import type { Expense, ExpenseCategory, FuelLoad, FuelType, Income, PlatformId } from '../../db/types';
 import { fromLocalInput, toLocalInput } from '../../domain/dates';
 import { FUEL_LABEL, FUEL_UNIT } from '../../domain/fuel';
-import { EXPENSE_LABEL, agencyFeeFor } from '../../domain/money';
+import { EXPENSE_LABEL } from '../../domain/money';
+import { PLATFORM_LABEL, activePlatforms, feeFor, feePercent, incomePlatform } from '../../domain/platforms';
+import { feeHint, grossLabel } from './shift';
 import { useData } from '../../lib/data';
 import { money, money2, numInput, parseKm, parseNum } from '../../lib/format';
 import { PhotoPicker, usePhotos } from '../photos';
@@ -195,7 +197,8 @@ export function ExpenseSheet({ expense, category, onClose }: { expense?: Expense
 
 export function IncomeSheet({ income, onClose }: { income?: Income; onClose: () => void }) {
   const d = useData();
-  const cfg = d.settings.agency;
+  const active = activePlatforms(d.settings).map((p) => p.id);
+  const [platform, setPlatform] = useState<PlatformId>(income ? incomePlatform(income) : (active[0] ?? 'agencia'));
   const [gross, setGross] = useState(moneyInput(income?.gross));
   const [trips, setTrips] = useState(income?.trips != null ? String(income.trips) : '');
   const [cash, setCash] = useState(moneyInput(income?.cash));
@@ -203,7 +206,10 @@ export function IncomeSheet({ income, onClose }: { income?: Income; onClose: () 
   const [note, setNote] = useState(income?.note ?? '');
   const [at, setAt] = useState(income ? toLocalInput(income.at) : nowInput());
   const g = parseNum(gross) ?? 0;
-  const fee = cfg.mode === 'percent' ? agencyFeeFor(g, cfg) : (income?.agencyFee ?? 0);
+  const pct = feePercent(platform, d.settings);
+  // Si ahora no hay comisión configurada, se respeta la que ya tenía el ingreso.
+  const fee = pct ? feeFor(platform, g, d.settings) : income && incomePlatform(income) === platform ? income.agencyFee : 0;
+  const choices = [...new Set([...active, platform])];
   const save = async () => {
     const t = parseNum(tips) ?? 0;
     if (g <= 0 && t <= 0) return toast('Poné cuánto recaudaste');
@@ -212,6 +218,7 @@ export function IncomeSheet({ income, onClose }: { income?: Income; onClose: () 
       vehicleId: d.vehicle.id,
       at: fromLocalInput(at),
       shiftId: income?.shiftId,
+      platform,
       gross: g,
       trips: parseNum(trips) ?? undefined,
       cash: parseNum(cash) ?? undefined,
@@ -229,7 +236,16 @@ export function IncomeSheet({ income, onClose }: { income?: Income; onClose: () 
   };
   return (
     <Sheet title={income ? 'Ingreso' : 'Nuevo ingreso'} onClose={onClose} footer={<SaveBar onSave={save} onDelete={income ? remove : undefined} />}>
-      <MoneyField label="Recaudado en viajes" value={gross} onChange={setGross} big hint={fee ? `La agencia se lleva ${money(fee)}.` : undefined} />
+      {choices.length > 1 && (
+        <div className="chips" role="radiogroup" aria-label="De dónde">
+          {choices.map((id) => (
+            <button key={id} type="button" role="radio" aria-checked={platform === id} className={platform === id ? 'on' : ''} onClick={() => setPlatform(id)}>
+              {PLATFORM_LABEL[id]}
+            </button>
+          ))}
+        </div>
+      )}
+      <MoneyField label={grossLabel(platform)} value={gross} onChange={setGross} big hint={feeHint(platform, fee, pct)} />
       <div className="grid2">
         <Field label="Viajes">
           <input inputMode="numeric" value={trips} onChange={(e) => setTrips(e.target.value.replace(/\D/g, ''))} placeholder="0" />

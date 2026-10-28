@@ -2,25 +2,28 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { CheckRunSheet, ServiceSheet } from '../components/forms/car';
 import { ExpenseSheet, FuelSheet, IncomeSheet, TollSheet } from '../components/forms/money';
+import { useGuard } from '../components/access';
 import { SettlementSheet } from '../components/forms/settlement';
+import { TripSheet } from '../components/forms/trip';
 import { ShiftEndSheet, ShiftStartSheet } from '../components/forms/shift';
 import { Icon, type IconName } from '../components/icons';
-import { Empty, Stat, toast } from '../components/ui';
+import { Empty, Meter, Stat, toast } from '../components/ui';
 import { db, newId } from '../db/db';
 import { saveSettings } from '../db/repo';
 import type { Settlement } from '../db/types';
 import type { Alert } from '../domain/alerts';
-import { dayKey } from '../domain/dates';
+import { addDays, dayKey } from '../domain/dates';
 import { shiftHours } from '../domain/km';
-import { agencyDue, summarize } from '../domain/money';
+import { agencyDue, fixedDue, summarize } from '../domain/money';
 import { isChofer, pendingPeriod, periodPhrase, rangeText, settle, settlePeriod } from '../domain/settlement';
 import { useData } from '../lib/data';
 import { dayFmt, hoursFmt, kmFmt, money, timeFmt } from '../lib/format';
 
-type SheetKind = 'start' | 'end' | 'fuel' | 'toll' | 'expense' | 'income' | 'check';
+type SheetKind = 'start' | 'end' | 'fuel' | 'toll' | 'expense' | 'income' | 'check' | 'trip';
 
 const SYM = { danger: '!', warn: '!', info: 'i' } as const;
 const PERIOD_NAME = { day: 'del día', week: 'de la semana', month: 'del mes' } as const;
+const PERIOD_PAY = { day: 'Alquiler del día', week: 'Alquiler de la semana', month: 'Alquiler del mes' } as const;
 
 function AlertRow({ a }: { a: Alert }) {
   const d = useData();
@@ -70,6 +73,7 @@ const cap = (t: string) => t[0].toUpperCase() + t.slice(1);
 /** Hoy, para el auto que maneja un chofer: la liquidación, los gastos del dueño y los avisos. */
 function ChoferHome() {
   const d = useData();
+  const guard = useGuard();
   const [sheet, setSheet] = useState<'settle' | 'expense' | 'service' | null>(null);
   const [edit, setEdit] = useState<Settlement | null>(null);
   const close = () => setSheet(null);
@@ -90,14 +94,14 @@ function ChoferHome() {
         <p className="muted small">
           {last ? `Última liquidación, ${rangeText(last.from, last.to)}: te quedaron ${money(settle(last).owner)}` : 'Todavía no cargaste ninguna liquidación.'}
         </p>
-        <button type="button" className="primary big" onClick={() => setSheet('settle')}>
+        <button type="button" className="primary big" onClick={guard(() => setSheet('settle'))}>
           <Icon name="cash" /> Cargar {periodPhrase(target.kind, target.from, target.to)}
         </button>
       </section>
 
       <div className="actions two">
-        <Action icon="receipt" label="Gasto" onClick={() => setSheet('expense')} />
-        <Action icon="wrench" label="Service" onClick={() => setSheet('service')} />
+        <Action icon="receipt" label="Gasto" onClick={guard(() => setSheet('expense'))} />
+        <Action icon="wrench" label="Service" onClick={guard(() => setSheet('service'))} />
       </div>
 
       <div className="section-title">
@@ -154,11 +158,18 @@ export function Home() {
 /** Hoy, para el auto que manejás vos: el turno, lo del día y los avisos. */
 function DriverHome() {
   const d = useData();
+  const guard = useGuard();
   const [sheet, setSheet] = useState<SheetKind | null>(null);
   const close = () => setSheet(null);
+  const open$ = (k: SheetKind) => guard(() => setSheet(k));
   const today = dayKey(d.now);
   const s = useMemo(() => summarize(d, today, today, d.now), [d, today]);
+  // Tu ritmo de los últimos 30 días: lo que te queda de las apps o la agencia por hora.
+  const month = useMemo(() => summarize(d, addDays(today, -30), addDays(today, -1), d.now), [d, today]);
   const due = agencyDue(d.settings.agency, d.expenses, today);
+  const rent = d.vehicle.rent ? fixedDue(d.vehicle.rent.amount, d.vehicle.rent.period, 'alquiler', d.expenses, today) : null;
+  const goal = d.settings.goal?.day;
+  const perHour = month.hours > 2 ? month.income.net / month.hours : null;
   const open = d.open;
   const kmToday = s.km.mine + (open && dayKey(open.startAt) === today ? Math.max(0, d.km - open.startKm) : 0);
   const checkedToday = d.checks.some((c) => dayKey(c.at) === today);
@@ -167,6 +178,11 @@ function DriverHome() {
     if (!due) return;
     await db.expenses.add({ id: newId(), vehicleId: d.vehicle.id, at: new Date().toISOString(), category: 'agencia', amount: due.left, note: `Base ${PERIOD_NAME[d.settings.agency.period ?? 'week']}` });
     toast(`Base de ${money(due.left)} anotada`);
+  };
+  const payRent = async () => {
+    if (!rent || !d.vehicle.rent) return;
+    await db.expenses.add({ id: newId(), vehicleId: d.vehicle.id, at: new Date().toISOString(), category: 'alquiler', amount: rent.left, note: PERIOD_PAY[d.vehicle.rent.period] });
+    toast(`Alquiler de ${money(rent.left)} anotado`);
   };
 
   return (
@@ -187,7 +203,7 @@ function DriverHome() {
               <Icon name="stop" /> Terminar turno
             </button>
             {!checkedToday && d.checkItems.some((c) => c.enabled) && (
-              <button type="button" onClick={() => setSheet('check')}>
+              <button type="button" onClick={open$('check')}>
                 <Icon name="check" /> Hacer el checklist antes de salir
               </button>
             )}
@@ -197,12 +213,32 @@ function DriverHome() {
             <div className="label">Km del auto</div>
             <div className="hero km">{kmFmt(d.km)}</div>
             {d.kmRate && <p className="muted small">El auto hace unos {kmFmt(Math.round(d.kmRate))} por día</p>}
-            <button type="button" className="primary big" onClick={() => setSheet('start')}>
+            <button type="button" className="primary big" onClick={open$('start')}>
               <Icon name="play" /> Empezar turno
             </button>
           </>
         )}
+        <button type="button" onClick={() => setSheet('trip')}>
+          <Icon name="calc" /> ¿Me conviene este viaje?
+        </button>
       </section>
+
+      {goal != null && goal > 0 && (
+        <section className="card stack-s goal-card" style={{ marginTop: 12 }}>
+          <div className="row between">
+            <span className="label">Meta de hoy</span>
+            <span className="small">
+              <strong>{money(s.income.net)}</strong> de {money(goal)}
+            </span>
+          </div>
+          <Meter value={s.income.net / goal} state={s.income.net >= goal ? 'ok' : 'soon'} label="Meta de hoy" />
+          <p className="small muted">
+            {s.income.net >= goal
+              ? `¡Llegaste! ${s.income.net > goal ? `Vas ${money(s.income.net - goal)} arriba.` : ''}`
+              : `Te faltan ${money(goal - s.income.net)}${perHour ? `: a tu ritmo, unas ${Math.max(1, Math.round((goal - s.income.net) / perHour))} h más.` : '.'}`}
+          </p>
+        </section>
+      )}
 
       <div className="section-title">
         <h2>Hoy</h2>
@@ -223,18 +259,34 @@ function DriverHome() {
             </div>
           </div>
           {due.left > 0 && (
-            <button type="button" className="nowrap" onClick={() => void payBase()}>
+            <button type="button" className="nowrap" onClick={guard(() => void payBase())}>
               Pagué la base
             </button>
           )}
         </section>
       )}
 
+      {rent && d.vehicle.rent && (
+        <section className="card row between" style={{ marginTop: 12 }}>
+          <div>
+            <div className="label">{PERIOD_PAY[d.vehicle.rent.period]}</div>
+            <div className="t" style={{ fontWeight: 650 }}>
+              {rent.left > 0 ? `Falta pagar ${money(rent.left)}` : `Pagado (${money(rent.paid)})`}
+            </div>
+          </div>
+          {rent.left > 0 && (
+            <button type="button" className="nowrap" onClick={guard(() => void payRent())}>
+              Pagué el alquiler
+            </button>
+          )}
+        </section>
+      )}
+
       <div className="actions">
-        <Action icon="fuel" label="Combustible" onClick={() => setSheet('fuel')} />
-        <Action icon="toll" label="Peaje" onClick={() => setSheet('toll')} />
-        <Action icon="receipt" label="Gasto" onClick={() => setSheet('expense')} />
-        <Action icon="cash" label="Ingreso" onClick={() => setSheet('income')} />
+        <Action icon="fuel" label="Combustible" onClick={open$('fuel')} />
+        <Action icon="toll" label="Peaje" onClick={open$('toll')} />
+        <Action icon="receipt" label="Gasto" onClick={open$('expense')} />
+        <Action icon="cash" label="Ingreso" onClick={open$('income')} />
       </div>
 
       <Alerts />
@@ -246,6 +298,7 @@ function DriverHome() {
       {sheet === 'expense' && <ExpenseSheet onClose={close} />}
       {sheet === 'income' && <IncomeSheet onClose={close} />}
       {sheet === 'check' && <CheckRunSheet onClose={close} />}
+      {sheet === 'trip' && <TripSheet onClose={close} />}
     </div>
   );
 }

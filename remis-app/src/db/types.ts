@@ -20,6 +20,8 @@ export interface Vehicle {
   driver?: Driver;
   /** Trato con el chofer, cuando lo maneja otro. */
   chofer?: ChoferDeal;
+  /** Si el auto es alquilado: cuánto y cada cuánto se paga. */
+  rent?: { amount: number; period: AgencyPeriod };
 }
 
 export type Driver = 'me' | 'chofer';
@@ -85,6 +87,8 @@ export type ExpenseCategory =
   | 'estacionamiento'
   | 'lavado'
   | 'agencia'
+  | 'alquiler'
+  | 'monotributo'
   | 'taller'
   | 'seguro'
   | 'patente'
@@ -115,9 +119,21 @@ export interface Income {
   /** Parte de lo recaudado que fue en efectivo. */
   cash?: number;
   tips?: number;
-  /** Comisión de la agencia (cuando cobra un porcentaje). */
+  /** Comisión de la agencia o de la app (cuando cobra un porcentaje). */
   agencyFee: number;
   note?: string;
+  /** De qué app o agencia vino. Sin dato: agencia (los ingresos de antes). */
+  platform?: PlatformId;
+}
+
+export type PlatformId = 'uber' | 'didi' | 'cabify' | 'indrive' | 'particular' | 'agencia';
+
+export interface PlatformCfg {
+  id: PlatformId;
+  on: boolean;
+  /** neto: lo que anotás ya viene sin la comisión (lo que la app muestra como ganancia). bruto: se descuenta el %. */
+  mode: 'neto' | 'bruto';
+  percent?: number;
 }
 
 export interface MaintItem {
@@ -233,6 +249,8 @@ export interface TollPreset {
   amount: number;
 }
 
+export type MonoCat = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K';
+
 export interface Settings {
   id: 'main';
   vehicleId: string;
@@ -240,4 +258,42 @@ export interface Settings {
   tolls: TollPreset[];
   theme: 'auto' | 'light' | 'dark';
   lastBackupAt?: string;
+  /** Con qué apps o agencia trabajás. Sin dato: solo agencia (como antes). */
+  platforms?: PlatformCfg[];
+  /** Meta de lo que querés cobrar. */
+  goal?: { day?: number; week?: number };
+  /** Calculadora de viajes: costo por km a mano y mínimos que querés sacar. */
+  trip?: { costKm?: number; minKm?: number; minHour?: number };
+  monotributo?: { cat: MonoCat; monthly: number; limit: number };
+  /** Código del celular (para los códigos de activación) y comienzo de la prueba. */
+  installId?: string;
+  trialStart?: string;
+  /** Código de activación vigente. */
+  license?: string;
+}
+
+export type SalePlan = 'mes' | 'anual' | 'promo';
+
+/** Panel del vendedor: cada código que diste. */
+export interface Sale {
+  id: string;
+  at: string;
+  /** Código del celular del cliente. Vacío en los promos para cualquiera. */
+  installId?: string;
+  plan: SalePlan;
+  /** Desde y hasta cuándo vale (AAAA-MM-DD). */
+  starts: string;
+  expires: string;
+  name?: string;
+  phone?: string;
+  amount: number;
+  code: string;
+}
+
+/** La clave del vendedor (solo en el celular del vendedor). */
+export interface SellerKey {
+  id: 'main';
+  privateJwk: JsonWebKey;
+  publicKey: string;
+  createdAt: string;
 }

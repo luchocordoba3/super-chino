@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useGuard } from '../components/access';
 import { CheckRunSheet, DocSheet, IncidentSheet, ItemSheet, ServiceSheet } from '../components/forms/car';
 import { Icon } from '../components/icons';
 import { Empty, Meter, Seg, toast } from '../components/ui';
@@ -52,6 +53,7 @@ function maintText(st: MaintStatus) {
 }
 
 function Maintenance() {
+  const guard = useGuard();
   const d = useData();
   const [item, setItem] = useState<MaintItem | 'new' | null>(null);
   const [service, setService] = useState<ServiceLog | 'new' | null>(null);
@@ -68,7 +70,7 @@ function Maintenance() {
           <div style={{ fontSize: '1.6rem', fontWeight: 750 }}>{kmFmt(d.km)}</div>
           {d.kmRate && <div className="muted small">El auto hace unos {kmFmt(Math.round(d.kmRate))} por día</div>}
         </div>
-        <button type="button" className="primary" onClick={() => setService('new')}>
+        <button type="button" className="primary" onClick={guard(() => setService('new'))}>
           <Icon name="wrench" /> Registrar service
         </button>
       </section>
@@ -87,7 +89,7 @@ function Maintenance() {
         ))}
         {!rows.length && <Empty text="No estás siguiendo nada. Agregá un ítem." />}
       </div>
-      <button type="button" onClick={() => setItem('new')}>
+      <button type="button" onClick={guard(() => setItem('new'))}>
         <Icon name="plus" /> Agregar ítem
       </button>
       {off.length > 0 && (
@@ -134,6 +136,7 @@ const DOC_BADGE: Record<DocState, { cls: string; label: string }> = {
 const DOC_RANK: Record<DocState, number> = { expired: 0, soon: 1, unknown: 2, ok: 3 };
 
 function Documents() {
+  const guard = useGuard();
   const d = useData();
   const [doc, setDoc] = useState<DocumentRec | 'new' | null>(null);
   const today = dayKey(d.now);
@@ -165,7 +168,7 @@ function Documents() {
         ))}
         {!rows.length && <Empty text="No cargaste papeles todavía." />}
       </div>
-      <button type="button" onClick={() => setDoc('new')}>
+      <button type="button" onClick={guard(() => setDoc('new'))}>
         <Icon name="plus" /> Agregar papel
       </button>
       <p className="hint">En cada papel podés agregar el vencimiento al calendario del celular para que te avise aunque no abras la app.</p>
@@ -175,6 +178,7 @@ function Documents() {
 }
 
 function Checklist() {
+  const guard = useGuard();
   const d = useData();
   const [running, setRunning] = useState(false);
   const [label, setLabel] = useState('');
@@ -193,7 +197,7 @@ function Checklist() {
   };
   return (
     <>
-      <button type="button" className="primary big" onClick={() => setRunning(true)}>
+      <button type="button" className="primary big" onClick={guard(() => setRunning(true))}>
         <Icon name="check" /> Hacer el checklist ahora
       </button>
       {problems.length > 0 && (
@@ -260,6 +264,7 @@ function Checklist() {
 }
 
 function Incidents() {
+  const guard = useGuard();
   const d = useData();
   const [inc, setInc] = useState<Incident | 'new' | null>(null);
   const rows = [...d.incidents].sort((a, b) => b.at.localeCompare(a.at));
@@ -278,7 +283,7 @@ function Incidents() {
           <li>Avisale a la agencia.</li>
         </ol>
       </details>
-      <button type="button" className="primary big" onClick={() => setInc('new')}>
+      <button type="button" className="primary big" onClick={guard(() => setInc('new'))}>
         <Icon name="crash" /> Registrar siniestro
       </button>
       <div className="list">

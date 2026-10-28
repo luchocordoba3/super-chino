@@ -315,3 +315,32 @@ details > summary { cursor: pointer; font-weight: 650; min-height: 32px; display
 .topkm > span { display: flex; flex-direction: column; align-items: flex-end; min-width: 0; }
 .topkm .icon { width: 18px; height: 18px; color: var(--text-2); }
 .car-row .badge { font-size: 0.75rem; font-weight: 700; color: var(--good-text); }
+
+/* Planes, compra y códigos */
+.notice { background: var(--accent-soft); border-radius: 12px; padding: 10px 12px; font-size: 0.88rem; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: 0.04em; word-break: break-all; }
+textarea.mono { font-size: 0.8rem; }
+.plans { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.plan { flex-direction: column; align-items: flex-start; gap: 2px; min-height: 96px; padding: 12px 14px; background: var(--card-2); border: 2px solid transparent; border-radius: 14px; text-align: left; }
+.plan.on { border-color: var(--text); background: var(--card); box-shadow: var(--shadow); }
+.plan .pl-name { font-size: 0.8rem; font-weight: 700; color: var(--text-2); }
+.plan .pl-price { font-size: 1.35rem; font-weight: 800; }
+.plan .pl-note { font-size: 0.75rem; color: var(--text-2); }
+.pay-row { min-height: 54px; }
+.pitch { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 0.92rem; }
+.platform-row { padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.platform-row:last-of-type { border-bottom: 0; }
+
+/* ¿Me conviene este viaje? — el color acompaña al ícono y al texto, nunca va solo */
+.verdict { border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; font-size: 0.9rem; background: var(--card-2); border-left: 6px solid var(--line); }
+.verdict .v-head { display: flex; align-items: center; gap: 10px; font-size: 1.15rem; }
+.verdict .v-head strong { flex: 1; }
+.verdict .v-net { font-weight: 800; }
+.verdict .v-ic { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; color: #fff; }
+.verdict .v-ic .icon { width: 18px; height: 18px; }
+.verdict.v-good { border-left-color: var(--good); }
+.verdict.v-good .v-ic { background: var(--good); }
+.verdict.v-meh { border-left-color: var(--warning); }
+.verdict.v-meh .v-ic { background: var(--warning); color: #1b1400; }
+.verdict.v-bad { border-left-color: var(--critical); }
+.verdict.v-bad .v-ic { background: var(--critical); }
